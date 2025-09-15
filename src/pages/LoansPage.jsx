@@ -28,6 +28,8 @@ export default function LoansPage() {
       // Handle the response format - backend returns { loans: [...] }
       const loans = response.loans || response || [];
       console.log('💰 Loans array:', loans);
+      console.log('💰 First loan loanExpiry:', loans[0]?.loanExpiry);
+      console.log('💰 First loan end_date from DB:', loans[0]?.end_date);
       setRows(loans);
     } catch (error) {
       console.error('Error loading loans:', error);
@@ -45,7 +47,7 @@ export default function LoansPage() {
       interestRate: 0, 
       emi: 0, 
       frequency: 'Monthly',
-      endAge: 65
+      loanExpiry: new Date().getFullYear() + 35 // Default to 35 years from now
     };
     setRows([...rows, newRow]);
   };
@@ -86,12 +88,15 @@ export default function LoansPage() {
           // Update existing row - only if we have both provider and amount
           if (row.provider && row.amount) {
             setSavingRows(prev => new Set(prev).add(rowIndex));
+            const endDate = row.loanExpiry ? `${parseInt(row.loanExpiry)}-12-31` : null;
+            console.log('💾 Saving loan with expiry:', { loanExpiry: row.loanExpiry, endDate });
+            
             ApiService.updateFinancialLoan(row.id, {
               lender: row.provider,
               principal_outstanding: parseFloat(row.amount) || 0,
               rate: parseFloat(row.interestRate) || 0,
               emi: parseFloat(row.emi) || 0,
-              end_date: row.endAge ? new Date(new Date().getFullYear() + parseInt(row.endAge) - 30, 0, 1).toISOString().split('T')[0] : null
+              end_date: endDate
             }).finally(() => {
               setSavingRows(prev => {
                 const newSet = new Set(prev);
@@ -103,6 +108,9 @@ export default function LoansPage() {
         } else if (row.provider && row.amount && row.id.toString().startsWith('temp_')) {
           // Create new row - only for temp rows with both provider and amount
           setSavingRows(prev => new Set(prev).add(rowIndex));
+          const endDate = row.loanExpiry ? `${parseInt(row.loanExpiry)}-12-31` : null;
+          console.log('💾 Creating loan with expiry:', { loanExpiry: row.loanExpiry, endDate });
+          
           ApiService.createFinancialLoan({
             lender: row.provider,
             type: 'Personal',
@@ -110,7 +118,7 @@ export default function LoansPage() {
             rate: parseFloat(row.interestRate) || 0,
             emi: parseFloat(row.emi) || 0,
             start_date: new Date().toISOString().split('T')[0],
-            end_date: row.endAge ? new Date(new Date().getFullYear() + parseInt(row.endAge) - 30, 0, 1).toISOString().split('T')[0] : null
+            end_date: endDate
           }).then(newLoan => {
             // Update the row with the new ID
             const updatedRowsWithId = [...rows];
@@ -164,7 +172,7 @@ export default function LoansPage() {
     { field: 'interestRate', headerName: 'Interest Rate %', type: 'number' },
     { field: 'emi', headerName: 'EMI', type: 'number' },
     { field: 'frequency', headerName: 'Frequency' },
-    { field: 'endAge', headerName: 'End Age', type: 'number' }
+    { field: 'loanExpiry', headerName: 'Loan Expiry', type: 'number' }
   ];
 
   if (loading) {

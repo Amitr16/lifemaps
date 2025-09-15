@@ -686,23 +686,48 @@ router.get('/loan/:userId', async (req, res) => {
     );
 
     // Map database fields to frontend field names
-    const mappedLoans = result.rows.map(loan => ({
-      id: loan.id,
-      provider: loan.lender, // Map lender to provider
-      amount: loan.principal_outstanding, // Map principal_outstanding to amount
-      interestRate: loan.rate ? parseFloat(loan.rate).toFixed(2) : 0, // Keep as number
-      emi: loan.emi,
-      frequency: 'Monthly', // Default frequency
-      endAge: loan.end_date ? new Date(loan.end_date).getFullYear() - new Date().getFullYear() + 30 : 65, // Calculate end age from end_date
-      user_id: loan.user_id,
-      created_at: loan.created_at,
-      updated_at: loan.updated_at
-    }));
+    const mappedLoans = result.rows.map(loan => {
+      console.log('🔍 Raw loan from DB:', { id: loan.id, end_date: loan.end_date, end_date_type: typeof loan.end_date });
+      
+      let loanExpiry;
+      try {
+        if (loan.end_date) {
+          // Handle both string and Date object cases
+          if (typeof loan.end_date === 'string') {
+            loanExpiry = parseInt(loan.end_date.split('-')[0]);
+          } else {
+            // It's a Date object, get the year directly
+            loanExpiry = loan.end_date.getFullYear();
+          }
+        } else {
+          loanExpiry = new Date().getFullYear() + 35;
+        }
+      } catch (error) {
+        console.error('❌ Error parsing end_date:', error, 'for loan:', loan.id);
+        loanExpiry = new Date().getFullYear() + 35;
+      }
+      
+      console.log('🔍 Calculated loanExpiry:', loanExpiry);
+      
+      return {
+        id: loan.id,
+        provider: loan.lender, // Map lender to provider
+        amount: loan.principal_outstanding, // Map principal_outstanding to amount
+        interestRate: loan.rate ? parseFloat(loan.rate).toFixed(2) : 0, // Keep as number
+        emi: loan.emi,
+        frequency: 'Monthly', // Default frequency
+        loanExpiry: loanExpiry, // Map end_date to loan expiry year
+        user_id: loan.user_id,
+        created_at: loan.created_at,
+        updated_at: loan.updated_at
+      };
+    });
 
     res.json({ loans: mappedLoans });
   } catch (error) {
     console.error('Loans fetch error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
