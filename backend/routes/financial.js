@@ -1,6 +1,7 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import pool from '../config/database.js';
+import { CORE_COLUMN_DEFINITIONS } from '../constants/columns.js';
 
 const router = express.Router();
 
@@ -69,13 +70,40 @@ router.get('/profile/:userId', async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const result = await pool.query(
+    let result = await pool.query(
       'SELECT * FROM financial_profile WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
       [userId]
     );
 
+    // If no profile exists, create a default one
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Financial profile not found' });
+      console.log(`Creating default financial profile for user ${userId}`);
+      
+      const defaultProfile = {
+        age: 30,
+        current_annual_gross_income: 0,
+        work_tenure_years: 0,
+        total_asset_gross_market_value: 0,
+        total_loan_outstanding_value: 0,
+        lifespan_years: 80,
+        income_growth_rate: 0.05,
+        asset_growth_rate: 0.07
+      };
+
+      const insertResult = await pool.query(
+        `INSERT INTO financial_profile (user_id, age, current_annual_gross_income, work_tenure_years, 
+         total_asset_gross_market_value, total_loan_outstanding_value, lifespan_years, 
+         income_growth_rate, asset_growth_rate, created_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW()) 
+         RETURNING *`,
+        [userId, defaultProfile.age, defaultProfile.current_annual_gross_income, 
+         defaultProfile.work_tenure_years, defaultProfile.total_asset_gross_market_value,
+         defaultProfile.total_loan_outstanding_value, defaultProfile.lifespan_years,
+         defaultProfile.income_growth_rate, defaultProfile.asset_growth_rate]
+      );
+
+      result = insertResult;
+      console.log(`Default financial profile created for user ${userId}`);
     }
 
     res.json({ profile: result.rows[0] });
@@ -151,12 +179,13 @@ router.put('/profile/:profileId', [
 router.post('/goal', [
   body('name').optional().trim(),
   body('target_amount').optional().isNumeric(),
-  body('target_age').optional().isInt(),
+  body('target_year').optional().isInt(),
   body('target_date').optional().isISO8601(),
   body('term').optional().isIn(['ST', 'LT']),
   body('recommended_allocation').optional().trim(),
   body('funding_source').optional().trim(),
-  body('on_track').optional().isBoolean()
+  body('on_track').optional().isBoolean(),
+  body('custom_data').optional().isObject()
 ], async (req, res) => {
   try {
     console.log('🎯 Goal creation request body:', req.body);
@@ -171,13 +200,13 @@ router.post('/goal', [
     const name = req.body.name ?? req.body.description ?? null;
     const target_amount = req.body.target_amount ?? req.body.amount ?? null;
     const target_date = req.body.target_date ?? null;
-    const target_age = req.body.target_age ?? req.body.targetAge ?? null;
+    const target_year = req.body.target_year ?? req.body.targetYear ?? null;
     const term = req.body.term ?? 'LT';
     const recommended_allocation = req.body.recommended_allocation ?? null;
     const funding_source = req.body.funding_source ?? null;
     const on_track = req.body.on_track ?? false;
     
-    console.log('🎯 Mapped values:', { name, target_amount, target_age, term });
+    console.log('🎯 Mapped values:', { name, target_amount, target_year, term });
 
     // Build dynamic query for goal creation
     const fields = ['user_id'];
@@ -203,11 +232,12 @@ router.post('/goal', [
     if (name !== null && name !== undefined) { fields.push('name'); values.push(name); }
     if (target_amount !== null && target_amount !== undefined) { fields.push('target_amount'); values.push(target_amount); }
     if (target_date !== null && target_date !== undefined) { fields.push('target_date'); values.push(target_date); }
-    if (target_age !== null && target_age !== undefined) { fields.push('target_age'); values.push(target_age); }
+    if (target_year !== null && target_year !== undefined) { fields.push('target_year'); values.push(target_year); }
     if (term !== null && term !== undefined) { fields.push('term'); values.push(term); }
     if (recommended_allocation !== null && recommended_allocation !== undefined) { fields.push('recommended_allocation'); values.push(recommended_allocation); }
     if (funding_source !== null && funding_source !== undefined) { fields.push('funding_source'); values.push(funding_source); }
     if (on_track !== null && on_track !== undefined) { fields.push('on_track'); values.push(on_track); }
+    if (req.body.custom_data !== null && req.body.custom_data !== undefined) { fields.push('custom_data'); values.push(req.body.custom_data); }
 
     const placeholders = fields.map((_, index) => `$${index + 1}`).join(', ');
     const query = `INSERT INTO financial_goal (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -247,7 +277,8 @@ router.get('/goal/:userId', async (req, res) => {
       id: goal.id,
       description: goal.name, // Map name to description
       amount: goal.target_amount, // Map target_amount to amount
-      targetAge: goal.target_age, // Map target_age to targetAge
+      targetYear: goal.target_year, // Map target_year to targetYear
+      custom_data: goal.custom_data || {}, // Include custom_data field
       user_id: goal.user_id,
       created_at: goal.created_at,
       updated_at: goal.updated_at
@@ -267,7 +298,8 @@ router.put('/goal/:goalId', [
   body('term').optional().isIn(['ST', 'LT']),
   body('recommended_allocation').optional().trim(),
   body('funding_source').optional().trim(),
-  body('on_track').optional().isBoolean()
+  body('on_track').optional().isBoolean(),
+  body('custom_data').optional().isObject()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -302,7 +334,8 @@ router.put('/goal/:goalId', [
         let dbColumn = key;
         if (key === 'description') dbColumn = 'name';
         if (key === 'amount') dbColumn = 'target_amount';
-        if (key === 'targetAge') dbColumn = 'target_age';
+        if (key === 'targetYear') dbColumn = 'target_year';
+        // custom_data should be passed through as-is
         
         // Only add if we haven't already used this column
         if (!usedColumns.has(dbColumn)) {
@@ -313,6 +346,10 @@ router.put('/goal/:goalId', [
         }
       }
     });
+    
+    console.log('🎯 Goal update - updates:', updates);
+    console.log('🎯 Goal update - values:', values);
+    console.log('🎯 Goal update - custom_data:', req.body.custom_data);
 
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
@@ -1257,14 +1294,7 @@ router.get('/asset-columns/:userId', async (req, res) => {
     if (result.rows.length === 0) {
       console.log('🔍 No columns found, creating default columns for user:', userId);
       
-      const defaultColumns = [
-        { key: 'notes', label: 'Notes', type: 'text', order: 0 },
-        { key: 'owner', label: 'Owner', type: 'text', order: 1 },
-        { key: 'units', label: 'Units', type: 'number', order: 2 },
-        { key: 'subType', label: 'Sub Type', type: 'text', order: 3 },
-        { key: 'currency', label: 'Currency', type: 'text', order: 4 },
-        { key: 'costBasis', label: 'Cost Basis', type: 'currency', order: 5 }
-      ];
+      const defaultColumns = CORE_COLUMN_DEFINITIONS;
       
       // Insert default columns
       for (const column of defaultColumns) {
@@ -1326,6 +1356,77 @@ router.post('/asset-column', [
   }
 });
 
+// Update custom column
+router.put('/asset-column/:columnId', [
+  body('column_order').optional().isInt({ min: 0 }),
+  body('column_label').optional().trim().isLength({ min: 1, max: 255 }),
+  body('column_type').optional().isIn(['text', 'number', 'currency', 'date', 'email', 'url'])
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    const { columnId } = req.params;
+    const { column_order, column_label, column_type } = req.body;
+
+    // Check ownership
+    const ownershipResult = await pool.query(
+      'SELECT user_id FROM user_asset_columns WHERE id = $1',
+      [columnId]
+    );
+
+    if (ownershipResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Column not found' });
+    }
+
+    if (ownershipResult.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Build update query dynamically
+    const updateFields = [];
+    const updateValues = [];
+    let paramCount = 1;
+
+    if (column_order !== undefined) {
+      updateFields.push(`column_order = $${paramCount}`);
+      updateValues.push(column_order);
+      paramCount++;
+    }
+
+    if (column_label !== undefined) {
+      updateFields.push(`column_label = $${paramCount}`);
+      updateValues.push(column_label);
+      paramCount++;
+    }
+
+    if (column_type !== undefined) {
+      updateFields.push(`column_type = $${paramCount}`);
+      updateValues.push(column_type);
+      paramCount++;
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updateValues.push(columnId);
+    const query = `UPDATE user_asset_columns SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+
+    const result = await pool.query(query, updateValues);
+
+    res.json({
+      message: 'Column updated successfully',
+      column: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Asset column update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Delete custom column
 router.delete('/asset-column/:columnId', async (req, res) => {
   try {
@@ -1378,6 +1479,11 @@ router.delete('/assets/:assetId', (req, res, next) => {
 // Column aliases for frontend compatibility
 router.post('/asset-columns', (req, res, next) => {
   req.url = '/asset-column';
+  router.handle(req, res, next);
+});
+
+router.put('/asset-columns/:columnId', (req, res, next) => {
+  req.url = `/asset-column/${req.params.columnId}`;
   router.handle(req, res, next);
 });
 

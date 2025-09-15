@@ -1,0 +1,5 @@
+[2025-09-15T13:39:50.231Z] 🚀 Starting server with enhanced monitoring...
+[2025-09-15T13:39:50.236Z] ✅ Enhanced crash detection started
+[2025-09-15T13:39:50.236Z] 💡 Reproduce the crash and check crash-log.txt for details
+[2025-09-15T13:39:50.247Z] [STDERR] node: bad option: --trace-sigterm
+[2025-09-15T13:39:50.255Z] 🚨 Server process closed - Code: 9, Signal: null

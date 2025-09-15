@@ -4,14 +4,28 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:10000/api
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    this.pending = new Map();
+    this.dedupeWindowMs = 300;
   }
 
-  // Helper method for making API requests
+  // Helper method for making API requests with deduplication
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    const method = (options.method || 'GET').toUpperCase();
+    const dedupeKey = `${method} ${endpoint}`;
+    const now = Date.now();
     
+    // Check for existing in-flight request
+    const existing = this.pending.get(dedupeKey);
+    if (existing && (now - existing.ts) < this.dedupeWindowMs) {
+      return existing.promise; // reuse in-flight promise
+    }
+
     // Get token from localStorage
     const token = localStorage.getItem('authToken');
+    
+    const controller = new AbortController();
+    const signal = controller.signal;
     
     const config = {
       headers: {
@@ -20,6 +34,7 @@ class ApiService {
         ...options.headers,
       },
       credentials: 'include', // Include cookies for session management
+      signal,
       ...options,
     };
 
@@ -27,23 +42,32 @@ class ApiService {
       config.body = JSON.stringify(config.body);
     }
 
-    try {
-      const response = await fetch(url, config);
-      const data = await response.json();
-
-      if (!response.ok) {
-        // If token is invalid, clear it
-        if (response.status === 401 || response.status === 403) {
-          localStorage.removeItem('authToken');
+    const fetchPromise = (async () => {
+      try {
+        const response = await fetch(url, config);
+        
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          // If token is invalid, clear it
+          if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('authToken');
+          }
+          throw new Error(errorText || `API request failed with status ${response.status}`);
         }
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        
+        return await response.json();
+      } finally {
+        // Clean up pending request
+        const cur = this.pending.get(dedupeKey);
+        if (cur && cur.promise === fetchPromise) {
+          this.pending.delete(dedupeKey);
+        }
       }
+    })();
 
-      return data;
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
-    }
+    // Store pending request
+    this.pending.set(dedupeKey, { ts: now, promise: fetchPromise, controller });
+    return fetchPromise;
   }
 
   // Authentication APIs
@@ -301,6 +325,13 @@ class ApiService {
   async createAssetColumn(columnData) {
     return this.request('/financial/asset-columns', {
       method: 'POST',
+      body: columnData,
+    });
+  }
+
+  async updateAssetColumn(columnId, columnData) {
+    return this.request(`/financial/asset-columns/${columnId}`, {
+      method: 'PUT',
       body: columnData,
     });
   }

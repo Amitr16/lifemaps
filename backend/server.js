@@ -37,10 +37,13 @@ const PORT = process.env.PORT || 10000;
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
+// Rate limiting - More generous for development
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // Increased from 100 to 1000
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Don't count 200s
   message: {
     error: 'Too many requests from this IP, please try again later.'
   }
@@ -60,19 +63,76 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+// Preflight handling and short caching for OPTIONS
+app.options('*', cors(corsOptions));
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Max-Age', '600'); // 10 minutes
+  }
+  next();
+});
 app.use(cors(corsOptions));
 
+// Lightweight per-client concurrency guard (request queue)
+const requestInFlight = new Map();
+const MAX_CONCURRENT_REQUESTS = parseInt(process.env.MAX_CONCURRENT_REQUESTS || '50');
+
+app.use((req, res, next) => {
+  const clientId = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const key = String(clientId);
+
+  const current = requestInFlight.get(key) || 0;
+  if (current >= MAX_CONCURRENT_REQUESTS) {
+    res.setHeader('Retry-After', '1');
+    return res.status(429).json({ error: 'Too many concurrent requests. Please slow down.' });
+  }
+  requestInFlight.set(key, current + 1);
+
+  const done = () => {
+    const cur = requestInFlight.get(key) || 1;
+    if (cur <= 1) requestInFlight.delete(key);
+    else requestInFlight.set(key, cur - 1);
+  };
+  res.on('finish', done);
+  res.on('close', done);
+  res.on('error', done);
+  next();
+});
+
+// Request monitoring middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  const originalSend = res.send;
+  
+  res.send = function(data) {
+    const duration = Date.now() - start;
+    console.log(`[REQ] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
+    originalSend.call(this, data);
+  };
+  
+  // Log request start
+  console.log(`[REQ] ${req.method} ${req.path} - Started`);
+  next();
+});
+
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '1mb' })); // Reduced from 10mb to prevent memory issues
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
-// Health check endpoint
+// Health check endpoint with memory monitoring
 app.get('/health', (req, res) => {
+  const memUsage = process.memoryUsage();
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    pid: process.pid,
+    memory: {
+      rss: Math.round(memUsage.rss / 1024 / 1024) + ' MB',
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + ' MB',
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + ' MB'
+    }
   });
 });
 
@@ -123,18 +183,63 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  await pool.end();
-  process.exit(0);
+// Enhanced crash detection and monitoring
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 UNHANDLED REJECTION at:', promise);
+  console.error('🚨 Reason:', reason);
+  console.error('🚨 Stack:', reason?.stack || 'No stack trace');
+  console.error('🚨 Promise:', promise);
+  // Don't exit immediately, log and continue
 });
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down gracefully');
-  await pool.end();
-  process.exit(0);
+process.on('uncaughtException', (error) => {
+  console.error('🚨 UNCAUGHT EXCEPTION:', error);
+  console.error('🚨 Stack:', error.stack);
+  console.error('🚨 Name:', error.name);
+  console.error('🚨 Message:', error.message);
+  // Exit gracefully
+  process.exit(1);
 });
+
+// Monitor for process exit
+process.on('exit', (code) => {
+  console.error(`🚨 Process exiting with code: ${code}`);
+});
+
+process.on('SIGTERM', (signal) => {
+  console.error(`🚨 Process received SIGTERM: ${signal}`);
+});
+
+process.on('SIGINT', (signal) => {
+  console.error(`🚨 Process received SIGINT: ${signal}`);
+});
+
+// Memory monitoring
+setInterval(() => {
+  const memUsage = process.memoryUsage();
+  const rssMB = Math.round(memUsage.rss / 1024 / 1024);
+  console.log(`[MEM] RSS: ${rssMB}MB, Heap: ${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`);
+  
+  // Alert if memory usage is high
+  if (rssMB > 500) {
+    console.warn(`⚠️  High memory usage: ${rssMB}MB`);
+  }
+}, 10000); // Every 10 seconds
+
+// Graceful shutdown
+const shutdown = async (signal) => {
+  console.log(`\n${signal} received; closing server gracefully...`);
+  try {
+    await pool.end();
+    console.log('✅ Database pool closed');
+  } catch (error) {
+    console.error('❌ Error closing database pool:', error);
+  }
+  process.exit(0);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 // Start server
 app.listen(PORT, () => {

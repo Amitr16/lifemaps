@@ -7,6 +7,7 @@ import OriginalLifeSheet from './components/OriginalLifeSheet.jsx'
 import AssetsPage from './pages/AssetsPage.jsx'
 import WorkAssetsPage from './pages/WorkAssetsPage.jsx'
 import GoalsPage from './pages/GoalsPage.jsx'
+import EnhancedGoalsPage from './pages/EnhancedGoalsPage.jsx'
 import LoansPage from './pages/LoansPage.jsx'
 import ExpensesPage from './pages/ExpensesPage.jsx'
 import InsurancePage from './pages/InsurancePage.jsx'
@@ -34,6 +35,11 @@ function App() {
                     </ErrorBoundary>
                   } />
                   <Route path="/goals" element={
+                    <ErrorBoundary>
+                      <EnhancedGoalsPage />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/goals-original" element={
                     <ErrorBoundary>
                       <GoalsPage />
                     </ErrorBoundary>

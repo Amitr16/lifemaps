@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import ApiService from '../services/api';
+import { useDebounce } from '../utils/debounce';
 
 const AuthContext = createContext();
 
@@ -16,6 +17,12 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Debounced auth check to prevent request flooding
+  const debouncedCheckAuth = useDebounce(() => {
+    const hasToken = Boolean(localStorage.getItem('authToken'));
+    if (hasToken) checkAuthStatus();
+  }, 400);
+
   // Check if user is already logged in on app start
   useEffect(() => {
     // Only check auth status if a token exists in localStorage or cookies
@@ -26,6 +33,18 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, []);
+
+  // Handle tab visibility changes with debouncing
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        debouncedCheckAuth();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [debouncedCheckAuth]);
 
   const checkAuthStatus = async () => {
     try {

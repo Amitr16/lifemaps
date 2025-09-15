@@ -51,7 +51,7 @@ export default function GoalsPage() {
       id: `temp_${Date.now()}`, 
       description: '', 
       amount: 0, 
-      targetAge: 65 
+      targetYear: new Date().getFullYear() + 35 // Default to 35 years from now
     };
     setRows([...rows, newRow]);
   };
@@ -95,7 +95,7 @@ export default function GoalsPage() {
             ApiService.updateFinancialGoal(row.id, {
               name: row.description,
               target_amount: parseFloat(row.amount) || 0,
-              target_age: parseInt(row.targetAge) || 65
+              target_year: parseInt(row.targetYear) || (new Date().getFullYear() + 35)
             }).finally(() => {
               setSavingRows(prev => {
                 const newSet = new Set(prev);
@@ -110,7 +110,7 @@ export default function GoalsPage() {
           ApiService.createFinancialGoal({
             name: row.description,
             target_amount: parseFloat(row.amount) || 0,
-            target_age: parseInt(row.targetAge) || 65
+            target_year: parseInt(row.targetYear) || (new Date().getFullYear() + 35)
           }).then(newGoal => {
             // Update the row with the new ID
             const updatedRowsWithId = [...rows];
@@ -130,7 +130,7 @@ export default function GoalsPage() {
     }
   };
 
-  const columns = [{ field:'description', headerName:'Goal' }, { field:'amount', headerName:'Target Amount', type:'number' }, { field:'targetAge', headerName:'Target Age', type:'number' }];
+  const columns = [{ field:'description', headerName:'Goal' }, { field:'amount', headerName:'Target Amount', type:'number' }, { field:'targetYear', headerName:'Target Year', type:'number' }];
 
   // Debug logging
   console.log('GoalsPage render - loading:', loading, 'rows:', rows, 'columns:', columns);

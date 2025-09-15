@@ -21,12 +21,19 @@ router.post('/register', [
     const { email, password, name } = req.body;
 
     // Check if user already exists
-    const existingUser = await pool.query(
-      'SELECT id FROM "user" WHERE email = $1',
-      [email]
-    );
+    let existingUser;
+    try {
+      existingUser = await pool.query(
+        'SELECT id FROM "user" WHERE email = $1',
+        [email]
+      );
+    } catch (dbError) {
+      console.error('Database error during user check:', dbError);
+      return res.status(500).json({ error: 'Database error during registration' });
+    }
 
-    if (existingUser.rows.length > 0) {
+    // Check if result is valid and user already exists
+    if (existingUser && existingUser.rows && existingUser.rows.length > 0) {
       return res.status(400).json({ error: 'User already exists with this email' });
     }
 
@@ -35,10 +42,32 @@ router.post('/register', [
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create user with unique username (use email as username to avoid conflicts)
-    const result = await pool.query(
-      'INSERT INTO "user" (email, password_hash, username, first_name, last_name, is_active, created_at) VALUES ($1, $2, $3, $4, $5, true, NOW()) RETURNING id, email, username, first_name, last_name, created_at',
-      [email, hashedPassword, email, name, '']
-    );
+    let result;
+    try {
+      console.log('Creating user with data:', { email, name, hashedPassword: hashedPassword.substring(0, 20) + '...' });
+      
+      result = await pool.query(
+        'INSERT INTO "user" (email, password_hash, username, first_name, last_name, is_active, created_at) VALUES ($1, $2, $3, $4, $5, true, NOW()) RETURNING id, email, username, first_name, last_name, created_at',
+        [email, hashedPassword, email, name, '']
+      );
+      
+      console.log('User creation query result:', result);
+    } catch (dbError) {
+      console.error('Database error during user creation:', dbError);
+      console.error('Error details:', {
+        message: dbError.message,
+        code: dbError.code,
+        detail: dbError.detail,
+        constraint: dbError.constraint
+      });
+      return res.status(500).json({ error: 'Database error during user creation' });
+    }
+
+    if (!result || !result.rows || result.rows.length === 0) {
+      console.error('Registration failed: No user returned from INSERT query');
+      console.error('Result object:', result);
+      return res.status(500).json({ error: 'Failed to create user' });
+    }
 
     const user = result.rows[0];
     const token = generateToken(user.id);
@@ -89,12 +118,20 @@ router.post('/login', [
     const { email, password } = req.body;
 
     // Find user
-    const result = await pool.query(
-      'SELECT id, email, username, first_name, last_name, password_hash FROM "user" WHERE email = $1',
-      [email]
-    );
+    let result;
+    try {
+      result = await pool.query(
+        'SELECT id, email, username, first_name, last_name, password_hash FROM "user" WHERE email = $1',
+        [email]
+      );
+    } catch (dbError) {
+      console.error('Database error during login:', dbError);
+      return res.status(500).json({ error: 'Database error during login' });
+    }
 
-    if (result.rows.length === 0) {
+    // Check if result is valid and has rows
+    if (!result || !result.rows || result.rows.length === 0) {
+      console.log('Login failed: No user found for email:', email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 

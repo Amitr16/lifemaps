@@ -6,7 +6,15 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "start:monitored": "node start-server.js",
+    "start:pm2": "pm2 start ecosystem.config.js",
+    "stop:pm2": "pm2 stop lifemaps-api",
+    "restart:pm2": "pm2 restart lifemaps-api",
+    "logs:pm2": "pm2 logs lifemaps-api",
     "dev": "nodemon server.js",
+    "dev:monitored": "nodemon --exec 'node --trace-uncaught --trace-warnings --trace-gc server.js'",
+    "debug:crash": "node debug-crash.js",
+    "debug:simple": "node simple-debug.js",
     "init-db": "node scripts/init-db.js"
   },
   "dependencies": {

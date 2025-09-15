@@ -5,9 +5,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Plus, Trash2, Search, Download, Filter, MoreHorizontal, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, Search, Download, Filter, MoreHorizontal, RefreshCw, GripVertical } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { eventBus } from '@/lib/eventBus'
+import { syncEarmarkingData } from '@/lib/goalCalculations'
 import ApiService from '@/services/api'
+import EarmarkingInput from './EarmarkingInput'
+import { CORE_COLUMNS } from '@/constants/columns'
 
 const NotionStyleAssetRegister = () => {
   const { user, isAuthenticated } = useAuth()
@@ -18,6 +22,16 @@ const NotionStyleAssetRegister = () => {
   const [tempValue, setTempValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  // Auto-clear error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [error])
   const [customColumns, setCustomColumns] = useState([])
   const [editingColumn, setEditingColumn] = useState(null)
   const [newColumnName, setNewColumnName] = useState('')
@@ -30,6 +44,11 @@ const NotionStyleAssetRegister = () => {
   const [exporting, setExporting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [hasLoaded, setHasLoaded] = useState(false)
+  const [goals, setGoals] = useState([])
+  const [showAllColumns, setShowAllColumns] = useState(false)
+  const [draggedColumn, setDraggedColumn] = useState(null)
+  const [isReordering, setIsReordering] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // Reset loaded state when user changes
   useEffect(() => {
@@ -37,6 +56,37 @@ const NotionStyleAssetRegister = () => {
       setHasLoaded(false)
     }
   }, [isAuthenticated, user])
+
+  // Listen for goal linked assets changes from Goals page
+  useEffect(() => {
+    console.log('🔧 Assets page setting up eventBus listener for goalLinkedAssetsChanged');
+
+    const handleGoalLinkedAssetsChange = (data) => {
+      console.log('🔄 Assets page received goal linked assets change event:', data);
+      setAssets(prevAssets => {
+        console.log('🔄 Current assets before sync:', prevAssets.length);
+        console.log('🔄 Goals data received:', data.allGoals?.length);
+        
+        // Sync assets with the updated goals
+        const { updatedAssets } = syncEarmarkingData(prevAssets, data.allGoals);
+        console.log('🔄 Synced assets after goal linked assets change:', updatedAssets.length);
+        console.log('🔄 Updated assets details:', updatedAssets.map(a => ({
+          id: a.id,
+          name: a.name,
+          goalEarmarks: a.custom_data?.goalEarmarks
+        })));
+        return updatedAssets;
+      });
+    };
+
+    const unsubscribe = eventBus.subscribe('goalLinkedAssetsChanged', handleGoalLinkedAssetsChange);
+    console.log('🔧 Assets page eventBus listener registered');
+
+    return () => {
+      console.log('🔧 Assets page eventBus listener unregistered');
+      unsubscribe();
+    };
+  }, []); // ⬅️ mount once
 
   // Load assets and columns from database
   useEffect(() => {
@@ -47,8 +97,12 @@ const NotionStyleAssetRegister = () => {
           await Promise.all([
             loadAssets(),
             loadCustomColumns(),
-            loadUserTags()
+            loadUserTags(),
+            loadGoals()
           ])
+          
+          // Note: Sync will happen in separate useEffect after both assets and goals are loaded
+          
           setHasLoaded(true)
         } catch (error) {
           console.error('Error loading initial data:', error)
@@ -59,6 +113,17 @@ const NotionStyleAssetRegister = () => {
       loadAllData()
     }
   }, [isAuthenticated, user, hasLoaded, isLoading])
+
+  // Don't auto-sync assets with goals during page load to preserve deletions
+  // The sync will happen when needed through user actions
+  // useEffect(() => {
+  //   if (hasLoaded && assets.length > 0 && goals.length > 0) {
+  //     console.log('🔄 Syncing assets with goals after load...')
+  //     const { updatedAssets } = syncEarmarkingData(assets, goals)
+  //     console.log('🔄 Synced assets:', updatedAssets)
+  //     setAssets(updatedAssets)
+  //   }
+  // }, [hasLoaded, assets.length, goals.length])
 
   const loadAssets = async () => {
     try {
@@ -78,12 +143,37 @@ const NotionStyleAssetRegister = () => {
       console.log('📊 Columns fetch response:', response)
       
       // Backend will automatically create default columns if none exist
-      setCustomColumns(response.columns.map(col => ({
+      const columns = response.columns.map(col => ({
         id: col.id,
         key: col.column_key,
         label: col.column_label,
-        type: col.column_type
-      })))
+        type: col.column_type,
+        column_order: col.column_order
+      }))
+      
+      
+      // Ensure goal earmarks column exists
+      const hasGoalEarmarksColumn = columns.some(col => col.key === 'goalEarmarks')
+      if (!hasGoalEarmarksColumn) {
+        try {
+          await ApiService.createAssetColumn({
+            column_key: 'goalEarmarks',
+            column_label: 'Goal Earmarks',
+            column_type: 'text',
+            column_order: columns.length
+          })
+          columns.push({
+            id: 'goalEarmarks',
+            key: 'goalEarmarks',
+            label: 'Goal Earmarks',
+            type: 'text'
+          })
+        } catch (error) {
+          console.error('❌ Failed to create goal earmarks column:', error)
+        }
+      }
+      
+      setCustomColumns(columns)
     } catch (error) {
       console.error('❌ Columns fetch error:', error)
       setCustomColumns([])
@@ -105,11 +195,72 @@ const NotionStyleAssetRegister = () => {
     }
   }
 
+  const loadGoals = async () => {
+    try {
+      const response = await ApiService.getFinancialGoals(user.id)
+      console.log('🎯 Goals fetch response:', response)
+      const goalsData = response.goals || []
+      setGoals(goalsData)
+      console.log('🎯 Goals loaded:', goalsData.length, 'goals')
+      return goalsData
+    } catch (error) {
+      console.error('❌ Goals fetch error:', error)
+      setGoals([])
+      throw error // Re-throw to be caught by Promise.all
+    }
+  }
+
+  // Filter columns based on showAllColumns setting
+  const getVisibleColumns = () => {
+    // Columns to exclude completely
+    const excludedColumns = ['owner', 'units', 'costBasis', 'currency', 'updated_at']
+    
+    // Filter out excluded columns and sort by column_order
+    let filteredColumns = customColumns
+      .filter(col => !excludedColumns.includes(col.key))
+      .sort((a, b) => (a.column_order || 0) - (b.column_order || 0))
+    
+    if (showAllColumns) {
+      // When showing all, prioritize important columns first (excluding goalEarmarks for now)
+      const importantColumns = filteredColumns.filter(col => 
+        CORE_COLUMNS.filter(key => key !== 'goalEarmarks').includes(col.key)
+      )
+      const otherColumns = filteredColumns.filter(col => 
+        !CORE_COLUMNS.includes(col.key)
+      )
+      const goalEarmarksColumn = filteredColumns.filter(col => col.key === 'goalEarmarks')
+      
+      // Return: important columns + other columns + goal earmarks (at the end)
+      return [...importantColumns, ...otherColumns, ...goalEarmarksColumn]
+    }
+    
+    // Default: show core columns (always visible) and all user-created custom columns
+    const visibleColumns = filteredColumns.filter(column => {
+      // Always show core columns (non-deletable, always visible)
+      if (CORE_COLUMNS.includes(column.key)) {
+        return true
+      }
+      
+      // Show all user-created custom columns (even if empty)
+      // This allows users to see and edit their custom columns
+      return true
+    })
+    
+    // Separate goalEarmarks and add it at the end
+    const goalEarmarksColumn = visibleColumns.filter(col => col.key === 'goalEarmarks')
+    const otherVisibleColumns = visibleColumns.filter(col => col.key !== 'goalEarmarks')
+    
+    return [...otherVisibleColumns, ...goalEarmarksColumn]
+  }
+
+  const visibleColumns = getVisibleColumns()
+
+
   const filteredAssets = assets.filter(asset => {
     const customData = asset.custom_data || {}
-    const matchesSearch = asset.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customData.subType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customData.owner?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = (asset.name && asset.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (customData.subType && customData.subType.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (customData.owner && customData.owner.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesFilter = filterTag === 'all' || asset.tag === filterTag
     return matchesSearch && matchesFilter
   })
@@ -126,13 +277,13 @@ const NotionStyleAssetRegister = () => {
       bValue = b[sortConfig.key]
     } else {
       // Custom column data
-      aValue = a.custom_data?.[sortConfig.key] || ''
-      bValue = b.custom_data?.[sortConfig.key] || ''
+      aValue = (a.custom_data && a.custom_data[sortConfig.key]) || ''
+      bValue = (b.custom_data && b.custom_data[sortConfig.key]) || ''
     }
 
     // Handle different data types for sorting
     const column = customColumns.find(col => col.key === sortConfig.key)
-    const columnType = column?.type || 'text'
+    const columnType = (column && column.type) || 'text'
 
     if (columnType === 'number' || columnType === 'currency') {
       aValue = parseFloat(aValue) || 0
@@ -168,12 +319,23 @@ const NotionStyleAssetRegister = () => {
           currency: 'INR',
           units: 0,
           costBasis: 0,
-          notes: ''
+          notes: '',
+          expectedReturn: 5,
+          sipExpiryDate: ''
         }
       })
       
       if (response.asset) {
-        setAssets([...assets, response.asset])  // Add at end instead of beginning
+        const updatedAssets = [...assets, response.asset]
+        setAssets(updatedAssets)
+        
+        // Emit event to notify chart of asset addition
+        eventBus.emit('assetUpdated', {
+          action: 'add',
+          assetId: response.asset.id,
+          updatedAsset: response.asset,
+          allAssets: updatedAssets
+        })
       }
     } catch (error) {
       console.error('❌ Asset creation error:', error)
@@ -189,7 +351,15 @@ const NotionStyleAssetRegister = () => {
     try {
       setLoading(true)
       await ApiService.deleteFinancialAsset(assetId)
-      setAssets(assets.filter(asset => asset.id !== assetId))
+      const updatedAssets = assets.filter(asset => asset.id !== assetId)
+      setAssets(updatedAssets)
+      
+      // Emit event to notify chart of asset deletion
+      eventBus.emit('assetUpdated', {
+        action: 'delete',
+        assetId,
+        allAssets: updatedAssets
+      })
     } catch (error) {
       console.error('❌ Asset deletion error:', error)
       setError('Failed to delete asset')
@@ -204,7 +374,7 @@ const NotionStyleAssetRegister = () => {
   }
 
   const handleCellSave = async (assetId, field, value = null) => {
-    if (editingCell?.assetId === assetId && editingCell?.field === field) {
+    if (editingCell && editingCell.assetId === assetId && editingCell.field === field) {
       try {
         setLoading(true)
         
@@ -221,7 +391,7 @@ const NotionStyleAssetRegister = () => {
         } else {
           // Update custom_data
           const asset = assets.find(a => a.id === assetId)
-          const customData = asset?.custom_data || {}
+          const customData = (asset && asset.custom_data) || {}
           updateData.custom_data = {
             ...customData,
             [field]: saveValue
@@ -230,13 +400,24 @@ const NotionStyleAssetRegister = () => {
         
         console.log('💾 Saving asset field:', { assetId, field, updateData })
         
+        
         const response = await ApiService.updateFinancialAsset(assetId, updateData)
         
         if (response.asset) {
-          setAssets(assets.map(asset => 
+          const updatedAssets = assets.map(asset => 
             asset.id === assetId ? response.asset : asset
-          ))
+          )
+          setAssets(updatedAssets)
           console.log('✅ Asset updated successfully')
+          
+          // Emit event to notify chart of asset update
+          eventBus.emit('assetUpdated', {
+            assetId,
+            field,
+            value: saveValue,
+            updatedAsset: response.asset,
+            allAssets: updatedAssets
+          })
         }
         
         setEditingCell(null)
@@ -256,10 +437,19 @@ const NotionStyleAssetRegister = () => {
   }
 
   const handleAddColumn = async () => {
+    console.log('🔧 handleAddColumn called:', { newColumnName, newColumnType, customColumnsLength: customColumns.length })
+    
     if (newColumnName.trim()) {
       try {
         setLoading(true)
         const columnKey = newColumnName.toLowerCase().replace(/\s+/g, '')
+        
+        console.log('📡 Creating column with data:', {
+          column_key: columnKey,
+          column_label: newColumnName.trim(),
+          column_type: newColumnType,
+          column_order: customColumns.length
+        })
         
         const response = await ApiService.createAssetColumn({
           column_key: columnKey,
@@ -267,6 +457,8 @@ const NotionStyleAssetRegister = () => {
           column_type: newColumnType,
           column_order: customColumns.length
         })
+        
+        console.log('📡 API response:', response)
         
         if (response.column) {
           const newColumn = {
@@ -277,20 +469,33 @@ const NotionStyleAssetRegister = () => {
           }
           setCustomColumns([...customColumns, newColumn])
           console.log('✅ Column created successfully:', newColumn)
+          console.log('📊 Updated customColumns:', [...customColumns, newColumn])
+        } else {
+          console.error('❌ No column returned from API')
+          setError('Failed to create column - no response')
         }
         
         setNewColumnName('')
         setEditingColumn(null)
       } catch (error) {
         console.error('❌ Column creation error:', error)
-        setError('Failed to create column')
+        setError('Failed to create column: ' + (error.message || 'Unknown error'))
       } finally {
         setLoading(false)
       }
+    } else {
+      console.log('❌ Column name is empty')
+      setError('Please enter a column name')
     }
   }
 
   const handleDeleteColumn = async (columnKey) => {
+    // Prevent deletion of core columns
+    if (CORE_COLUMNS.includes(columnKey)) {
+      setError('Cannot delete core columns (SIP Amount, SIP Frequency, SIP Expiry Date, Expected Return %, Notes, Goal Earmarks)')
+      return
+    }
+
     try {
       const column = customColumns.find(col => col.key === columnKey)
       if (column && column.id) {
@@ -314,6 +519,77 @@ const NotionStyleAssetRegister = () => {
     setCustomColumns(customColumns.map(col => 
       col.key === columnKey ? { ...col, label: newLabel } : col
     ))
+  }
+
+  const handleDragStart = (e, columnKey) => {
+    console.log('🔄 Drag started for column:', columnKey)
+    setDraggedColumn(columnKey)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/html', e.target.outerHTML)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = async (e, targetColumnKey) => {
+    e.preventDefault()
+    console.log('🎯 Drop event:', { draggedColumn, targetColumnKey })
+    
+    if (!draggedColumn || draggedColumn === targetColumnKey) {
+      console.log('❌ Invalid drop: same column or no dragged column')
+      setDraggedColumn(null)
+      return
+    }
+
+    try {
+      setIsReordering(true)
+      
+      // Get current column order
+      const currentColumns = [...customColumns]
+      const draggedIndex = currentColumns.findIndex(col => col.key === draggedColumn)
+      const targetIndex = currentColumns.findIndex(col => col.key === targetColumnKey)
+      
+      if (draggedIndex === -1 || targetIndex === -1) return
+
+      // Reorder columns
+      const reorderedColumns = [...currentColumns]
+      const [draggedCol] = reorderedColumns.splice(draggedIndex, 1)
+      reorderedColumns.splice(targetIndex, 0, draggedCol)
+
+      // Update column_order for each column
+      const updatedColumns = reorderedColumns.map((col, index) => ({
+        ...col,
+        column_order: index
+      }))
+
+      // Update local state immediately for UI responsiveness
+      setCustomColumns(updatedColumns)
+
+      // Update database
+      for (const column of updatedColumns) {
+        if (column.id) {
+          await ApiService.updateAssetColumn(column.id, {
+            column_order: column.column_order
+          })
+        }
+      }
+
+      console.log('✅ Column order updated successfully')
+    } catch (error) {
+      console.error('❌ Error updating column order:', error)
+      setError('Failed to update column order')
+      // Revert local state on error
+      loadCustomColumns()
+    } finally {
+      setIsReordering(false)
+      setDraggedColumn(null)
+    }
+  }
+
+  const handleDragEnd = () => {
+    setDraggedColumn(null)
   }
 
   const handleSort = (key) => {
@@ -391,13 +667,174 @@ const NotionStyleAssetRegister = () => {
       await Promise.all([
         loadAssets(),
         loadCustomColumns(),
-        loadUserTags()
+        loadUserTags(),
+        loadGoals()
       ])
       setHasLoaded(true)
     } catch (error) {
       console.error('Error refreshing data:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleEarmarkingChange = async (assetId, earmarks) => {
+    console.log('💾 handleEarmarkingChange called:', { assetId, earmarks, assetsLength: assets.length })
+    
+    try {
+      setLoading(true)
+      
+      const asset = assets.find(a => a.id === assetId)
+      console.log('🔍 Found asset:', asset)
+      
+      if (!asset) {
+        console.error('❌ Asset not found:', assetId)
+        setError('Asset not found')
+        return
+      }
+      
+      const customData = (asset && asset.custom_data) || {}
+      console.log('🔍 Current custom_data:', customData)
+      
+      // Handle cross-table deletion: Remove goals that are no longer earmarked
+      console.log('🗑️ Checking for goals to remove from linked assets...');
+      const currentEarmarkedGoalIds = earmarks.map(e => e.goalId);
+      const previousEarmarkedGoalIds = (customData.goalEarmarks || []).map(e => e.goalId);
+      const removedGoalIds = previousEarmarkedGoalIds.filter(id => !currentEarmarkedGoalIds.includes(id));
+      
+      console.log('🗑️ Removed goal IDs:', removedGoalIds);
+      
+      // For each removed goal, remove this asset from its linked assets
+      for (const removedGoalId of removedGoalIds) {
+        const goal = goals.find(g => g.id === removedGoalId);
+        if (goal) {
+          console.log('🗑️ Removing asset from goal linked assets:', { goalId: removedGoalId, goalName: goal.description, assetId: assetId });
+          
+          // Update goal's custom_data to remove this asset from linked assets
+          const updatedGoalLinkedAssets = (goal.custom_data?.linkedAssets || []).filter(
+            linkedAsset => linkedAsset.assetId !== assetId
+          );
+          
+          const updatedGoalCustomData = {
+            ...goal.custom_data,
+            linkedAssets: updatedGoalLinkedAssets
+          };
+          
+          ApiService.updateFinancialGoal(removedGoalId, {
+            custom_data: updatedGoalCustomData
+          }).then(response => {
+            console.log('🗑️ Goal linked assets updated after asset removal:', response);
+          }).catch(error => {
+            console.error('❌ Error updating goal linked assets after asset removal:', error);
+          });
+        }
+      }
+
+      // Handle cross-table sync: Update goals with new earmarking data
+      console.log('🔄 Syncing earmarking changes to goals...');
+      for (const earmark of earmarks) {
+        const goal = goals.find(g => g.id === earmark.goalId);
+        if (goal) {
+          console.log('🔄 Updating goal linked assets for earmark:', { goalId: earmark.goalId, goalName: goal.description, assetId: assetId, percentage: earmark.percent });
+          
+          // Get current linked assets for this goal
+          const currentLinkedAssets = goal.custom_data?.linkedAssets || [];
+          
+          // Check if this asset is already linked to this goal
+          const existingLinkedAssetIndex = currentLinkedAssets.findIndex(la => la.assetId === assetId);
+          
+          let updatedLinkedAssets;
+          if (existingLinkedAssetIndex >= 0) {
+            // Update existing linked asset
+            updatedLinkedAssets = [...currentLinkedAssets];
+            updatedLinkedAssets[existingLinkedAssetIndex] = {
+              assetId: assetId,
+              assetName: asset.name,
+              percent: earmark.percent,
+              goalId: earmark.goalId,
+              goalName: earmark.goalName
+            };
+          } else {
+            // Add new linked asset
+            updatedLinkedAssets = [...currentLinkedAssets, {
+              assetId: assetId,
+              assetName: asset.name,
+              percent: earmark.percent,
+              goalId: earmark.goalId,
+              goalName: earmark.goalName
+            }];
+          }
+          
+          const updatedGoalCustomData = {
+            ...goal.custom_data,
+            linkedAssets: updatedLinkedAssets
+          };
+          
+          ApiService.updateFinancialGoal(earmark.goalId, {
+            custom_data: updatedGoalCustomData
+          }).then(response => {
+            console.log('🔄 Goal linked assets updated after earmark sync:', response);
+          }).catch(error => {
+            console.error('❌ Error updating goal linked assets after earmark sync:', error);
+          });
+        }
+      }
+      
+      const updateData = {
+        custom_data: {
+          ...customData,
+          goalEarmarks: earmarks
+        }
+      }
+      
+      console.log('💾 Saving earmarking data:', { assetId, updateData })
+      
+      const response = await ApiService.updateFinancialAsset(assetId, updateData)
+      console.log('📡 API response:', response)
+      
+      if (response.asset) {
+        const updatedAssets = assets.map(asset => 
+          asset.id === assetId ? response.asset : asset
+        )
+        console.log('🔄 Updating assets state:', { 
+          assetId, 
+          oldAsset: assets.find(a => a.id === assetId),
+          newAsset: response.asset,
+          updatedAssets: updatedAssets.length
+        })
+        setAssets(updatedAssets)
+        console.log('✅ Earmarking updated successfully, new assets:', updatedAssets.length)
+        
+        // Force re-render to ensure UI updates
+        setRefreshKey(prev => prev + 1)
+        
+        // Emit event to notify chart of earmarking update
+        eventBus.emit('assetUpdated', {
+          action: 'earmark',
+          assetId,
+          field: 'goalEarmarks',
+          value: earmarks,
+          updatedAsset: response.asset,
+          allAssets: updatedAssets
+        })
+        
+        // Emit event to notify goals page of earmarking changes
+        eventBus.emit('assetEarmarkingChanged', {
+          assetId,
+          assetName: response.asset.name,
+          goalEarmarks: earmarks,
+          allAssets: updatedAssets
+        })
+      } else {
+        console.error('❌ No asset returned from API')
+        setError('Failed to update earmarking - no response')
+      }
+      
+    } catch (error) {
+      console.error('❌ Earmarking update error:', error)
+      setError('Failed to update earmarking: ' + error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -410,8 +847,7 @@ const NotionStyleAssetRegister = () => {
         'Name',
         'Tag', 
         'Current Value',
-        ...customColumns.map(col => col.label),
-        'Updated'
+        ...visibleColumns.map(col => col.label)
       ]
 
       // Prepare CSV data
@@ -421,8 +857,7 @@ const NotionStyleAssetRegister = () => {
           asset.name || '',
           asset.tag || '',
           asset.current_value || 0,
-          ...customColumns.map(col => customData[col.key] || ''),
-          asset.updated_at ? new Date(asset.updated_at).toLocaleDateString() : ''
+          ...visibleColumns.map(col => customData[col.key] || '')
         ]
         return row
       })
@@ -462,7 +897,7 @@ const NotionStyleAssetRegister = () => {
   const formatCurrency = (amount) => {
     const numAmount = typeof amount === 'number' ? amount : parseFloat(amount) || 0
     if (numAmount >= 10000000) {
-      return `₹${(numAmount / 10000000).toFixed(1)}Cr`
+      return `₹${(numAmount / 10000000).toFixed(2)}Cr`
     } else if (numAmount >= 100000) {
       return `₹${(numAmount / 100000).toFixed(1)}L`
     } else if (numAmount >= 1000) {
@@ -493,7 +928,7 @@ const NotionStyleAssetRegister = () => {
   }
 
   const formatCellValue = (value, columnType) => {
-    if (!value) return 'Click to edit'
+    if (!value || value.toString().trim() === '') return ''
     
     switch (columnType) {
       case 'currency':
@@ -557,7 +992,7 @@ const NotionStyleAssetRegister = () => {
   })
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="w-full p-6 space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -600,31 +1035,38 @@ const NotionStyleAssetRegister = () => {
       {/* Asset Register */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Asset Register</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Quick filter..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
-                />
+          <div className="space-y-4">
+            {/* Row 1: Title + Filters */}
+            <div className="flex items-center gap-4">
+              <CardTitle>Asset Register</CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Quick filter..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-64"
+                  />
+                </div>
+                <Select value={filterTag} onValueChange={setFilterTag}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tags</SelectItem>
+                    {availableTags.map((tag) => (
+                      <SelectItem key={tag} value={tag}>
+                        {tag}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={filterTag} onValueChange={setFilterTag}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Tags</SelectItem>
-                  {availableTags.map((tag) => (
-                    <SelectItem key={tag} value={tag}>
-                      {tag}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            </div>
+
+            {/* Row 2: Action Buttons */}
+            <div className="flex items-center justify-end gap-2 flex-wrap">
               <Button onClick={handleAddAsset} className="bg-green-600 hover:bg-green-700">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Row
@@ -644,6 +1086,15 @@ const NotionStyleAssetRegister = () => {
                 <Download className="h-4 w-4 mr-2" />
                 {exporting ? 'Exporting...' : 'Export CSV'}
               </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAllColumns(!showAllColumns)}
+                className={showAllColumns ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}
+                title={showAllColumns ? 'Hide empty columns' : 'Show all columns including empty ones'}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {showAllColumns ? 'Hide Empty' : `Show All (${customColumns.length})`}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -662,89 +1113,106 @@ const NotionStyleAssetRegister = () => {
               <p className="text-sm">Add your first asset to get started</p>
             </div>
           ) : (
-            <div className="space-y-2">
-            {/* Table Header */}
-            <div className="grid gap-4 p-3 bg-gray-50 rounded-lg font-medium text-sm text-gray-600" 
-                 style={{ gridTemplateColumns: `2fr 1fr 1fr ${customColumns.map(() => '1fr').join(' ')} 1fr 1fr` }}>
-              <div 
-                className="flex items-center gap-1 cursor-pointer hover:text-gray-800 select-none"
-                onClick={() => handleSort('name')}
-              >
-                Name {getSortIcon('name')}
-              </div>
-              <div 
-                className="flex items-center justify-between group cursor-pointer hover:text-gray-800 select-none"
-                onClick={() => handleSort('tag')}
-              >
-                <div className="flex items-center gap-1">
-                  Tag {getSortIcon('tag')}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowTagModal(true)
-                  }}
+            <div className="overflow-x-auto border rounded-lg relative">
+              <div className="min-w-max space-y-2">
+              {/* Table Header */}
+              <div className="grid gap-4 p-3 bg-gray-50 rounded-lg font-medium text-sm text-gray-600" 
+                   style={{ gridTemplateColumns: `250px 140px 140px ${visibleColumns.map(() => '140px').join(' ')} 80px` }}>
+                <div 
+                  className="flex items-center gap-1 cursor-pointer hover:text-gray-800 select-none"
+                  onClick={() => handleSort('name')}
                 >
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </div>
-              <div 
-                className="flex items-center gap-1 cursor-pointer hover:text-gray-800 select-none"
-                onClick={() => handleSort('current_value')}
-              >
-                Current Value {getSortIcon('current_value')}
-              </div>
-              {customColumns.map((column) => (
-                <div key={column.key} className="flex items-center justify-between group">
-                  <div 
-                    className="flex items-center gap-1 cursor-pointer hover:text-gray-800 select-none flex-1"
-                    onClick={() => handleSort(column.key)}
-                  >
-                    <span>{column.label}</span>
-                    {getSortIcon(column.key)}
-                  </div>
-                  <div className="opacity-0 group-hover:opacity-100 flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => setEditingColumn(column.key)}
-                    >
-                      <MoreHorizontal className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                      onClick={() => handleDeleteColumn(column.key)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
+                  Name {getSortIcon('name')}
                 </div>
-              ))}
-              <div 
-                className="flex items-center gap-1 cursor-pointer hover:text-gray-800 select-none"
-                onClick={() => handleSort('updated_at')}
-              >
-                Updated {getSortIcon('updated_at')}
+                <div 
+                  className="flex items-center justify-between group cursor-pointer hover:text-gray-800 select-none"
+                  onClick={() => handleSort('tag')}
+                >
+                  <div className="flex items-center gap-1">
+                    Tag {getSortIcon('tag')}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowTagModal(true)
+                    }}
+                  >
+                    <MoreHorizontal className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div 
+                  className="flex items-center gap-1 cursor-pointer hover:text-gray-800 select-none"
+                  onClick={() => handleSort('current_value')}
+                >
+                  Current Value {getSortIcon('current_value')}
+                </div>
+                {visibleColumns.map((column) => (
+                  <div 
+                    key={column.key} 
+                    className={`flex items-center justify-between group ${!CORE_COLUMNS.includes(column.key) ? 'cursor-move' : ''}`}
+                    draggable={!CORE_COLUMNS.includes(column.key)}
+                    onDragStart={(e) => handleDragStart(e, column.key)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, column.key)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="flex items-center gap-1 flex-1">
+                      {/* Drag handle for non-core columns */}
+                      {!CORE_COLUMNS.includes(column.key) && (
+                        <div 
+                          className="cursor-move opacity-0 group-hover:opacity-100 mr-1"
+                          title="Drag to reorder column"
+                        >
+                          <GripVertical className="h-3 w-3 text-gray-400" />
+                        </div>
+                      )}
+                      <div 
+                        className="flex items-center gap-1 cursor-pointer hover:text-gray-800 select-none flex-1"
+                        onClick={() => handleSort(column.key)}
+                      >
+                        <span>{column.label}</span>
+                        {getSortIcon(column.key)}
+                      </div>
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => setEditingColumn(column.key)}
+                      >
+                        <MoreHorizontal className="h-3 w-3" />
+                      </Button>
+                      {/* Only show delete button for non-core columns */}
+                      {!CORE_COLUMNS.includes(column.key) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                          onClick={() => handleDeleteColumn(column.key)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <div>Actions</div>
               </div>
-              <div>Actions</div>
-            </div>
 
               {/* Table Rows */}
               {sortedAssets.map((asset, index) => {
                 const customData = asset.custom_data || {}
                 return (
                 <div key={asset.id || index} className="grid gap-4 p-3 border rounded-lg hover:bg-gray-50 transition-colors" 
-                     style={{ gridTemplateColumns: `2fr 1fr 1fr ${customColumns.map(() => '1fr').join(' ')} 1fr 1fr` }}>
+                     style={{ gridTemplateColumns: `250px 140px 140px ${visibleColumns.map(() => '140px').join(' ')} 80px` }}>
                   
                   {/* Fixed Column 1: Name */}
                   <div>
-                    {editingCell?.assetId === asset.id && editingCell?.field === 'name' ? (
+                    {(editingCell && editingCell.assetId === asset.id && editingCell.field === 'name') ? (
                       <Input
                         value={tempValue}
                         onChange={(e) => setTempValue(e.target.value)}
@@ -768,7 +1236,7 @@ const NotionStyleAssetRegister = () => {
 
                   {/* Fixed Column 2: Tag */}
                   <div>
-                    {editingCell?.assetId === asset.id && editingCell?.field === 'tag' ? (
+                    {(editingCell && editingCell.assetId === asset.id && editingCell.field === 'tag') ? (
                       <Select 
                         value={tempValue} 
                         onValueChange={(value) => {
@@ -806,7 +1274,7 @@ const NotionStyleAssetRegister = () => {
 
                   {/* Fixed Column 3: Current Value */}
                   <div>
-                    {editingCell?.assetId === asset.id && editingCell?.field === 'current_value' ? (
+                    {(editingCell && editingCell.assetId === asset.id && editingCell.field === 'current_value') ? (
                       <Input
                         type="number"
                         value={tempValue}
@@ -830,9 +1298,83 @@ const NotionStyleAssetRegister = () => {
                   </div>
 
                   {/* Dynamic Custom Columns */}
-                  {customColumns.map((column) => (
+                  {visibleColumns.map((column) => (
                     <div key={column.key}>
-                      {editingCell?.assetId === asset.id && editingCell?.field === column.key ? (
+                      {column.key === 'goalEarmarks' ? (
+                        <EarmarkingInput
+                          key={`${asset.id}-earmarking-${refreshKey}`}
+                          value={customData.goalEarmarks || []}
+                          onChange={(earmarks) => {
+                            console.log('🎯 EarmarkingInput onChange called:', { assetId: asset.id, earmarks, goals })
+                            handleEarmarkingChange(asset.id, earmarks)
+                          }}
+                          availableGoals={goals}
+                          maxAllocation={100}
+                          className="min-h-[40px]"
+                        />
+                      ) : column.key === 'sipFrequency' ? (
+                        editingCell && editingCell.assetId === asset.id && editingCell.field === column.key ? (
+                          <Select 
+                            value={tempValue} 
+                            onValueChange={(value) => {
+                              console.log('📅 SIP Frequency changed to:', value)
+                              setTempValue(value)
+                              // Auto-save when frequency is selected
+                              setTimeout(() => {
+                                console.log('📅 Saving SIP frequency:', value, 'for asset:', asset.id)
+                                handleCellSave(asset.id, column.key, value)
+                              }, 100)
+                            }}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Select frequency" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Monthly">Monthly</SelectItem>
+                              <SelectItem value="Bi-monthly">Bi-monthly</SelectItem>
+                              <SelectItem value="Weekly">Weekly</SelectItem>
+                              <SelectItem value="Bi-weekly">Bi-weekly</SelectItem>
+                              <SelectItem value="Quarterly">Quarterly</SelectItem>
+                              <SelectItem value="Semi-annual">Semi-annual</SelectItem>
+                              <SelectItem value="Annual">Annual</SelectItem>
+                              <SelectItem value="Lumpsum">Lumpsum</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div
+                            className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-[24px] flex items-center"
+                            onClick={() => handleCellEdit(asset.id, column.key, customData[column.key] || '')}
+                          >
+                            {formatCellValue(customData[column.key], column.type) || (
+                              <span className="text-gray-400 text-sm italic">Click to edit</span>
+                            )}
+                          </div>
+                        )
+                      ) : column.key === 'sipExpiryDate' ? (
+                        editingCell && editingCell.assetId === asset.id && editingCell.field === column.key ? (
+                          <Input
+                            type="date"
+                            value={tempValue}
+                            onChange={(e) => setTempValue(e.target.value)}
+                            onBlur={() => handleCellSave(asset.id, column.key)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleCellSave(asset.id, column.key)
+                              if (e.key === 'Escape') handleCellCancel()
+                            }}
+                            className="h-8"
+                            autoFocus
+                          />
+                        ) : (
+                          <div
+                            className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-[24px] flex items-center"
+                            onClick={() => handleCellEdit(asset.id, column.key, customData[column.key] || '')}
+                          >
+                            {formatCellValue(customData[column.key], column.type) || (
+                              <span className="text-gray-400 text-sm italic">Click to edit</span>
+                            )}
+                          </div>
+                        )
+                      ) : (editingCell && editingCell.assetId === asset.id && editingCell.field === column.key) ? (
                         <Input
                           type={getInputType(column.type)}
                           value={tempValue}
@@ -847,21 +1389,18 @@ const NotionStyleAssetRegister = () => {
                         />
                       ) : (
                         <div
-                          className="cursor-pointer hover:bg-gray-100 p-1 rounded"
+                          className="cursor-pointer hover:bg-gray-100 p-1 rounded min-h-[24px] flex items-center"
                           onClick={() => handleCellEdit(asset.id, column.key, customData[column.key] || '')}
                         >
-                          {formatCellValue(customData[column.key], column.type)}
+                          {formatCellValue(customData[column.key], column.type) || (
+                            <span className="text-gray-400 text-sm italic">Click to edit</span>
+                          )}
                         </div>
                       )}
                     </div>
                   ))}
 
-                  {/* Fixed Column 4: Updated At */}
-                  <div className="text-sm text-gray-500">
-                    {asset.updated_at ? new Date(asset.updated_at).toLocaleDateString() : 'N/A'}
-                  </div>
-
-                  {/* Fixed Column 5: Actions */}
+                  {/* Fixed Column 4: Actions */}
                   <div>
                     <Button
                       variant="ghost"
@@ -879,7 +1418,7 @@ const NotionStyleAssetRegister = () => {
               {/* Add New Row - Empty Row */}
               <div 
                 className="grid gap-4 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer group" 
-                style={{ gridTemplateColumns: `2fr 1fr 1fr ${customColumns.map(() => '1fr').join(' ')} 1fr 1fr` }}
+                style={{ gridTemplateColumns: `250px 140px 140px ${visibleColumns.map(() => '140px').join(' ')} 80px` }}
                 onClick={handleAddAsset}
               >
                 {/* Fixed Column 1: Name */}
@@ -899,22 +1438,25 @@ const NotionStyleAssetRegister = () => {
                 </div>
 
                 {/* Custom Columns */}
-                {customColumns.map((column) => (
+                {visibleColumns.map((column) => (
                   <div key={column.key} className="flex items-center text-gray-400">
                     <span className="text-sm">-</span>
                   </div>
                 ))}
 
-                {/* Fixed Column 4: Updated */}
-                <div className="flex items-center text-gray-400">
-                  <span className="text-sm">-</span>
-                </div>
-
-                {/* Fixed Column 5: Actions */}
+                {/* Fixed Column 4: Actions */}
                 <div className="flex items-center text-gray-400">
                   <span className="text-sm">-</span>
                 </div>
               </div>
+              </div>
+              
+              {/* Scroll indicator */}
+              {visibleColumns.length > 5 && (
+                <div className="absolute bottom-2 right-2 bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full shadow-sm">
+                  ← Scroll to see more columns
+                </div>
+              )}
             </div>
           )}
 
@@ -1004,14 +1546,16 @@ const NotionStyleAssetRegister = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
-          {error}
-          <button 
-            onClick={() => setError(null)}
-            className="ml-4 text-red-500 hover:text-red-700"
-          >
-            ×
-          </button>
+        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50 max-w-md">
+          <div className="flex items-center justify-between">
+            <span className="text-sm">{error}</span>
+            <button 
+              onClick={() => setError(null)}
+              className="ml-4 text-red-500 hover:text-red-700 text-lg font-bold"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Asset Columns</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .column { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .core { background-color: #e8f5e8; }
+        .custom { background-color: #e8f0ff; }
+        .earmark { background-color: #fff3cd; }
+    </style>
+</head>
+<body>
+    <h1>Asset Columns Test</h1>
+    <p>This page tests if the frontend can access all the new asset columns.</p>
+    
+    <div id="status">Loading...</div>
+    
+    <div id="core-columns" class="column core">
+        <h3>Core Database Columns</h3>
+        <div id="core-list"></div>
+    </div>
+    
+    <div id="custom-columns" class="column custom">
+        <h3>Custom Columns (user_asset_columns)</h3>
+        <div id="custom-list"></div>
+    </div>
+    
+    <div id="earmarking" class="column earmark">
+        <h3>Earmarking Data</h3>
+        <div id="earmark-list"></div>
+    </div>
+
+    <script>
+        async function testColumns() {
+            try {
+                // Test API endpoint
+                const response = await fetch('http://localhost:10000/api/financial/assets/4', {
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                // Display core columns
+                const coreColumns = [
+                    'id', 'user_id', 'profile_id', 'name', 'tag', 'current_value',
+                    'holding_type', 'amount_per_month', 'start_date', 'end_date',
+                    'owner', 'liquidity', 'expected_return', 'custom_data',
+                    'created_at', 'updated_at'
+                ];
+                
+                const coreList = document.getElementById('core-list');
+                coreColumns.forEach(col => {
+                    const div = document.createElement('div');
+                    div.textContent = `${col}: ${data.assets[0]?.[col] ?? 'N/A'}`;
+                    coreList.appendChild(div);
+                });
+                
+                // Test custom columns API
+                const columnsResponse = await fetch('http://localhost:10000/api/financial/asset-columns/4', {
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+                    }
+                });
+                
+                if (columnsResponse.ok) {
+                    const columnsData = await columnsResponse.json();
+                    console.log('Columns Response:', columnsData);
+                    
+                    const customList = document.getElementById('custom-list');
+                    columnsData.columns.forEach(col => {
+                        const div = document.createElement('div');
+                        div.textContent = `${col.column_key} (${col.column_label}) - ${col.column_type}`;
+                        customList.appendChild(div);
+                    });
+                }
+                
+                // Test earmarking
+                const earmarkList = document.getElementById('earmark-list');
+                data.assets.forEach(asset => {
+                    const div = document.createElement('div');
+                    const earmarks = asset.custom_data?.goalEarmarks || [];
+                    div.textContent = `Asset ${asset.id} (${asset.name}): ${earmarks.length} earmarks`;
+                    earmarkList.appendChild(div);
+                });
+                
+                document.getElementById('status').textContent = '✅ All tests passed!';
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+                document.getElementById('status').textContent = `❌ Test failed: ${error.message}`;
+            }
+        }
+        
+        // Run test when page loads
+        testColumns();
+    </script>
+</body>
+</html>
