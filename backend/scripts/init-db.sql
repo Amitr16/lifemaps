@@ -1,8 +1,8 @@
 -- Life Sheet Database Schema
 -- Run this script in your PostgreSQL database
 
--- Create users table
-CREATE TABLE IF NOT EXISTS users (
+-- Create user table
+CREATE TABLE IF NOT EXISTS "user" (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -11,10 +11,10 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create financial_profiles table
-CREATE TABLE IF NOT EXISTS financial_profiles (
+-- Create financial_profile table
+CREATE TABLE IF NOT EXISTS financial_profile (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
     age INTEGER,
     current_annual_gross_income DECIMAL(15,2),
     work_tenure_years INTEGER,
@@ -27,10 +27,10 @@ CREATE TABLE IF NOT EXISTS financial_profiles (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create financial_goals table
-CREATE TABLE IF NOT EXISTS financial_goals (
+-- Create financial_goal table
+CREATE TABLE IF NOT EXISTS financial_goal (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     target_amount DECIMAL(15,2) NOT NULL,
     target_date DATE NOT NULL,
@@ -42,10 +42,10 @@ CREATE TABLE IF NOT EXISTS financial_goals (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create financial_expenses table
-CREATE TABLE IF NOT EXISTS financial_expenses (
+-- Create financial_expense table
+CREATE TABLE IF NOT EXISTS financial_expense (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
     category VARCHAR(255) NOT NULL,
     subcategory VARCHAR(255),
     frequency VARCHAR(20) NOT NULL CHECK (frequency IN ('Monthly', 'Quarterly', 'Yearly')),
@@ -57,10 +57,10 @@ CREATE TABLE IF NOT EXISTS financial_expenses (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create financial_loans table
-CREATE TABLE IF NOT EXISTS financial_loans (
+-- Create financial_loan table
+CREATE TABLE IF NOT EXISTS financial_loan (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
     lender VARCHAR(255) NOT NULL,
     type VARCHAR(255) NOT NULL,
     start_date DATE NOT NULL,
@@ -75,10 +75,10 @@ CREATE TABLE IF NOT EXISTS financial_loans (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create financial_scenarios table
-CREATE TABLE IF NOT EXISTS financial_scenarios (
+-- Create financial_scenario table
+CREATE TABLE IF NOT EXISTS financial_scenario (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     scenario_data JSONB NOT NULL,
@@ -87,12 +87,12 @@ CREATE TABLE IF NOT EXISTS financial_scenarios (
 );
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_financial_profiles_user_id ON financial_profiles(user_id);
-CREATE INDEX IF NOT EXISTS idx_financial_goals_user_id ON financial_goals(user_id);
-CREATE INDEX IF NOT EXISTS idx_financial_expenses_user_id ON financial_expenses(user_id);
-CREATE INDEX IF NOT EXISTS idx_financial_loans_user_id ON financial_loans(user_id);
-CREATE INDEX IF NOT EXISTS idx_financial_scenarios_user_id ON financial_scenarios(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_email ON "user"(email);
+CREATE INDEX IF NOT EXISTS idx_financial_profile_user_id ON financial_profile(user_id);
+CREATE INDEX IF NOT EXISTS idx_financial_goal_user_id ON financial_goal(user_id);
+CREATE INDEX IF NOT EXISTS idx_financial_expense_user_id ON financial_expense(user_id);
+CREATE INDEX IF NOT EXISTS idx_financial_loan_user_id ON financial_loan(user_id);
+CREATE INDEX IF NOT EXISTS idx_financial_scenario_user_id ON financial_scenario(user_id);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -104,20 +104,20 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updated_at
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+CREATE TRIGGER update_user_updated_at BEFORE UPDATE ON "user"
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_financial_profiles_updated_at BEFORE UPDATE ON financial_profiles
+CREATE TRIGGER update_financial_profile_updated_at BEFORE UPDATE ON financial_profile
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_financial_goals_updated_at BEFORE UPDATE ON financial_goals
+CREATE TRIGGER update_financial_goal_updated_at BEFORE UPDATE ON financial_goal
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_financial_expenses_updated_at BEFORE UPDATE ON financial_expenses
+CREATE TRIGGER update_financial_expense_updated_at BEFORE UPDATE ON financial_expense
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_financial_loans_updated_at BEFORE UPDATE ON financial_loans
+CREATE TRIGGER update_financial_loan_updated_at BEFORE UPDATE ON financial_loan
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_financial_scenarios_updated_at BEFORE UPDATE ON financial_scenarios
+CREATE TRIGGER update_financial_scenario_updated_at BEFORE UPDATE ON financial_scenario
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

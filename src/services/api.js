@@ -218,6 +218,56 @@ class ApiService {
     });
   }
 
+  // Financial Expenses APIs
+  async createFinancialExpense(expenseData) {
+    return this.request('/financial/expense', {
+      method: 'POST',
+      body: expenseData,
+    });
+  }
+
+  async getFinancialExpenses(userId) {
+    return this.request(`/financial/expense/${userId}`);
+  }
+
+  async updateFinancialExpense(expenseId, data) {
+    return this.request(`/financial/expense/${expenseId}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteFinancialExpense(expenseId) {
+    return this.request(`/financial/expense/${expenseId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Financial Insurance APIs
+  async createFinancialInsurance(insuranceData) {
+    return this.request('/financial/insurance', {
+      method: 'POST',
+      body: insuranceData,
+    });
+  }
+
+  async getFinancialInsurance(userId) {
+    return this.request(`/financial/insurance/${userId}`);
+  }
+
+  async updateFinancialInsurance(insuranceId, data) {
+    return this.request(`/financial/insurance/${insuranceId}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteFinancialInsurance(insuranceId) {
+    return this.request(`/financial/insurance/${insuranceId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Financial Assets APIs
   async createFinancialAsset(assetData) {
     return this.request('/financial/assets', {
@@ -275,6 +325,31 @@ class ApiService {
 
   async deleteUserTag(tagId) {
     return this.request(`/financial/user-tag/${tagId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Work Assets APIs
+  async createWorkAsset(workAssetData) {
+    return this.request('/financial/work-asset', {
+      method: 'POST',
+      body: workAssetData,
+    });
+  }
+
+  async getWorkAssets(userId) {
+    return this.request(`/financial/work-assets/${userId}`);
+  }
+
+  async updateWorkAsset(assetId, data) {
+    return this.request(`/financial/work-asset/${assetId}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteWorkAsset(assetId) {
+    return this.request(`/financial/work-asset/${assetId}`, {
       method: 'DELETE',
     });
   }

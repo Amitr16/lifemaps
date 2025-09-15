@@ -1,11 +1,32 @@
 
 import React, { useMemo } from 'react';
 
-export default function EditableGrid({ columns, rows, onChange, onAdd, onDelete }){
+export default function EditableGrid({ columns, rows, onChange, onAdd, onDelete, onCellChange }){
+  // Add error handling for missing props
+  if (!columns || !Array.isArray(columns)) {
+    console.error('EditableGrid: columns prop is missing or not an array', columns);
+    return <div className="p-4 text-red-600">Error: Invalid columns configuration</div>;
+  }
+  
+  if (!rows || !Array.isArray(rows)) {
+    console.error('EditableGrid: rows prop is missing or not an array', rows);
+    return <div className="p-4 text-red-600">Error: Invalid rows data</div>;
+  }
+
   const handleCell = (rowIdx, field, value)=>{
-    const next = rows.map((r,i)=> i===rowIdx ? ({...r, [field]: value}) : r);
-    onChange(next);
+    try {
+      const next = rows.map((r,i)=> i===rowIdx ? ({...r, [field]: value}) : r);
+      onChange(next);
+      
+      // Call onCellChange if provided for auto-save functionality
+      if (onCellChange) {
+        onCellChange(rowIdx, field, value);
+      }
+    } catch (error) {
+      console.error('Error in handleCell:', error);
+    }
   };
+  
   return (
     <div className="overflow-x-auto border rounded-lg">
       <table className="min-w-full text-sm">

@@ -97,7 +97,7 @@ export const useLifeSheetStore = create(
       
       // UI State
       ui: {
-        graphDockVisible: true,
+        graphDockVisible: false,
         graphDockPosition: 'top-right',
         selectedView: 'grid',
         filters: {},

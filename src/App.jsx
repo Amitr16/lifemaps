@@ -10,7 +10,6 @@ import GoalsPage from './pages/GoalsPage.jsx'
 import LoansPage from './pages/LoansPage.jsx'
 import ExpensesPage from './pages/ExpensesPage.jsx'
 import InsurancePage from './pages/InsurancePage.jsx'
-import DependantsPage from './pages/DependantsPage.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './App.css'
 
@@ -52,11 +51,6 @@ function App() {
                   <Route path="/insurance" element={
                     <ErrorBoundary>
                       <InsurancePage />
-                    </ErrorBoundary>
-                  } />
-                  <Route path="/dependants" element={
-                    <ErrorBoundary>
-                      <DependantsPage />
                     </ErrorBoundary>
                   } />
                 </Routes>

@@ -1,78 +1,185 @@
-import React, { useEffect } from 'react'
-import EnhancedDataGrid, { loanColumnDefs } from '@/components/EnhancedDataGrid.jsx'
-import GlobalGraphDock from '@/components/GlobalGraphDock.jsx'
-import { useLifeSheetStore } from '@/store/enhanced-store'
+import React, { useEffect, useState } from 'react'
+import EditableGrid from '@/components/EditableGrid.jsx'
+import { useAuth } from '../contexts/AuthContext'
+import ApiService from '../services/api'
+import UnifiedChart from '@/components/UnifiedChart.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 
 export default function LoansPage() {
-  const {
-    loans,
-    addLoan,
-    updateLoan,
-    deleteLoan,
-    loadFromLocalStorage
-  } = useLifeSheetStore()
+  const { user, isAuthenticated } = useAuth();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [savingRows, setSavingRows] = useState(new Set());
 
+  // Load loans from database
   useEffect(() => {
-    loadFromLocalStorage()
-  }, [loadFromLocalStorage])
-
-  const handleDataChange = (updatedData) => {
-    // Update each loan that has changed
-    updatedData.forEach((loan, index) => {
-      const originalLoan = loans[index]
-      if (originalLoan && JSON.stringify(loan) !== JSON.stringify(originalLoan)) {
-        updateLoan(loan.id, loan)
-      }
-    })
-  }
-
-  const handleAddRow = () => {
-    addLoan({
-      lender: 'New Lender',
-      type: 'Personal',
-      startDate: '',
-      endDate: '',
-      principalOutstanding: 0,
-      rate: 0,
-      emi: 0,
-      emiDay: 1,
-      prepayAllowed: true,
-      notes: ''
-    })
-  }
-
-  const handleDeleteRow = (loan) => {
-    if (loan.id) {
-      deleteLoan(loan.id)
+    if (isAuthenticated && user) {
+      loadLoans();
     }
-  }
+  }, [isAuthenticated, user]);
+
+  const loadLoans = async () => {
+    try {
+      setLoading(true);
+      const response = await ApiService.getFinancialLoans(user.id);
+      console.log('💰 Loans response:', response);
+      
+      // Handle the response format - backend returns { loans: [...] }
+      const loans = response.loans || response || [];
+      console.log('💰 Loans array:', loans);
+      setRows(loans);
+    } catch (error) {
+      console.error('Error loading loans:', error);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addRow = () => {
+    const newRow = { 
+      id: `temp_${Date.now()}`, 
+      provider: '', 
+      amount: 0, 
+      interestRate: 0, 
+      emi: 0, 
+      frequency: 'Monthly',
+      endAge: 65
+    };
+    setRows([...rows, newRow]);
+  };
+
+  const delRow = async (idx) => {
+    const row = rows[idx];
+    if (row.id && !row.id.toString().startsWith('temp_')) {
+      try {
+        await ApiService.deleteFinancialLoan(row.id);
+      } catch (error) {
+        console.error('Error deleting loan:', error);
+      }
+    }
+    setRows(rows.filter((_, i) => i !== idx));
+  };
+
+  const handleCellChange = (rowIndex, field, value) => {
+    try {
+      const updatedRows = [...rows];
+      updatedRows[rowIndex] = { ...updatedRows[rowIndex], [field]: value };
+      setRows(updatedRows);
+
+      const row = updatedRows[rowIndex];
+      
+      // Clear any existing timeout for this row
+      const timeoutKey = `row_${rowIndex}`;
+      clearTimeout(window[timeoutKey]);
+      
+      // Set a new timeout for auto-save (debounce)
+      window[timeoutKey] = setTimeout(() => {
+        // Check if row is already being saved
+        if (savingRows.has(rowIndex)) {
+          return;
+        }
+        
+        // Auto-save to database
+        if (row.id && !row.id.toString().startsWith('temp_')) {
+          // Update existing row - only if we have both provider and amount
+          if (row.provider && row.amount) {
+            setSavingRows(prev => new Set(prev).add(rowIndex));
+            ApiService.updateFinancialLoan(row.id, {
+              lender: row.provider,
+              principal_outstanding: parseFloat(row.amount) || 0,
+              rate: parseFloat(row.interestRate) || 0,
+              emi: parseFloat(row.emi) || 0,
+              end_date: row.endAge ? new Date(new Date().getFullYear() + parseInt(row.endAge) - 30, 0, 1).toISOString().split('T')[0] : null
+            }).finally(() => {
+              setSavingRows(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(rowIndex);
+                return newSet;
+              });
+            }).catch(error => console.error('Error updating loan:', error));
+          }
+        } else if (row.provider && row.amount && row.id.toString().startsWith('temp_')) {
+          // Create new row - only for temp rows with both provider and amount
+          setSavingRows(prev => new Set(prev).add(rowIndex));
+          ApiService.createFinancialLoan({
+            lender: row.provider,
+            type: 'Personal',
+            principal_outstanding: parseFloat(row.amount) || 0,
+            rate: parseFloat(row.interestRate) || 0,
+            emi: parseFloat(row.emi) || 0,
+            start_date: new Date().toISOString().split('T')[0],
+            end_date: row.endAge ? new Date(new Date().getFullYear() + parseInt(row.endAge) - 30, 0, 1).toISOString().split('T')[0] : null
+          }).then(newLoan => {
+            // Update the row with the new ID
+            const updatedRowsWithId = [...rows];
+            updatedRowsWithId[rowIndex] = { ...row, id: newLoan.id };
+            setRows(updatedRowsWithId);
+          }).finally(() => {
+            setSavingRows(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(rowIndex);
+              return newSet;
+            });
+          }).catch(error => console.error('Error creating loan:', error));
+        }
+      }, 1000); // 1 second debounce
+    } catch (error) {
+      console.error('Error in handleCellChange:', error);
+    }
+  };
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      // Clear all timeouts
+      for (let i = 0; i < 100; i++) {
+        clearTimeout(window[`row_${i}`]);
+      }
+    };
+  }, []);
 
   // Calculate summary statistics
-  const totalPrincipal = loans.reduce((sum, loan) => sum + (loan.principalOutstanding || 0), 0)
-  const totalEMI = loans.reduce((sum, loan) => sum + (loan.emi || 0), 0)
-  const averageRate = loans.length > 0 ? 
-    loans.reduce((sum, loan) => sum + (loan.rate || 0), 0) / loans.length : 0
-
-  // Calculate loan progress (simplified)
-  const loansWithProgress = loans.map(loan => {
-    const startDate = loan.startDate ? new Date(loan.startDate) : new Date()
-    const endDate = loan.endDate ? new Date(loan.endDate) : new Date()
-    const totalDuration = endDate.getTime() - startDate.getTime()
-    const elapsed = Date.now() - startDate.getTime()
-    const progress = totalDuration > 0 ? Math.min(100, Math.max(0, (elapsed / totalDuration) * 100)) : 0
+  const totalPrincipal = rows.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0)
+  const totalEMI = rows.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0), 0)
+  // Calculate weighted average interest rate based on loan amounts
+  const averageRate = (() => {
+    if (rows.length === 0) return 0;
     
-    return {
-      ...loan,
-      progress: Math.round(progress)
-    }
-  })
+    const totalWeightedRate = rows.reduce((sum, loan) => {
+      const amount = parseFloat(loan.amount) || 0;
+      const rate = parseFloat(loan.interestRate) || 0;
+      return sum + (amount * rate);
+    }, 0);
+    
+    const totalAmount = rows.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0);
+    
+    return totalAmount > 0 ? totalWeightedRate / totalAmount : 0;
+  })()
+
+  const columns = [
+    { field: 'provider', headerName: 'Provider' },
+    { field: 'amount', headerName: 'Amount', type: 'number' },
+    { field: 'interestRate', headerName: 'Interest Rate %', type: 'number' },
+    { field: 'emi', headerName: 'EMI', type: 'number' },
+    { field: 'frequency', headerName: 'Frequency' },
+    { field: 'endAge', headerName: 'End Age', type: 'number' }
+  ];
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto p-4 space-y-4">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <GlobalGraphDock />
+    <div className="max-w-6xl mx-auto p-4 space-y-4">
+      <UnifiedChart defaultEnabled={['loans']} />
       
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -97,7 +204,7 @@ export default function LoansPage() {
             <div className="text-2xl font-bold text-red-600">
               ₹{totalPrincipal.toLocaleString('en-IN')}
             </div>
-            <p className="text-xs text-gray-500">{loans.length} loans</p>
+            <p className="text-xs text-gray-500">{rows.length} loans</p>
           </CardContent>
         </Card>
 
@@ -138,44 +245,26 @@ export default function LoansPage() {
         </Card>
       </div>
 
-      {/* Loan Progress */}
-      {loansWithProgress.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Loan Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {loansWithProgress.map((loan, index) => (
-                <div key={loan.id || index} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">{loan.lender}</span>
-                    <span className="text-sm text-gray-500">{loan.progress}% complete</span>
-                  </div>
-                  <Progress value={loan.progress} className="h-2" />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>₹{(loan.principalOutstanding || 0).toLocaleString('en-IN')} outstanding</span>
-                    <span>EMI: ₹{(loan.emi || 0).toLocaleString('en-IN')}</span>
-                  </div>
-                </div>
-              ))}
+      {/* Loan Register */}
+      {columns && Array.isArray(columns) && rows && Array.isArray(rows) ? (
+        <div>
+          <EditableGrid 
+            columns={columns} 
+            rows={rows} 
+            onChange={setRows} 
+            onAdd={addRow} 
+            onDelete={delRow}
+            onCellChange={handleCellChange}
+          />
+          {savingRows.size > 0 && (
+            <div className="mt-2 text-sm text-blue-600">
+              Saving {savingRows.size} row(s)...
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
+      ) : (
+        <div className="p-4 text-gray-500">Loading loans...</div>
       )}
-
-      {/* Enhanced Data Grid */}
-      <EnhancedDataGrid
-        data={loans}
-        columnDefs={loanColumnDefs}
-        onDataChange={handleDataChange}
-        onAddRow={handleAddRow}
-        onDeleteRow={handleDeleteRow}
-        title="Loan Register"
-        enableFiltering={true}
-        enableSorting={true}
-        enableExport={true}
-      />
 
       {/* Important Note */}
       <div className="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
@@ -183,14 +272,6 @@ export default function LoansPage() {
           <strong>Note:</strong> EMI payments are automatically excluded from your Expenses module 
           to avoid double counting. Loan EMIs are tracked separately here and included in your 
           financial projections.
-        </p>
-      </div>
-
-      {/* Back-link info */}
-      <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-        <p>
-          <strong>Back-link:</strong> This view is connected to the "Total Existing Liabilities" 
-          metric in your Life Sheet. Changes here will instantly update your financial projections.
         </p>
       </div>
     </div>

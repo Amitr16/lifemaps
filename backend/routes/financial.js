@@ -149,14 +149,9 @@ router.put('/profile/:profileId', [
 
 // Goals routes (singular)
 router.post('/goal', [
-  body('name').optional().custom((value) => {
-    if (value === null || value === undefined || value === '') return true;
-    return typeof value === 'string' && value.trim().length >= 1;
-  }),
-  body('target_amount').optional().custom((value) => {
-    if (value === null || value === undefined || value === '') return true;
-    return !isNaN(parseFloat(value)) && parseFloat(value) >= 0;
-  }),
+  body('name').optional().trim(),
+  body('target_amount').optional().isNumeric(),
+  body('target_age').optional().isInt(),
   body('target_date').optional().isISO8601(),
   body('term').optional().isIn(['ST', 'LT']),
   body('recommended_allocation').optional().trim(),
@@ -164,8 +159,11 @@ router.post('/goal', [
   body('on_track').optional().isBoolean()
 ], async (req, res) => {
   try {
+    console.log('🎯 Goal creation request body:', req.body);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ error: 'Validation failed', details: errors.array() });
     }
 
@@ -173,10 +171,13 @@ router.post('/goal', [
     const name = req.body.name ?? req.body.description ?? null;
     const target_amount = req.body.target_amount ?? req.body.amount ?? null;
     const target_date = req.body.target_date ?? null;
+    const target_age = req.body.target_age ?? req.body.targetAge ?? null;
     const term = req.body.term ?? 'LT';
     const recommended_allocation = req.body.recommended_allocation ?? null;
     const funding_source = req.body.funding_source ?? null;
     const on_track = req.body.on_track ?? false;
+    
+    console.log('🎯 Mapped values:', { name, target_amount, target_age, term });
 
     // Build dynamic query for goal creation
     const fields = ['user_id'];
@@ -199,9 +200,10 @@ router.post('/goal', [
       }
     }
 
-    if (name !== null && name !== undefined) { fields.push('description'); values.push(name); }
-    if (target_amount !== null && target_amount !== undefined) { fields.push('amount'); values.push(target_amount); }
+    if (name !== null && name !== undefined) { fields.push('name'); values.push(name); }
+    if (target_amount !== null && target_amount !== undefined) { fields.push('target_amount'); values.push(target_amount); }
     if (target_date !== null && target_date !== undefined) { fields.push('target_date'); values.push(target_date); }
+    if (target_age !== null && target_age !== undefined) { fields.push('target_age'); values.push(target_age); }
     if (term !== null && term !== undefined) { fields.push('term'); values.push(term); }
     if (recommended_allocation !== null && recommended_allocation !== undefined) { fields.push('recommended_allocation'); values.push(recommended_allocation); }
     if (funding_source !== null && funding_source !== undefined) { fields.push('funding_source'); values.push(funding_source); }
@@ -210,7 +212,12 @@ router.post('/goal', [
     const placeholders = fields.map((_, index) => `$${index + 1}`).join(', ');
     const query = `INSERT INTO financial_goal (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
     
+    console.log('🎯 SQL Query:', query);
+    console.log('🎯 Values:', values);
+    
     const result = await pool.query(query, values);
+    
+    console.log('🎯 Created goal:', result.rows[0]);
 
     res.status(201).json({
       message: 'Financial goal created successfully',
@@ -235,7 +242,18 @@ router.get('/goal/:userId', async (req, res) => {
       [userId]
     );
 
-    res.json({ goals: result.rows });
+    // Map database fields to frontend field names
+    const mappedGoals = result.rows.map(goal => ({
+      id: goal.id,
+      description: goal.name, // Map name to description
+      amount: goal.target_amount, // Map target_amount to amount
+      targetAge: goal.target_age, // Map target_age to targetAge
+      user_id: goal.user_id,
+      created_at: goal.created_at,
+      updated_at: goal.updated_at
+    }));
+
+    res.json({ goals: mappedGoals });
   } catch (error) {
     console.error('Goals fetch error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -284,6 +302,7 @@ router.put('/goal/:goalId', [
         let dbColumn = key;
         if (key === 'description') dbColumn = 'name';
         if (key === 'amount') dbColumn = 'target_amount';
+        if (key === 'targetAge') dbColumn = 'target_age';
         
         // Only add if we haven't already used this column
         if (!usedColumns.has(dbColumn)) {
@@ -542,7 +561,7 @@ router.post('/loan', [
   body('start_date').optional().isISO8601(),
   body('end_date').optional().isISO8601(),
   body('principal_outstanding').optional().isFloat({ min: 0 }),
-  body('rate').optional().isFloat({ min: 0, max: 1 }),
+  body('rate').optional().isFloat({ min: 0, max: 100 }),
   body('emi').optional().custom((value) => {
     if (value === null || value === undefined || value === '') return true;
     return !isNaN(parseFloat(value)) && parseFloat(value) >= 0;
@@ -558,12 +577,12 @@ router.post('/loan', [
     }
 
     // Map Life Sheet fields to LifeMaps schema
-    const lender = req.body.lender ?? req.body.name ?? req.body.description ?? null;
+    const lender = req.body.lender ?? req.body.provider ?? req.body.name ?? req.body.description ?? null;
     const type = req.body.type ?? null;
     const start_date = req.body.start_date ?? null;
     const end_date = req.body.end_date ?? null;
     const principal_outstanding = req.body.principal_outstanding ?? req.body.amount ?? null;
-    const rate = req.body.rate ?? null;
+    const rate = req.body.rate ?? req.body.interestRate ?? null;
     const emi = req.body.emi ?? null;
     const emi_day = req.body.emi_day ?? null;
     const prepay_allowed = req.body.prepay_allowed ?? null;
@@ -629,7 +648,21 @@ router.get('/loan/:userId', async (req, res) => {
       [userId]
     );
 
-    res.json({ loans: result.rows });
+    // Map database fields to frontend field names
+    const mappedLoans = result.rows.map(loan => ({
+      id: loan.id,
+      provider: loan.lender, // Map lender to provider
+      amount: loan.principal_outstanding, // Map principal_outstanding to amount
+      interestRate: loan.rate ? parseFloat(loan.rate).toFixed(2) : 0, // Keep as number
+      emi: loan.emi,
+      frequency: 'Monthly', // Default frequency
+      endAge: loan.end_date ? new Date(loan.end_date).getFullYear() - new Date().getFullYear() + 30 : 65, // Calculate end age from end_date
+      user_id: loan.user_id,
+      created_at: loan.created_at,
+      updated_at: loan.updated_at
+    }));
+
+    res.json({ loans: mappedLoans });
   } catch (error) {
     console.error('Loans fetch error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -642,7 +675,7 @@ router.put('/loan/:loanId', [
   body('start_date').optional().isISO8601(),
   body('end_date').optional().isISO8601(),
   body('principal_outstanding').optional().isFloat({ min: 0 }),
-  body('rate').optional().isFloat({ min: 0, max: 1 }),
+  body('rate').optional().isFloat({ min: 0, max: 100 }),
   body('emi').optional().isFloat({ min: 0 }),
   body('emi_day').optional().isInt({ min: 1, max: 31 }),
   body('prepay_allowed').optional().isBoolean(),
@@ -679,9 +712,14 @@ router.put('/loan/:loanId', [
       if (value !== undefined) {
         // Map frontend field names to database column names for loans
         let dbColumn = key;
-        if (key === 'description') dbColumn = 'name';
+        let value = req.body[key];
+        
+        if (key === 'provider') dbColumn = 'lender';
         if (key === 'amount') dbColumn = 'principal_outstanding';
-        // lender stays as lender, no mapping needed
+        if (key === 'interestRate') {
+          dbColumn = 'rate';
+        }
+        if (key === 'endAge') dbColumn = 'end_date';
         
         // Only add if we haven't already used this column
         if (!usedColumns.has(dbColumn)) {
@@ -1345,6 +1383,364 @@ router.post('/asset-columns', (req, res, next) => {
 
 router.delete('/asset-columns/:columnId', (req, res, next) => {
   req.url = `/asset-column/${req.params.columnId}`;
+  router.handle(req, res, next);
+});
+
+// ==================== WORK ASSETS ROUTES ====================
+
+// Create work asset
+router.post('/work-asset', async (req, res) => {
+  try {
+    const { stream, amount, growthRate, endAge } = req.body;
+    
+    // Get user's profile_id
+    const profileResult = await pool.query(
+      'SELECT id FROM financial_profile WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    if (profileResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Financial profile not found' });
+    }
+    
+    const profileId = profileResult.rows[0].id;
+    
+    const result = await pool.query(
+      'INSERT INTO work_assets (user_id, profile_id, stream, amount, growth_rate, end_age) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [req.user.id, profileId, stream, amount, growthRate || 0.03, endAge]
+    );
+    
+    // Map database fields to frontend field names
+    const mappedAsset = {
+      id: result.rows[0].id,
+      stream: result.rows[0].stream,
+      amount: result.rows[0].amount,
+      growthRate: result.rows[0].growth_rate,
+      endAge: result.rows[0].end_age,
+      user_id: result.rows[0].user_id,
+      profile_id: result.rows[0].profile_id,
+      created_at: result.rows[0].created_at,
+      updated_at: result.rows[0].updated_at
+    };
+    
+    res.status(201).json(mappedAsset);
+  } catch (error) {
+    console.error('Work asset creation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get work assets for user
+router.get('/work-assets/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (req.user.id !== parseInt(userId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const result = await pool.query(
+      'SELECT * FROM work_assets WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    
+    // Map database fields to frontend field names
+    const mappedAssets = result.rows.map(asset => ({
+      id: asset.id,
+      stream: asset.stream,
+      amount: asset.amount,
+      growthRate: asset.growth_rate, // Map growth_rate to growthRate
+      endAge: asset.end_age, // Map end_age to endAge
+      user_id: asset.user_id,
+      profile_id: asset.profile_id,
+      created_at: asset.created_at,
+      updated_at: asset.updated_at
+    }));
+    
+    res.json(mappedAssets);
+  } catch (error) {
+    console.error('Work assets fetch error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update work asset
+router.put('/work-asset/:assetId', async (req, res) => {
+  try {
+    const { assetId } = req.params;
+    const { stream, amount, growthRate, endAge } = req.body;
+    
+    // Check ownership
+    const ownershipResult = await pool.query(
+      'SELECT user_id FROM work_assets WHERE id = $1',
+      [assetId]
+    );
+    
+    if (ownershipResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Work asset not found' });
+    }
+    
+    if (ownershipResult.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+    
+    if (stream !== undefined) {
+      updates.push(`stream = $${paramCount}`);
+      values.push(stream);
+      paramCount++;
+    }
+    if (amount !== undefined) {
+      updates.push(`amount = $${paramCount}`);
+      values.push(amount);
+      paramCount++;
+    }
+    if (growthRate !== undefined) {
+      updates.push(`growth_rate = $${paramCount}`);
+      values.push(growthRate);
+      paramCount++;
+    }
+    if (endAge !== undefined) {
+      updates.push(`end_age = $${paramCount}`);
+      values.push(endAge);
+      paramCount++;
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    values.push(assetId);
+    
+    const query = `UPDATE work_assets SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING *`;
+    const result = await pool.query(query, values);
+    
+    // Map database fields to frontend field names
+    const mappedAsset = {
+      id: result.rows[0].id,
+      stream: result.rows[0].stream,
+      amount: result.rows[0].amount,
+      growthRate: result.rows[0].growth_rate,
+      endAge: result.rows[0].end_age,
+      user_id: result.rows[0].user_id,
+      profile_id: result.rows[0].profile_id,
+      created_at: result.rows[0].created_at,
+      updated_at: result.rows[0].updated_at
+    };
+    
+    res.json(mappedAsset);
+  } catch (error) {
+    console.error('Work asset update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete work asset
+router.delete('/work-asset/:assetId', async (req, res) => {
+  try {
+    const { assetId } = req.params;
+    
+    // Check ownership
+    const ownershipResult = await pool.query(
+      'SELECT user_id FROM work_assets WHERE id = $1',
+      [assetId]
+    );
+    
+    if (ownershipResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Work asset not found' });
+    }
+    
+    if (ownershipResult.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    await pool.query('DELETE FROM work_assets WHERE id = $1', [assetId]);
+    
+    res.json({ message: 'Work asset deleted successfully' });
+  } catch (error) {
+    console.error('Work asset deletion error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Insurance routes (singular)
+router.post('/insurance', [
+  body('policy_type').optional().trim().isLength({ min: 1 }),
+  body('cover').optional().isFloat({ min: 0 }),
+  body('premium').optional().isFloat({ min: 0 }),
+  body('frequency').optional().isIn(['Monthly', 'Quarterly', 'Yearly']),
+  body('provider').optional().trim(),
+  body('policy_number').optional().trim(),
+  body('start_date').optional().isISO8601(),
+  body('end_date').optional().isISO8601(),
+  body('notes').optional().trim()
+], async (req, res) => {
+  try {
+    const {
+      policy_type,
+      cover,
+      premium,
+      frequency = 'Yearly',
+      provider,
+      policy_number,
+      start_date,
+      end_date,
+      notes
+    } = req.body;
+
+    // Get or create a default profile for the user
+    let profileId;
+    const profileResult = await pool.query(
+      'SELECT id FROM financial_profile WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [req.user.id]
+    );
+
+    if (profileResult.rows.length === 0) {
+      // Create a default profile
+      const newProfile = await pool.query(
+        'INSERT INTO financial_profile (user_id, total_asset_gross_market_value, total_loan_outstanding_value, lifespan_years, income_growth_rate, asset_growth_rate) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [req.user.id, 0, 0, 85, 0.06, 0.06]
+      );
+      profileId = newProfile.rows[0].id;
+    } else {
+      profileId = profileResult.rows[0].id;
+    }
+
+    const result = await pool.query(
+      'INSERT INTO financial_insurance (user_id, profile_id, policy_type, cover, premium, frequency, provider, policy_number, start_date, end_date, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+      [req.user.id, profileId, policy_type, cover, premium, frequency, provider, policy_number, start_date, end_date, notes]
+    );
+
+    res.status(201).json({ insurance: result.rows[0] });
+  } catch (error) {
+    console.error('Insurance creation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/insurance/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (req.user.id !== parseInt(userId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      'SELECT * FROM financial_insurance WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+
+    res.json({ insurance: result.rows });
+  } catch (error) {
+    console.error('Insurance fetch error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/insurance/:insuranceId', [
+  body('policy_type').optional().trim().isLength({ min: 1 }),
+  body('cover').optional().isFloat({ min: 0 }),
+  body('premium').optional().isFloat({ min: 0 }),
+  body('frequency').optional().isIn(['Monthly', 'Quarterly', 'Yearly']),
+  body('provider').optional().trim(),
+  body('policy_number').optional().trim(),
+  body('start_date').optional().isISO8601(),
+  body('end_date').optional().isISO8601(),
+  body('notes').optional().trim()
+], async (req, res) => {
+  try {
+    const { insuranceId } = req.params;
+
+    // Check ownership
+    const insuranceCheck = await pool.query(
+      'SELECT user_id FROM financial_insurance WHERE id = $1',
+      [insuranceId]
+    );
+
+    if (insuranceCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Insurance not found' });
+    }
+
+    if (insuranceCheck.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Build dynamic update query
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    Object.entries(req.body).forEach(([key, value]) => {
+      if (value !== undefined) {
+        updates.push(`${key} = $${paramCount}`);
+        values.push(value);
+        paramCount++;
+      }
+    });
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    const query = `UPDATE financial_insurance SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+    values.push(insuranceId);
+
+    const result = await pool.query(query, values);
+    res.json({ insurance: result.rows[0] });
+  } catch (error) {
+    console.error('Insurance update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/insurance/:insuranceId', async (req, res) => {
+  try {
+    const { insuranceId } = req.params;
+
+    // Check ownership
+    const insuranceCheck = await pool.query(
+      'SELECT user_id FROM financial_insurance WHERE id = $1',
+      [insuranceId]
+    );
+
+    if (insuranceCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Insurance not found' });
+    }
+
+    if (insuranceCheck.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await pool.query('DELETE FROM financial_insurance WHERE id = $1', [insuranceId]);
+    res.json({ message: 'Insurance deleted successfully' });
+  } catch (error) {
+    console.error('Insurance deletion error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Insurance routes (plural - for compatibility)
+router.post('/insurances', (req, res, next) => {
+  req.url = '/insurance';
+  router.handle(req, res, next);
+});
+
+router.get('/insurances/:userId', (req, res, next) => {
+  req.url = `/insurance/${req.params.userId}`;
+  router.handle(req, res, next);
+});
+
+router.put('/insurances/:insuranceId', (req, res, next) => {
+  req.url = `/insurance/${req.params.insuranceId}`;
+  router.handle(req, res, next);
+});
+
+router.delete('/insurances/:insuranceId', (req, res, next) => {
+  req.url = `/insurance/${req.params.insuranceId}`;
   router.handle(req, res, next);
 });
 

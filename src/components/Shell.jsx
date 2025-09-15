@@ -24,7 +24,6 @@ const navigationItems = [
   { path: '/loans', label: 'Loans', icon: CreditCard },
   { path: '/expenses', label: 'Expenses', icon: ShoppingCart },
   { path: '/insurance', label: 'Insurance', icon: Shield },
-  { path: '/dependants', label: 'Dependants', icon: Users }
 ]
 
 export default function Shell({ children }) {

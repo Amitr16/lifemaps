@@ -618,10 +618,11 @@ const NotionStyleAssetRegister = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Tags</SelectItem>
-                  <SelectItem value="Investment">Investment</SelectItem>
-                  <SelectItem value="Personal">Personal</SelectItem>
-                  <SelectItem value="Emergency">Emergency</SelectItem>
-                  <SelectItem value="Retirement">Retirement</SelectItem>
+                  {availableTags.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button onClick={handleAddAsset} className="bg-green-600 hover:bg-green-700">
