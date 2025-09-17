@@ -247,24 +247,24 @@ const UnifiedChart = ({ defaultEnabled = ['assets'] }) => {
     // Assets are now automatically updated from the store
   }, [assets]);
 
-  // Listen for asset updates from the asset register component
+  // Listen for work assets updates from WorkAssetsPage (event-based)
   useEffect(() => {
-    const handleAssetUpdate = (data) => {
-      console.log('📊 Chart received asset update event:', data);
-      // Update local assets state with the updated assets from the event
-      if (data.allAssets) {
-        setAssets(data.allAssets);
+    const handler = (evt) => {
+      try {
+        const incoming = (evt && evt.detail && Array.isArray(evt.detail.workAssets)) ? evt.detail.workAssets : [];
+        // force new references
+        const copied = incoming.map(w => ({ ...w }));
+        setWorkAssets(copied);
+        // ensure the chart recomputes
+        if (typeof calculateChartData === 'function') {
+          calculateChartData();
+        }
+      } catch (err) {
+        console.error('Failed to handle workAssetsUpdated event:', err);
       }
-      // Trigger chart recalculation when assets are updated
-      calculateChartData();
     };
-
-    // Subscribe to asset update events
-    const unsubscribe = eventBus.subscribe('assetUpdated', handleAssetUpdate);
-    
-    return () => {
-      unsubscribe();
-    };
+    window.addEventListener('workAssetsUpdated', handler);
+    return () => window.removeEventListener('workAssetsUpdated', handler);
   }, [calculateChartData]);
 
   const loadWorkAssets = async () => {

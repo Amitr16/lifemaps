@@ -7,17 +7,21 @@ import dotenv from 'dotenv';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables FIRST with absolute path
+// Load environment variables - .env file is optional in production
 const envPath = path.resolve(__dirname, '.env');
 console.log('🔎 Resolving .env at:', envPath, 'exists?', fs.existsSync(envPath));
 
-// Debug: Read and log the .env file content
-const envContent = fs.readFileSync(envPath, 'utf8');
-console.log('📄 .env file content:');
-console.log(envContent);
-console.log('📄 End of .env content');
-
-dotenv.config({ path: envPath });
+if (fs.existsSync(envPath)) {
+  // Only read .env file if it exists (for local development)
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  console.log('📄 .env file content:');
+  console.log(envContent);
+  console.log('📄 End of .env content');
+  dotenv.config({ path: envPath });
+} else {
+  console.log('📄 No .env file found, using environment variables from Railway');
+  dotenv.config(); // Load from process.env
+}
 
 import express from 'express';
 import cors from 'cors';
@@ -40,7 +44,7 @@ app.use(helmet());
 // Rate limiting - More generous for development
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // Increased from 100 to 1000
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 2000, // Increased for development
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Don't count 200s
@@ -55,7 +59,7 @@ app.use(limiter);
 console.log('🔍 CORS_ORIGIN from env:', process.env.CORS_ORIGIN);
 const corsOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['http://localhost:5174'];
+  : ['http://localhost:5174', 'http://192.168.68.80:5174'];
 console.log('🔍 Parsed CORS origins:', corsOrigins);
 const corsOptions = {
   origin: corsOrigins,
@@ -134,6 +138,44 @@ app.get('/health', (req, res) => {
       heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + ' MB'
     }
   });
+});
+
+// Database initialization endpoint
+app.post('/init-db', async (req, res) => {
+  try {
+    console.log('🔧 Initializing database schema...');
+    
+    // Read and execute the complete schema
+    const schemaPath = path.join(__dirname, 'scripts', 'complete-schema.sql');
+    const schemaSQL = fs.readFileSync(schemaPath, 'utf8');
+    
+    await pool.query(schemaSQL);
+    console.log('✅ Database schema initialized successfully');
+
+    // Verify tables were created
+    const tablesResult = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
+    `);
+    
+    const tables = tablesResult.rows.map(row => row.table_name);
+    console.log('📊 Created tables:', tables);
+
+    res.json({
+      status: 'success',
+      message: 'Database schema initialized successfully',
+      tables: tables
+    });
+  } catch (error) {
+    console.error('❌ Error initializing database:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to initialize database',
+      error: error.message
+    });
+  }
 });
 
 // API routes

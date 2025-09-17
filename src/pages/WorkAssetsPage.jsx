@@ -8,11 +8,23 @@ import UnifiedChart from '@/components/UnifiedChart.jsx';
 
 export default function WorkAssetsPage() {
   const { user, isAuthenticated } = useAuth();
-  const { lifeSheet } = useLifeSheetStore();
+  const { lifeSheet, updateWorkAssets } = useLifeSheetStore();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // Get current age from the store (same as main page)
+  
+
+  // Fallback: broadcast updates so UnifiedChart can react even without store actions
+  const dispatchWorkAssetsEvent = (rows) => {
+    try {
+      const payload = Array.isArray(rows) ? rows.map(r => ({ ...r })) : [];
+      window.dispatchEvent(new CustomEvent('workAssetsUpdated', { detail: { workAssets: payload } }));
+    } catch (e) {
+      console.warn('Failed to dispatch workAssetsUpdated event:', e);
+    }
+  };
+
+// Get current age from the store (same as main page)
   const currentAge = parseInt(lifeSheet.age) || 30;
 
   // Load work assets from database
@@ -28,7 +40,10 @@ export default function WorkAssetsPage() {
       const workAssets = await ApiService.getWorkAssets(user.id);
       console.log('🔍 Work assets from API:', workAssets);
       setRows(workAssets);
-    } catch (error) {
+    
+      // keep charts in sync via event
+      dispatchWorkAssetsEvent(workAssets);
+} catch (error) {
       console.error('Error loading work assets:', error);
     } finally {
       setLoading(false);
@@ -52,6 +67,11 @@ export default function WorkAssetsPage() {
     if (row.id && !row.id.toString().startsWith('temp_')) {
       try {
         await ApiService.deleteWorkAsset(row.id);
+        // Emit event to notify chart of work asset update
+        const updatedRows = rows.filter((_, i) => i !== idx);
+        window.dispatchEvent(new CustomEvent('workAssetsUpdated', { 
+          detail: { workAssets: updatedRows } 
+        }));
       } catch (error) {
         console.error('Error deleting work asset:', error);
       }
@@ -64,7 +84,10 @@ export default function WorkAssetsPage() {
     updatedRows[rowIndex] = { ...updatedRows[rowIndex], [field]: value };
     setRows(updatedRows);
 
-    const row = updatedRows[rowIndex];
+    // event-based live update for charts
+    dispatchWorkAssetsEvent(updatedRows);
+
+        const row = updatedRows[rowIndex];
     
     // Auto-save to database
     try {
@@ -76,6 +99,10 @@ export default function WorkAssetsPage() {
           growthRate: parseFloat(row.growthRate) || 0,
           endAge: parseInt(row.endAge) || 65
         });
+        // Emit event to notify chart of work asset update
+        window.dispatchEvent(new CustomEvent('workAssetsUpdated', { 
+          detail: { workAssets: updatedRows } 
+        }));
       } else if (row.stream && row.amount) {
         // Create new row
         const newAsset = await ApiService.createWorkAsset({
@@ -88,6 +115,10 @@ export default function WorkAssetsPage() {
         // Update the row with the new ID
         updatedRows[rowIndex] = { ...row, id: newAsset.id };
         setRows(updatedRows);
+        // Emit event to notify chart of work asset update
+        window.dispatchEvent(new CustomEvent('workAssetsUpdated', { 
+          detail: { workAssets: updatedRows } 
+        }));
       }
     } catch (error) {
       console.error('Error saving work asset:', error);

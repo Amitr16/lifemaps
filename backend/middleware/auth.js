@@ -14,7 +14,7 @@ export const authenticateToken = async (req, res, next) => {
     
     // Verify user still exists in database
     const result = await pool.query(
-      'SELECT id, email, username, first_name, last_name FROM "user" WHERE id = $1',
+      'SELECT id, email, name FROM "user" WHERE id = $1',
       [decoded.userId]
     );
 

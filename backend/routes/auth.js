@@ -47,8 +47,8 @@ router.post('/register', [
       console.log('Creating user with data:', { email, name, hashedPassword: hashedPassword.substring(0, 20) + '...' });
       
       result = await pool.query(
-        'INSERT INTO "user" (email, password_hash, username, first_name, last_name, is_active, created_at) VALUES ($1, $2, $3, $4, $5, true, NOW()) RETURNING id, email, username, first_name, last_name, created_at',
-        [email, hashedPassword, email, name, '']
+        'INSERT INTO "user" (email, password_hash, name, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id, email, name, created_at',
+        [email, hashedPassword, name]
       );
       
       console.log('User creation query result:', result);
@@ -77,7 +77,7 @@ router.post('/register', [
       user: {
         id: user.id,
         email: user.email,
-        name: user.first_name || user.username,
+        name: user.name,
         created_at: user.created_at
       },
       token
@@ -87,9 +87,7 @@ router.post('/register', [
     
     // Handle specific database constraint violations
     if (error.code === '23505') { // Unique constraint violation
-      if (error.constraint === 'user_username_key') {
-        return res.status(400).json({ error: 'Username already exists. Please try a different name.' });
-      } else if (error.constraint === 'user_email_key') {
+      if (error.constraint === 'user_email_key') {
         return res.status(400).json({ error: 'Email already exists. Please use a different email address.' });
       } else {
         return res.status(400).json({ error: 'This information is already in use. Please check your details and try again.' });
@@ -121,7 +119,7 @@ router.post('/login', [
     let result;
     try {
       result = await pool.query(
-        'SELECT id, email, username, first_name, last_name, password_hash FROM "user" WHERE email = $1',
+        'SELECT id, email, name, password_hash FROM "user" WHERE email = $1',
         [email]
       );
     } catch (dbError) {
@@ -150,7 +148,7 @@ router.post('/login', [
       user: {
         id: user.id,
         email: user.email,
-        name: user.first_name || user.username
+        name: user.name
       },
       token
     });
@@ -179,7 +177,7 @@ router.post('/logout', authenticateToken, (req, res) => {
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, username, first_name, last_name, created_at FROM "user" WHERE id = $1',
+      'SELECT id, email, name, created_at FROM "user" WHERE id = $1',
       [req.user.id]
     );
 
@@ -192,7 +190,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.first_name || user.username,
+        name: user.name,
         created_at: user.created_at
       }
     });
@@ -263,9 +261,7 @@ router.put('/profile', authenticateToken, [
     
     // Handle specific database constraint violations
     if (error.code === '23505') { // Unique constraint violation
-      if (error.constraint === 'user_username_key') {
-        return res.status(400).json({ error: 'Username already exists. Please choose a different username.' });
-      } else if (error.constraint === 'user_email_key') {
+      if (error.constraint === 'user_email_key') {
         return res.status(400).json({ error: 'Email already exists. Please use a different email address.' });
       } else {
         return res.status(400).json({ error: 'This information is already in use. Please check your details and try again.' });
