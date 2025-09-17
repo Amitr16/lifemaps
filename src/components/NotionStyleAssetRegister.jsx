@@ -436,6 +436,77 @@ const NotionStyleAssetRegister = () => {
     setTempValue('')
   }
 
+  // Tab navigation to move to next cell
+  const handleTabNavigation = (e, currentAssetId, currentField) => {
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      
+      console.log('🔍 Tab pressed on field:', currentField)
+      console.log('🔍 Current tempValue:', tempValue)
+      console.log('🔍 Current editingCell:', editingCell)
+      
+      // First save the current cell if we're in edit mode
+      if (editingCell && editingCell.assetId === currentAssetId && editingCell.field === currentField) {
+        console.log('🔍 Calling handleCellSave...')
+        handleCellSave(currentAssetId, currentField)
+      } else {
+        console.log('🔍 Not in edit mode, skipping save')
+      }
+      
+      // Then move to next cell after a small delay to ensure save completes
+      setTimeout(() => {
+        // Define the actual table column order (including basic fields)
+        const visibleColumns = getVisibleColumns()
+        console.log('🔍 Visible columns from getVisibleColumns():', visibleColumns)
+        // Skip sipFrequency due to dropdown issues, go directly from sipAmount to sipExpiryDate
+        const customColumns = visibleColumns.map(col => col.key).filter(key => key !== 'sipFrequency')
+        const tableColumnOrder = ['name', 'current_value', ...customColumns]
+        console.log('🔍 Table column order:', tableColumnOrder)
+        console.log('🔍 Table column order length:', tableColumnOrder.length)
+        
+        const currentFieldIndex = tableColumnOrder.findIndex(field => field === currentField)
+        console.log('🔍 Current field index:', currentFieldIndex, 'for field:', currentField)
+        
+        if (currentFieldIndex !== -1) {
+          // If not at the last column, move to next column
+          if (currentFieldIndex < tableColumnOrder.length - 1) {
+            const nextField = tableColumnOrder[currentFieldIndex + 1]
+            console.log('🔍 Moving to next field:', nextField)
+            const currentAsset = assets.find(asset => asset.id === currentAssetId)
+            if (currentAsset) {
+              // Get value from custom_data for custom columns, or directly for basic fields
+              let nextValue = ''
+              if (['name', 'current_value'].includes(nextField)) {
+                nextValue = currentAsset[nextField] || ''
+              } else {
+                nextValue = currentAsset.custom_data?.[nextField] || ''
+              }
+              console.log('🔍 Next value for', nextField, ':', nextValue)
+              handleCellEdit(currentAssetId, nextField, nextValue)
+            }
+          } else {
+            console.log('🔍 At last column, moving to next row')
+            // If at last column, move to first column of next row
+            const currentAssetIndex = assets.findIndex(asset => asset.id === currentAssetId)
+            if (currentAssetIndex < assets.length - 1) {
+              const nextAsset = assets[currentAssetIndex + 1]
+              const firstField = tableColumnOrder[0]
+              // Get value from custom_data for custom columns, or directly for basic fields
+              let nextValue = ''
+              if (['name', 'current_value'].includes(firstField)) {
+                nextValue = nextAsset[firstField] || ''
+              } else {
+                nextValue = nextAsset.custom_data?.[firstField] || ''
+              }
+              console.log('🔍 Moving to next row, first field:', firstField, 'value:', nextValue)
+              handleCellEdit(nextAsset.id, firstField, nextValue)
+            }
+          }
+        }
+      }, 50) // Small delay to ensure save completes
+    }
+  }
+
   const handleAddColumn = async () => {
     console.log('🔧 handleAddColumn called:', { newColumnName, newColumnType, customColumnsLength: customColumns.length })
     
@@ -1220,6 +1291,7 @@ const NotionStyleAssetRegister = () => {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleCellSave(asset.id, 'name')
                           if (e.key === 'Escape') handleCellCancel()
+                          handleTabNavigation(e, asset.id, 'name')
                         }}
                         className="h-8"
                         autoFocus
@@ -1283,6 +1355,7 @@ const NotionStyleAssetRegister = () => {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleCellSave(asset.id, 'current_value')
                           if (e.key === 'Escape') handleCellCancel()
+                          handleTabNavigation(e, asset.id, 'current_value')
                         }}
                         className="h-8"
                         autoFocus
@@ -1360,6 +1433,7 @@ const NotionStyleAssetRegister = () => {
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleCellSave(asset.id, column.key)
                               if (e.key === 'Escape') handleCellCancel()
+                              handleTabNavigation(e, asset.id, column.key)
                             }}
                             className="h-8"
                             autoFocus
@@ -1383,6 +1457,7 @@ const NotionStyleAssetRegister = () => {
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleCellSave(asset.id, column.key)
                             if (e.key === 'Escape') handleCellCancel()
+                            handleTabNavigation(e, asset.id, column.key)
                           }}
                           className="h-8"
                           autoFocus
