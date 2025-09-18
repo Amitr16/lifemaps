@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart, Area, Legend } from 'recharts'
 import { TrendingUp, TrendingDown, Calculator, Target, DollarSign, PiggyBank, User, LogOut, Save, RefreshCw, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useChart } from '../contexts/ChartContext'
@@ -16,8 +16,8 @@ import '../styles/professional-theme.css'
 
 export default function OriginalLifeSheet() {
   const { user, logout, isAuthenticated } = useAuth()
-  const { chartData, calculateFinancials } = useChart()
-  const { updateLifeSheet, addGoal: addStoreGoal, updateGoal: updateStoreGoal, deleteGoal: deleteStoreGoal, addExpense: addStoreExpense, updateExpense: updateStoreExpense, deleteExpense: deleteStoreExpense, addLoan: addStoreLoan, updateLoan: updateStoreLoan, deleteLoan: deleteStoreLoan, setLoans: setStoreLoans, setExpenses: setStoreExpenses, setGoals: setStoreGoals } = useLifeSheetStore()
+  const { chartData } = useChart()
+  const { updateLifeSheet, addGoal: addStoreGoal, updateGoal: updateStoreGoal, deleteGoal: deleteStoreGoal, addExpense: addStoreExpense, updateExpense: updateStoreExpense, deleteExpense: deleteStoreExpense, addLoan: addStoreLoan, updateLoan: updateStoreLoan, deleteLoan: deleteStoreLoan, setLoans: setStoreLoans, setExpenses: setStoreExpenses, setGoals: setStoreGoals, lifeSheet, setMainInputs, hydrateMainInputs, setSourcePreference, sourcePreferences, loadSourcePreferences } = useLifeSheetStore()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -44,8 +44,95 @@ export default function OriginalLifeSheet() {
   const [goals, setGoals] = useState([])
   const [expenses, setExpenses] = useState([])
   
-  // Get calculated values from ChartContext (exactly as specified)
-  const calculations = calculateFinancials()
+  // Get calculated values from store (ChatGPT's fix - single source of truth)
+  const currentYear = new Date().getFullYear();
+  const currentYearData = chartData?.find(d => d.year === currentYear) || {};
+  
+  const calculations = {
+    totalExistingAssets: currentYearData.portfolio || lifeSheet.totalExistingAssets || 0,
+    totalExistingLiabilities: currentYearData.emi || lifeSheet.totalExistingLiabilities || 0,
+    totalHumanCapital: currentYearData.income || lifeSheet.totalHumanCapital || 0,
+    totalFutureExpenses: currentYearData.expenses || lifeSheet.totalFutureExpense || 0,
+    totalFinancialGoals: lifeSheet.totalGoals || 0, // Goals are not in chartData, keep from lifeSheet
+    surplusDeficit: (currentYearData.portfolio || lifeSheet.totalExistingAssets || 0) + 
+                   (currentYearData.income || lifeSheet.totalHumanCapital || 0) - 
+                   (currentYearData.emi || lifeSheet.totalExistingLiabilities || 0) - 
+                   (currentYearData.expenses || lifeSheet.totalFutureExpense || 0) - 
+                   (lifeSheet.totalGoals || 0)
+  }
+
+  // Handle user input changes (these should take precedence over Assets detail)
+  const handleUserInputChange = (field, value) => {
+    setFormData({...formData, [field]: value})
+    
+    // Set source preference to main page (0) when user edits main inputs
+    setSourcePreference('assets', 0);
+    
+    // Map form fields to store fields and update with user origin
+    const storeFieldMap = {
+      'currentAnnualGrossIncome': 'income0',
+      'totalAssetGrossMarketValue': 'initialAssets', 
+      'workTenureYears': 'workTenureYears',
+      'age': 'age',
+      'lifespanYears': 'lifespanYears',
+      'incomeGrowthRate': 'g_income',
+      'assetGrowthRate': 'r_assets'
+    }
+    
+    const storeField = storeFieldMap[field]
+    if (storeField) {
+      setMainInputs({
+        [storeField]: field === 'age' || field === 'workTenureYears' || field === 'lifespanYears' 
+          ? parseInt(value) || 0
+          : field === 'incomeGrowthRate' || field === 'assetGrowthRate'
+          ? parseFloat(value) || 0
+          : parseFloat(value) || 0
+      }, { origin: 'user' })
+    }
+  }
+  
+  // Debug: Log calculations and chartData
+  React.useEffect(() => {
+    console.log('🔄 OriginalLifeSheet: Page mounted/updated');
+    console.log('🔄 OriginalLifeSheet: calculations:', calculations);
+    console.log('🔄 OriginalLifeSheet: chartData length:', chartData?.length);
+    console.log('🔄 OriginalLifeSheet: chartData sample:', chartData?.slice(0, 3));
+    console.log('🔄 OriginalLifeSheet: Full chartData:', chartData);
+  }, [calculations, chartData]);
+
+  // Event dispatching for live chart updates (following Assets page pattern)
+  const dispatchGoalsEvent = (updatedGoals) => {
+    try {
+      const payload = Array.isArray(updatedGoals) ? updatedGoals.map(g => ({ ...g })) : [];
+      window.dispatchEvent(new CustomEvent('goalsUpdated', { detail: { goals: payload } }));
+      console.log('🔄 LifeSheet: Dispatched goalsUpdated event with', payload.length, 'goals');
+      console.log('🔄 LifeSheet: Goals data:', payload);
+    } catch (e) {
+      console.warn('Failed to dispatch goalsUpdated event:', e);
+    }
+  };
+
+  const dispatchExpensesEvent = (updatedExpenses) => {
+    try {
+      const payload = Array.isArray(updatedExpenses) ? updatedExpenses.map(e => ({ ...e })) : [];
+      window.dispatchEvent(new CustomEvent('expensesUpdated', { detail: { expenses: payload } }));
+      console.log('🔄 LifeSheet: Dispatched expensesUpdated event with', payload.length, 'expenses');
+      console.log('🔄 LifeSheet: Expenses data:', payload);
+    } catch (e) {
+      console.warn('Failed to dispatch expensesUpdated event:', e);
+    }
+  };
+
+  const dispatchLoansEvent = (updatedLoans) => {
+    try {
+      const payload = Array.isArray(updatedLoans) ? updatedLoans.map(l => ({ ...l })) : [];
+      window.dispatchEvent(new CustomEvent('loansUpdated', { detail: { loans: payload } }));
+      console.log('🔄 LifeSheet: Dispatched loansUpdated event with', payload.length, 'loans');
+      console.log('🔄 LifeSheet: Loans data:', payload);
+    } catch (e) {
+      console.warn('Failed to dispatch loansUpdated event:', e);
+    }
+  };
 
   const [financialProfile, setFinancialProfile] = useState(null)
 
@@ -61,6 +148,9 @@ export default function OriginalLifeSheet() {
     if (isAuthenticated && user) {
       loadFinancialData()
       
+      // Load source preferences from database
+      loadSourcePreferences()
+      
       // Load loans
       ApiService.getFinancialLoans(user.id).then(res => {
         console.log('🏦 Loans fetch response:', res)
@@ -69,6 +159,7 @@ export default function OriginalLifeSheet() {
           description: loan.name // Map backend 'name' to frontend 'description'
         }));
         setLoans(mappedLoans);
+        dispatchLoansEvent(mappedLoans);
         
         // Map loans for store with correct field names
         const mappedLoansForStore = mappedLoans.map(loan => ({
@@ -89,6 +180,7 @@ export default function OriginalLifeSheet() {
           amount: parseFloat(goal.target_amount) || parseFloat(goal.amount) || 0 // Map target_amount to amount for display
         }));
         setGoals(mappedGoals);
+        dispatchGoalsEvent(mappedGoals);
         setStoreGoals(mappedGoals); // Also update store
       }).catch(error => {
         console.error('❌ Goals fetch error:', error)
@@ -99,6 +191,7 @@ export default function OriginalLifeSheet() {
         console.log('💰 Expenses fetch response:', res)
         const expensesData = res.expenses || [];
         setExpenses(expensesData);
+        dispatchExpensesEvent(expensesData);
         setStoreExpenses(expensesData); // Also update store
       }).catch(error => {
         console.error('❌ Expenses fetch error:', error)
@@ -106,9 +199,25 @@ export default function OriginalLifeSheet() {
     }
   }, [isAuthenticated, user])
 
-  // Update store when local data changes
+  // Update store when local data changes (ChatGPT's fix - use hydrateMainInputs for system updates)
   useEffect(() => {
     if (isAuthenticated && user) {
+      console.log('🔄 OriginalLifeSheet: Hydrating main inputs (system update)');
+      // Hydrate main inputs for Net Worth system (doesn't bump lastEditedAt)
+      hydrateMainInputs({
+        initialAssets: parseFloat(formData.totalAssetGrossMarketValue) || 0,
+        startYear: new Date().getFullYear(),
+        horizonYears: (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0),
+        r_assets: parseFloat(formData.assetGrowthRate) || 0.06,
+        g_income: parseFloat(formData.incomeGrowthRate) || 0.06,
+        i_expenses: 0.06, // Fixed expense inflation
+        workTenureYears: parseInt(formData.workTenureYears) || 35,
+        income0: parseFloat(formData.currentAnnualGrossIncome) || 0,
+        expenses0: 0, // Will be calculated from expenses array
+        quickEmiByYear: {} // Will be calculated from loans array
+      })
+      
+      // Also update legacy lifeSheet for compatibility
       updateLifeSheet({
         age: formData.age,
         currentAnnualGrossIncome: formData.currentAnnualGrossIncome,
@@ -120,7 +229,7 @@ export default function OriginalLifeSheet() {
         assetGrowthRate: formData.assetGrowthRate
       })
     }
-  }, [formData, isAuthenticated, user, updateLifeSheet])
+  }, [formData, isAuthenticated, user, hydrateMainInputs, updateLifeSheet])
 
   // Update store goals when local goals change
   useEffect(() => {
@@ -393,13 +502,16 @@ export default function OriginalLifeSheet() {
       orderIndex: goals.length + 1,
       isNew: true
     }
-    setGoals([...goals, newGoal])
+    const updatedGoals = [...goals, newGoal]
+    setGoals(updatedGoals)
+    dispatchGoalsEvent(updatedGoals)
   }
 
   const updateGoal = (index, field, value) => {
     const updatedGoals = [...goals]
     updatedGoals[index] = { ...updatedGoals[index], [field]: value }
     setGoals(updatedGoals)
+    dispatchGoalsEvent(updatedGoals)
   }
 
   const saveGoalOnBlur = async (index, field, value) => {
@@ -464,6 +576,7 @@ export default function OriginalLifeSheet() {
     }
     const updatedGoals = goals.filter((_, i) => i !== index);
     setGoals(updatedGoals);
+    dispatchGoalsEvent(updatedGoals);
   }
 
   // Dynamic Expenses Management
@@ -474,13 +587,16 @@ export default function OriginalLifeSheet() {
       orderIndex: expenses.length + 1,
       isNew: true
     }
-    setExpenses([...expenses, newExpense])
+    const updatedExpenses = [...expenses, newExpense]
+    setExpenses(updatedExpenses)
+    dispatchExpensesEvent(updatedExpenses)
   }
 
   const updateExpense = (index, field, value) => {
     const updatedExpenses = [...expenses]
     updatedExpenses[index] = { ...updatedExpenses[index], [field]: value }
     setExpenses(updatedExpenses)
+    dispatchExpensesEvent(updatedExpenses)
   }
 
   const saveExpenseOnBlur = async (index, field, value) => {
@@ -536,6 +652,7 @@ export default function OriginalLifeSheet() {
     }
     const updatedExpenses = expenses.filter((_, i) => i !== index);
     setExpenses(updatedExpenses);
+    dispatchExpensesEvent(updatedExpenses);
   }
 
   // 2. Add loan CRUD handlers using backend
@@ -547,20 +664,23 @@ export default function OriginalLifeSheet() {
       isNew: true,
       _tempId: Date.now() + Math.random() // Unique temporary ID
     };
-    setLoans([
-      ...loans,
-      newLoan
-    ]);
+    const updatedLoans = [...loans, newLoan]
+    setLoans(updatedLoans);
+    dispatchLoansEvent(updatedLoans);
   }
 
   const updateLoan = (loanKey, field, value) => {
-    setLoans(loans => loans.map((loan, idx) => {
-      // Match by ID if it exists, otherwise by tempId, otherwise by index
-      const isMatch = loan.id ? loan.id === loanKey : 
-                     loan._tempId ? loan._tempId === loanKey : 
-                     idx === loanKey;
-      return isMatch ? { ...loan, [field]: value } : loan;
-    }));
+    setLoans(loans => {
+      const updatedLoans = loans.map((loan, idx) => {
+        // Match by ID if it exists, otherwise by tempId, otherwise by index
+        const isMatch = loan.id ? loan.id === loanKey : 
+                       loan._tempId ? loan._tempId === loanKey : 
+                       idx === loanKey;
+        return isMatch ? { ...loan, [field]: value } : loan;
+      });
+      dispatchLoansEvent(updatedLoans);
+      return updatedLoans;
+    });
   }
 
   const saveLoanOnBlur = async (loanKey, field, value) => {
@@ -652,7 +772,11 @@ export default function OriginalLifeSheet() {
         console.log('✅ Delete response:', response);
         
         // Only remove from UI if backend deletion was successful
-        setLoans(loans => loans.filter((_, idx) => idx !== loanIndex));
+        setLoans(loans => {
+          const updatedLoans = loans.filter((_, idx) => idx !== loanIndex);
+          dispatchLoansEvent(updatedLoans);
+          return updatedLoans;
+        });
         
         setSaveStatus('Loan deleted');
         setTimeout(() => setSaveStatus(''), 1000);
@@ -664,7 +788,11 @@ export default function OriginalLifeSheet() {
     } else {
       console.log('🗑️ No ID found, removing from UI only');
       // For loans without ID (not saved yet), just remove from UI
-      setLoans(loans => loans.filter((_, idx) => idx !== loanIndex));
+      setLoans(loans => {
+        const updatedLoans = loans.filter((_, idx) => idx !== loanIndex);
+        dispatchLoansEvent(updatedLoans);
+        return updatedLoans;
+      });
     }
   }
 
@@ -672,14 +800,22 @@ export default function OriginalLifeSheet() {
     // Convert to number if it's not already
     const numAmount = typeof amount === 'number' ? amount : parseFloat(amount) || 0
     
-    if (numAmount >= 10000000) {
-      return `₹${(numAmount / 10000000).toFixed(1)}Cr`
-    } else if (numAmount >= 100000) {
-      return `₹${(numAmount / 100000).toFixed(1)}L`
-    } else if (numAmount >= 1000) {
-      return `₹${(numAmount / 1000).toFixed(1)}K`
+    // Handle negative values
+    const isNegative = numAmount < 0
+    const absAmount = Math.abs(numAmount)
+    
+    let formatted
+    if (absAmount >= 10000000) {
+      formatted = `${(absAmount / 10000000).toFixed(1)}Cr`
+    } else if (absAmount >= 100000) {
+      formatted = `${(absAmount / 100000).toFixed(1)}L`
+    } else if (absAmount >= 1000) {
+      formatted = `${(absAmount / 1000).toFixed(1)}K`
+    } else {
+      formatted = `${absAmount.toFixed(0)}`
     }
-    return `₹${numAmount.toFixed(0)}`
+    
+    return `${isNegative ? '-' : ''}₹${formatted}`
   }
 
   return (
@@ -767,7 +903,7 @@ export default function OriginalLifeSheet() {
                       type="number"
                       placeholder="Enter your age"
                       value={formData.age}
-                      onChange={(e) => setFormData({...formData, age: e.target.value})}
+                      onChange={(e) => handleUserInputChange('age', e.target.value)}
                       onBlur={(e) => saveOnBlur('age', e.target.value)}
                       className="professional-input"
                     />
@@ -785,7 +921,7 @@ export default function OriginalLifeSheet() {
                         type="number"
                         placeholder="Rs. XX,XXX"
                         value={formData.currentAnnualGrossIncome}
-                        onChange={(e) => setFormData({...formData, currentAnnualGrossIncome: e.target.value})}
+                        onChange={(e) => handleUserInputChange('currentAnnualGrossIncome', e.target.value)}
                         onBlur={(e) => saveOnBlur('currentAnnualGrossIncome', e.target.value)}
                         className="professional-input"
                       />
@@ -793,7 +929,7 @@ export default function OriginalLifeSheet() {
                         type="number"
                         placeholder="XX years"
                         value={formData.workTenureYears}
-                        onChange={(e) => setFormData({...formData, workTenureYears: e.target.value})}
+                        onChange={(e) => handleUserInputChange('workTenureYears', e.target.value)}
                         onBlur={(e) => saveOnBlur('workTenureYears', e.target.value)}
                         className="professional-input"
                       />
@@ -810,7 +946,7 @@ export default function OriginalLifeSheet() {
                     type="number"
                     placeholder="Enter your Gross Market Value"
                     value={formData.totalAssetGrossMarketValue}
-                    onChange={(e) => setFormData({...formData, totalAssetGrossMarketValue: e.target.value})}
+                    onChange={(e) => handleUserInputChange('totalAssetGrossMarketValue', e.target.value)}
                     onBlur={(e) => saveOnBlur('totalAssetGrossMarketValue', e.target.value)}
                     className="mt-1"
                   />
@@ -1111,24 +1247,25 @@ export default function OriginalLifeSheet() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {chartData.length > 0 ? (
+              {console.log('🔄 Chart: chartData length:', chartData.length, 'chartData:', chartData) || chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="year" 
-                      label={{ value: 'Life Tenure', position: 'insideBottom', offset: -5 }}
-                    />
-                    <YAxis 
-                      label={{ value: 'Total Assets', angle: -90, position: 'insideLeft' }}
-                      tickFormatter={(value) => formatCurrency(value)}
-                    />
-                    <Tooltip 
-                      formatter={(value, name) => [formatCurrency(value), name]}
-                      labelFormatter={(label) => `Year: ${label}`}
-                    />
-                    <Bar dataKey="asset" fill="#10B981" />
-                  </BarChart>
+             <LineChart data={chartData}>
+               <CartesianGrid strokeDasharray="3 3" />
+               <XAxis 
+                 dataKey="year" 
+                 label={{ value: 'Life Tenure', position: 'insideBottom', offset: -5 }}
+               />
+               <YAxis 
+                 label={{ value: 'Net Worth', angle: -90, position: 'insideLeft' }}
+                 tickFormatter={(value) => formatCurrency(value)}
+                 domain={['dataMin', 'dataMax']}
+               />
+               <Tooltip 
+                 formatter={(value, name) => [formatCurrency(value), name]}
+                 labelFormatter={(label) => `Year: ${label}`}
+               />
+               <Line dataKey="netWorth" name="Net Worth" stroke="#10B981" strokeWidth={3} dot={false} />
+             </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="h-64 flex items-center justify-center text-gray-500">
@@ -1138,6 +1275,155 @@ export default function OriginalLifeSheet() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Data Source Indicators */}
+          <Card className="mt-4 shadow-lg border-0 bg-white/80 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Target className="w-5 h-5 text-purple-600" />
+                <span>Chart Data Sources</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${sourcePreferences?.assets === 1 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                  <div>
+                    <p className="text-sm font-medium">Assets</p>
+                    <p className="text-xs text-gray-600">
+                      {sourcePreferences?.assets === 1 ? 'Detailed (Assets Page)' : 'Quick Calculator'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${sourcePreferences?.income === 1 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                  <div>
+                    <p className="text-sm font-medium">Work Assets</p>
+                    <p className="text-xs text-gray-600">
+                      {sourcePreferences?.income === 1 ? 'Detailed (Work Assets Page)' : 'Quick Calculator'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${sourcePreferences?.loans === 1 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                  <div>
+                    <p className="text-sm font-medium">Liabilities</p>
+                    <p className="text-xs text-gray-600">
+                      {sourcePreferences?.loans === 1 ? 'Detailed (Loans Page)' : 'Quick Calculator'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${sourcePreferences?.expenses === 1 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                  <div>
+                    <p className="text-sm font-medium">Expenses</p>
+                    <p className="text-xs text-gray-600">
+                      {sourcePreferences?.expenses === 1 ? 'Detailed (Expenses Page)' : 'Quick Calculator'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-600">
+                  <strong>Legend:</strong> 
+                  <span className="inline-flex items-center ml-2">
+                    <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
+                    Detailed (from respective pages)
+                  </span>
+                  <span className="inline-flex items-center ml-4">
+                    <div className="w-3 h-3 rounded-full bg-blue-500 mr-1"></div>
+                    Quick Calculator (from main page)
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Growth Rate Assumptions & Calculation Logic */}
+          <Card className="mt-4 shadow-lg border-0 bg-white/80 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Calculator className="w-5 h-5 text-blue-600" />
+                <span>Growth Rate Assumptions & Net Worth Calculation</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Growth Rate Assumptions */}
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-3">Growth Rate Assumptions</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Asset Growth Rate:</span>
+                      <span className="font-medium">{(parseFloat(formData.assetGrowthRate) * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Income Growth Rate:</span>
+                      <span className="font-medium">{(parseFloat(formData.incomeGrowthRate) * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Expense Inflation Rate:</span>
+                      <span className="font-medium">6.0%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Work Tenure:</span>
+                      <span className="font-medium">{formData.workTenureYears} years</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Projection Horizon:</span>
+                      <span className="font-medium">{formData.lifespanYears - parseInt(formData.age)} years</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Net Worth Calculation Logic */}
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-3">Net Worth Calculation</h4>
+                  <div className="text-sm space-y-2">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="font-medium text-gray-700 mb-2">Formula for each year:</p>
+                      <p className="text-gray-600">
+                        <strong>Net Worth<sub>t</sub> = Net Worth<sub>t-1</sub> × (1 + Asset Growth) + Income<sub>t</sub> - Expenses<sub>t</sub> - EMIs<sub>t</sub></strong>
+                      </p>
+                    </div>
+                    <div className="space-y-1 text-xs text-gray-600">
+                      <p>• <strong>Income<sub>t</sub></strong> = Current Income × (1 + Income Growth)<sup>t-1</sup> (only while working)</p>
+                      <p>• <strong>Expenses<sub>t</sub></strong> = Base Expenses × (1 + Inflation)<sup>t-1</sup></p>
+                      <p>• <strong>EMIs<sub>t</sub></strong> = Sum of active loan EMIs for year t</p>
+                      <p>• <strong>Asset Growth</strong> = Applied to total net worth each year</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Current Inputs Summary */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-gray-800 mb-3">Current Inputs</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Initial Assets:</span>
+                    <p className="font-medium">{formatCurrency(formData.totalAssetGrossMarketValue)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Annual Income:</span>
+                    <p className="font-medium">{formatCurrency(formData.currentAnnualGrossIncome)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Annual Expenses:</span>
+                    <p className="font-medium">{formatCurrency(calculations.totalFutureExpenses / (formData.lifespanYears - parseInt(formData.age)))}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Annual EMIs:</span>
+                    <p className="font-medium">{formatCurrency(loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0), 0) * 12)}</p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

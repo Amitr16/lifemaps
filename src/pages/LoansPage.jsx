@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import EditableGrid from '@/components/EditableGrid.jsx'
 import { useAuth } from '../contexts/AuthContext'
+import { useLifeSheetStore } from '../store/enhanced-store'
 import ApiService from '../services/api'
 import LoansChart from '@/components/LoansChart.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 
 export default function LoansPage() {
   const { user, isAuthenticated } = useAuth();
+  const { setDetailEmi, setSourcePreference } = useLifeSheetStore();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [savingRows, setSavingRows] = useState(new Set());
@@ -19,6 +21,47 @@ export default function LoansPage() {
       window.dispatchEvent(new CustomEvent('loansUpdated', { detail: { loans: payload } }));
     } catch (e) {
       console.warn('Failed to dispatch loansUpdated event:', e);
+    }
+  };
+
+  // Calculate EMI time series and update store
+  const updateStoreWithEmiTimeSeries = (loansData) => {
+    console.log('🔄 Loans: updateStoreWithEmiTimeSeries called with loans:', loansData.length);
+    try {
+      const currentYear = new Date().getFullYear();
+      const emiSeries = {};
+      
+      // For each year, calculate total EMI payments
+      for (let yearOffset = 0; yearOffset <= 50; yearOffset++) {
+        const year = currentYear + yearOffset;
+        let totalEmi = 0;
+        
+        loansData.forEach(loan => {
+          const principal = parseFloat(loan.amount) || 0;
+          const emi = parseFloat(loan.emi) || 0;
+          const tenureYears = parseFloat(loan.tenureYears) || 0;
+          
+          // Only include EMI if the loan is still active (within tenure)
+          if (yearOffset < tenureYears && emi > 0) {
+            totalEmi += emi * 12; // Convert monthly EMI to annual
+          }
+        });
+        
+        emiSeries[year] = totalEmi;
+      }
+      
+      console.log('🔄 Loans: Calculated EMI series for first 5 years:', 
+        Object.keys(emiSeries).slice(0, 5).map(y => [y, emiSeries[y]]));
+      
+      // Update store with detailed EMI data
+      setDetailEmi(emiSeries);
+      // Set source preference to detailed (1) when Loans data is calculated
+      setSourcePreference('loans', 1);
+      console.log('🔄 Loans: setDetailEmi called successfully');
+      console.log('🔄 Loans: Source preference set to detailed (1)');
+      
+    } catch (error) {
+      console.error('❌ Error updating store with EMI time series:', error);
     }
   };
 
@@ -44,6 +87,9 @@ export default function LoansPage() {
       
       // Dispatch event for live chart updates (following WorkAssetsPage pattern)
       dispatchLoansEvent(loans);
+      
+      // Update store with detailed EMI time series
+      updateStoreWithEmiTimeSeries(loans);
     } catch (error) {
       console.error('Error loading loans:', error);
       setRows([]);
@@ -89,6 +135,9 @@ export default function LoansPage() {
 
       // Dispatch event for live chart updates (following WorkAssetsPage pattern)
       dispatchLoansEvent(updatedRows);
+      
+      // Update store with detailed EMI time series
+      updateStoreWithEmiTimeSeries(updatedRows);
 
       const row = updatedRows[rowIndex];
       

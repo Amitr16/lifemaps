@@ -384,6 +384,18 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // Source Preferences
+  async getSourcePreferences() {
+    return this.request('/financial/source-preferences');
+  }
+
+  async updateSourcePreference(component, source) {
+    return this.request('/financial/source-preferences', {
+      method: 'POST',
+      body: JSON.stringify({ component, source }),
+    });
+  }
 }
 
 export default new ApiService();

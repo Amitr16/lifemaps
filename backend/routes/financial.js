@@ -5,6 +5,52 @@ import { CORE_COLUMN_DEFINITIONS } from '../constants/columns.js';
 
 const router = express.Router();
 
+// Source preference management
+router.get('/source-preferences', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT component, source FROM user_source_preferences WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    const preferences = {};
+    result.rows.forEach(row => {
+      preferences[row.component] = row.source;
+    });
+    
+    res.json({ preferences });
+  } catch (error) {
+    console.error('Error fetching source preferences:', error);
+    res.status(500).json({ error: 'Failed to fetch source preferences' });
+  }
+});
+
+router.post('/source-preferences', [
+  body('component').isIn(['assets', 'income', 'loans', 'expenses', 'goals']),
+  body('source').isInt({ min: 0, max: 1 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    const { component, source } = req.body;
+
+    await pool.query(`
+      INSERT INTO user_source_preferences (user_id, component, source, updated_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (user_id, component)
+      DO UPDATE SET source = $3, updated_at = NOW()
+    `, [req.user.id, component, source]);
+
+    res.json({ success: true, component, source });
+  } catch (error) {
+    console.error('Error updating source preference:', error);
+    res.status(500).json({ error: 'Failed to update source preference' });
+  }
+});
+
 // Financial Profile routes
 router.post('/profile', [
   body('age').isInt({ min: 18, max: 100 }),

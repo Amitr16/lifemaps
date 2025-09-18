@@ -87,6 +87,7 @@ const calculateSIPProjection = ({ initial, sipAmount, sipFrequency, annualRate, 
  * @returns {Array} Goals progress data
  */
 export const calculateGoalsProgress = (goals, assets, currentYear = new Date().getFullYear()) => {
+  console.log('🎯 calculateGoalsProgress called with:', { goals: goals.length, assets: assets.length, currentYear });
   return goals.map(goal => {
     // Handle both field name variations (name/target_amount vs description/amount)
     const target = parseFloat(goal.target_amount || goal.amount) || 0;
@@ -104,10 +105,39 @@ export const calculateGoalsProgress = (goals, assets, currentYear = new Date().g
         const percentage = parseFloat(linkedAsset.percent) || 0;
         const earmarkedValue = assetValue * (percentage / 100);
         
-        // Simple growth projection (no compounding for now)
-        const growthRate = 0.05; // 5% default
-        const futureValue = earmarkedValue * (1 + growthRate * yearsToGoal);
-        funded += futureValue;
+        // Use EXACT same SIP FV calculation as Assets page
+        const customData = asset.custom_data || {};
+        const expectedReturn = parseFloat(customData.expectedReturn) || 5; // Default 5% (same as Assets)
+        const growthRate = expectedReturn / 100;
+        
+        console.log('🎯 Goals Chart Calculation:', {
+          goalName: goal.name || goal.description,
+          assetName: asset.name,
+          assetValue,
+          percentage,
+          earmarkedValue,
+          expectedReturn,
+          growthRate,
+          yearsToGoal,
+          customData
+        });
+        
+        const sipProjection = calculateSIPProjection({
+          initial: earmarkedValue,
+          sipAmount: (parseFloat(customData.sipAmount) || 0) * (percentage / 100), // SIP amount * 15%
+          sipFrequency: customData.sipFrequency || '', // Use asset's SIP frequency
+          annualRate: growthRate,
+          years: yearsToGoal,
+          sipExpiryDate: customData.sipExpiryDate || '' // Use asset's SIP expiry
+        });
+        
+        console.log('🎯 SIP Projection Result:', {
+          earmarkedValue,
+          sipProjection,
+          totalFunded: funded + sipProjection
+        });
+        
+        funded += sipProjection;
       }
     });
     

@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { eventBus } from '@/lib/eventBus'
 import { syncEarmarkingData } from '@/lib/goalCalculations'
 import ApiService from '@/services/api'
+import { useLifeSheetStore } from '@/store/enhanced-store'
 import EarmarkingInput from './EarmarkingInput'
 import { CORE_COLUMNS } from '@/constants/columns'
 
@@ -384,9 +385,135 @@ const NotionStyleAssetRegister = () => {
     try {
       const payload = Array.isArray(updatedAssets) ? updatedAssets.map(a => ({ ...a })) : [];
       window.dispatchEvent(new CustomEvent('assetsUpdated', { detail: { assets: payload } }));
+      
+      // Also update the store with detailed time series for main page
+      updateStoreWithAssetTimeSeries(updatedAssets);
     } catch (e) {
       console.warn('Failed to dispatch assetsUpdated event:', e);
     }
+  };
+
+  // Calculate detailed asset time series and update store (using same logic as UnifiedChart)
+  const updateStoreWithAssetTimeSeries = (assetsData) => {
+    console.log('🔄 Assets: updateStoreWithAssetTimeSeries called with assets:', assetsData.length);
+    try {
+      const { setDetailAssets, setSourcePreference } = useLifeSheetStore.getState();
+      console.log('🔄 Assets: setDetailAssets function:', typeof setDetailAssets);
+      
+      // Calculate portfolio series for each year using the same logic as UnifiedChart
+      const currentYear = new Date().getFullYear();
+      const portfolioSeries = {};
+      
+      // For each year, calculate total asset value using SIP projection logic
+      for (let yearOffset = 0; yearOffset <= 50; yearOffset++) {
+        const year = currentYear + yearOffset;
+        let totalAssets = 0;
+        
+        assetsData.forEach(asset => {
+          const value = parseFloat(asset.current_value) || 0;
+          const customData = asset.custom_data || {};
+          const expectedReturn = parseFloat(customData.expectedReturn) || 5; // Default 5%
+          const growthRate = expectedReturn / 100;
+          
+          // Use the same SIP projection logic as UnifiedChart
+          const grownValue = calculateSIPProjection({
+            initial: value,
+            sipAmount: parseFloat(customData.sipAmount) || 0,
+            sipFrequency: customData.sipFrequency || '',
+            annualRate: growthRate,
+            years: yearOffset,
+            sipExpiryDate: customData.sipExpiryDate || ''
+          });
+          
+          totalAssets += grownValue;
+        });
+        
+        portfolioSeries[year] = Math.round(totalAssets);
+      }
+      
+      console.log('🔄 Assets: Updating store with portfolio series:', portfolioSeries);
+      console.log('🔄 Assets: Sample values:', {
+        year2025: portfolioSeries[2025],
+        year2030: portfolioSeries[2030],
+        year2035: portfolioSeries[2035]
+      });
+      setDetailAssets(portfolioSeries);
+      // Set source preference to detailed (1) when Assets data is calculated
+      setSourcePreference('assets', 1);
+      console.log('🔄 Assets: setDetailAssets called successfully');
+      console.log('🔄 Assets: Full portfolioSeries sent to store:', portfolioSeries);
+      console.log('🔄 Assets: Source preference set to detailed (1)');
+      
+    } catch (error) {
+      console.error('❌ Error updating store with asset time series:', error);
+    }
+  };
+
+  // SIP projection function (same as UnifiedChart)
+  const calculateSIPProjection = ({ initial, sipAmount, sipFrequency, annualRate, years, sipExpiryDate }) => {
+    if (sipAmount <= 0 || !sipFrequency) {
+      // No SIP, just return initial value with compound growth
+      return initial * Math.pow(1 + annualRate, years);
+    }
+
+    // Convert SIP frequency to monthly contributions
+    let monthlySIP = 0;
+    switch (sipFrequency) {
+      case 'Weekly':
+        monthlySIP = sipAmount * 4.33; // ~4.33 weeks per month
+        break;
+      case 'Bi-weekly':
+        monthlySIP = sipAmount * 2.17; // ~2.17 bi-weeks per month
+        break;
+      case 'Monthly':
+        monthlySIP = sipAmount;
+        break;
+      case 'Bi-monthly':
+        monthlySIP = sipAmount * 2;
+        break;
+      case 'Quarterly':
+        monthlySIP = sipAmount / 3;
+        break;
+      case 'Semi-annual':
+        monthlySIP = sipAmount / 6;
+        break;
+      case 'Annual':
+        monthlySIP = sipAmount / 12;
+        break;
+      case 'Lumpsum':
+        monthlySIP = 0; // One-time only
+        break;
+      default:
+        monthlySIP = 0;
+    }
+
+    // Calculate SIP months (how long SIP runs)
+    let sipMonths = years * 12; // Default: SIP runs for all years
+    if (sipExpiryDate) {
+      const expiryYear = new Date(sipExpiryDate).getFullYear();
+      const currentYear = new Date().getFullYear();
+      const maxSipYears = Math.max(0, expiryYear - currentYear);
+      sipMonths = Math.min(years * 12, maxSipYears * 12);
+    }
+
+    const monthlyRate = annualRate / 12;
+    const totalMonths = years * 12;
+
+    // Lump sum part (grows throughout the entire period)
+    const lumpValue = initial * Math.pow(1 + monthlyRate, totalMonths);
+
+    // SIP part (accumulate up to SIP expiry, then let it compound)
+    let sipValue = 0;
+    if (monthlySIP > 0 && sipMonths > 0) {
+      // Calculate SIP accumulated up to expiry
+      const sipAccumulated = monthlySIP * ((Math.pow(1 + monthlyRate, sipMonths) - 1) / monthlyRate);
+      
+      // After SIP stops, let the accumulated SIP pot continue compounding
+      const remainingMonths = totalMonths - sipMonths;
+      sipValue = sipAccumulated * Math.pow(1 + monthlyRate, remainingMonths);
+    }
+
+    return lumpValue + sipValue;
   };
 
   const handleCellSave = async (assetId, field, value = null) => {

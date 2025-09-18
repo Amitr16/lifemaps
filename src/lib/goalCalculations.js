@@ -134,19 +134,22 @@ export const calculateGoalFunding = (goal, assets) => {
     const expectedReturn = parseFloat(customData.expectedReturn) || 5
     const sipExpiryDate = customData.sipExpiryDate || ''
     
-    // Calculate projected value at target year
+    // Calculate earmarked amount first
+    const earmarkedValue = currentValue * percent / 100
+    
+    // Calculate projected value at target year using earmarked amount
     const annualRate = expectedReturn / 100
     const projectedValue = calculateSIPProjection({
-      initial: currentValue,
-      sipAmount: sipAmount,
+      initial: earmarkedValue,
+      sipAmount: sipAmount * percent / 100, // Only the earmarked portion of SIP
       sipFrequency: sipFrequency,
       annualRate: annualRate,
       years: yearsToTarget,
       sipExpiryDate: sipExpiryDate
     })
     
-    // Calculate funded amount based on projected value
-    const assetContribution = projectedValue * percent / 100
+    // The projected value is already the funded amount
+    const assetContribution = projectedValue
     
     console.log(`📊 Asset ${asset.name} projection:`, {
       currentValue,

@@ -3,10 +3,12 @@ import React, { useEffect, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import ExpensesChart from '@/components/ExpensesChart.jsx';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLifeSheetStore } from '../store/enhanced-store';
 import ApiService from '@/services/api';
 
 export default function ExpensesPage() {
   const { user } = useAuth();
+  const { setDetailExpenses, setSourcePreference } = useLifeSheetStore();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingRows, setSavingRows] = useState(new Set());
@@ -18,6 +20,45 @@ export default function ExpensesPage() {
       window.dispatchEvent(new CustomEvent('expensesUpdated', { detail: { expenses: payload } }));
     } catch (e) {
       console.warn('Failed to dispatch expensesUpdated event:', e);
+    }
+  };
+
+  // Calculate expenses time series and update store
+  const updateStoreWithExpensesTimeSeries = (expensesData) => {
+    console.log('🔄 Expenses: updateStoreWithExpensesTimeSeries called with expenses:', expensesData.length);
+    try {
+      const currentYear = new Date().getFullYear();
+      const expensesSeries = {};
+      
+      // For each year, calculate total expenses with inflation
+      for (let yearOffset = 0; yearOffset <= 50; yearOffset++) {
+        const year = currentYear + yearOffset;
+        let totalExpenses = 0;
+        
+        expensesData.forEach(expense => {
+          const annualAmount = parseFloat(expense.amount) || 0;
+          const inflationRate = (parseFloat(expense.inflationRate) || 0) / 100;
+          
+          // Apply inflation for each year
+          const inflatedAmount = annualAmount * Math.pow(1 + inflationRate, yearOffset);
+          totalExpenses += inflatedAmount;
+        });
+        
+        expensesSeries[year] = totalExpenses;
+      }
+      
+      console.log('🔄 Expenses: Calculated expenses series for first 5 years:', 
+        Object.keys(expensesSeries).slice(0, 5).map(y => [y, expensesSeries[y]]));
+      
+      // Update store with detailed expenses data
+      setDetailExpenses(expensesSeries);
+      // Set source preference to detailed (1) when Expenses data is calculated
+      setSourcePreference('expenses', 1);
+      console.log('🔄 Expenses: setDetailExpenses called successfully');
+      console.log('🔄 Expenses: Source preference set to detailed (1)');
+      
+    } catch (error) {
+      console.error('❌ Error updating store with expenses time series:', error);
     }
   };
 
@@ -52,6 +93,9 @@ export default function ExpensesPage() {
       
       // Dispatch event for live chart updates (following WorkAssetsPage pattern)
       dispatchExpensesEvent(mappedExpenses);
+      
+      // Update store with detailed expenses time series
+      updateStoreWithExpensesTimeSeries(mappedExpenses);
     } catch (error) {
       console.error('Error loading expenses:', error);
     } finally {
@@ -100,6 +144,9 @@ export default function ExpensesPage() {
 
       // Dispatch event for live chart updates (following WorkAssetsPage pattern)
       dispatchExpensesEvent(updatedRows);
+      
+      // Update store with detailed expenses time series
+      updateStoreWithExpensesTimeSeries(updatedRows);
 
       const row = updatedRows[rowIndex];
       

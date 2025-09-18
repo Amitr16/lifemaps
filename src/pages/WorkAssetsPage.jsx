@@ -8,7 +8,7 @@ import UnifiedChart from '@/components/UnifiedChart.jsx';
 
 export default function WorkAssetsPage() {
   const { user, isAuthenticated } = useAuth();
-  const { lifeSheet, updateWorkAssets } = useLifeSheetStore();
+  const { lifeSheet, updateWorkAssets, setDetailIncome, setSourcePreference } = useLifeSheetStore();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   
@@ -21,6 +21,51 @@ export default function WorkAssetsPage() {
       window.dispatchEvent(new CustomEvent('workAssetsUpdated', { detail: { workAssets: payload } }));
     } catch (e) {
       console.warn('Failed to dispatch workAssetsUpdated event:', e);
+    }
+  };
+
+  // Calculate work income time series and update store
+  const updateStoreWithWorkIncomeTimeSeries = (workAssetsData) => {
+    console.log('🔄 Work Assets: updateStoreWithWorkIncomeTimeSeries called with work assets:', workAssetsData.length);
+    try {
+      const currentYear = new Date().getFullYear();
+      const incomeSeries = {};
+      
+      // For each year, calculate total work income
+      for (let yearOffset = 0; yearOffset <= 50; yearOffset++) {
+        const year = currentYear + yearOffset;
+        let totalIncome = 0;
+        
+        workAssetsData.forEach(asset => {
+          const startAge = currentAge;
+          const endAge = parseInt(asset.endAge) || 65;
+          const ageInYear = startAge + yearOffset;
+          
+          // Only include income if current age is within the work period
+          if (ageInYear >= startAge && ageInYear <= endAge) {
+            const yearsFromStart = yearOffset;
+            const growthRate = (parseFloat(asset.growthRate) || 0) / 100;
+            const annualAmount = parseFloat(asset.amount) || 0;
+            const inflatedAmount = annualAmount * Math.pow(1 + growthRate, yearsFromStart);
+            totalIncome += inflatedAmount;
+          }
+        });
+        
+        incomeSeries[year] = totalIncome;
+      }
+      
+      console.log('🔄 Work Assets: Calculated income series for first 5 years:', 
+        Object.keys(incomeSeries).slice(0, 5).map(y => [y, incomeSeries[y]]));
+      
+      // Update store with detailed income data
+      setDetailIncome(incomeSeries);
+      // Set source preference to detailed (1) when Work Assets data is calculated
+      setSourcePreference('income', 1);
+      console.log('🔄 Work Assets: setDetailIncome called successfully');
+      console.log('🔄 Work Assets: Source preference set to detailed (1)');
+      
+    } catch (error) {
+      console.error('❌ Error updating store with work income time series:', error);
     }
   };
 
@@ -43,6 +88,9 @@ export default function WorkAssetsPage() {
     
       // keep charts in sync via event
       dispatchWorkAssetsEvent(workAssets);
+      
+      // Update store with detailed work income time series
+      updateStoreWithWorkIncomeTimeSeries(workAssets);
 } catch (error) {
       console.error('Error loading work assets:', error);
     } finally {
@@ -86,6 +134,9 @@ export default function WorkAssetsPage() {
 
     // event-based live update for charts
     dispatchWorkAssetsEvent(updatedRows);
+    
+    // Update store with detailed work income time series
+    updateStoreWithWorkIncomeTimeSeries(updatedRows);
 
         const row = updatedRows[rowIndex];
     
