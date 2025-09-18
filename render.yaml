@@ -2,7 +2,7 @@ services:
   # Backend service
   - type: web
     name: lifemaps-backend
-    env: node
+    runtime: node
     plan: free
     buildCommand: cd backend && npm install
     startCommand: cd backend && node start-render.js
@@ -23,14 +23,13 @@ services:
   # Frontend service
   - type: web
     name: lifemaps-frontend
-    env: static
+    runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
         value: https://lifemaps-backend.onrender.com/api
 
-  # PostgreSQL database
-  - type: pserv
-    name: lifemaps-db
+databases:
+  - name: lifemaps-db
     plan: free
