@@ -1,0 +1,1563 @@
+{
+  "user": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('user_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "email",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "password_hash",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "name",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "NO",
+        "default": null,
+        "position": 4
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "now()",
+        "position": 5
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "now()",
+        "position": 6
+      }
+    ],
+    "constraints": [
+      {
+        "name": "user_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "user",
+        "foreign_column": "id"
+      },
+      {
+        "name": "user_email_key",
+        "type": "UNIQUE",
+        "column": "email",
+        "foreign_table": "user",
+        "foreign_column": "email"
+      },
+      {
+        "name": "2200_34602_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34602_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34602_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34602_4_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  },
+  "financial_profile": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('financial_profile_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "user_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "age",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "current_annual_gross_income",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 4
+      },
+      {
+        "name": "work_tenure_years",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 5
+      },
+      {
+        "name": "total_asset_gross_market_value",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 6
+      },
+      {
+        "name": "total_loan_outstanding_value",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 7
+      },
+      {
+        "name": "loan_tenure_years",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 8
+      },
+      {
+        "name": "monthly_income",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 9
+      },
+      {
+        "name": "annual_income",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 10
+      },
+      {
+        "name": "asset_value",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 11
+      },
+      {
+        "name": "loan_value",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 12
+      },
+      {
+        "name": "lifespan_years",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 13
+      },
+      {
+        "name": "income_growth_rate",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 14
+      },
+      {
+        "name": "asset_growth_rate",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 15
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 16
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 17
+      }
+    ],
+    "constraints": [
+      {
+        "name": "financial_profile_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "financial_profile",
+        "foreign_column": "id"
+      },
+      {
+        "name": "2200_33897_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33897_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33897_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  },
+  "assets": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('assets_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "user_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "profile_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "name",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "NO",
+        "default": null,
+        "position": 4
+      },
+      {
+        "name": "tag",
+        "type": "character varying",
+        "max_length": 50,
+        "nullable": "NO",
+        "default": null,
+        "position": 5
+      },
+      {
+        "name": "current_value",
+        "type": "numeric",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "0",
+        "position": 6
+      },
+      {
+        "name": "custom_data",
+        "type": "jsonb",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "'{}'::jsonb",
+        "position": 7
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "now()",
+        "position": 8
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "now()",
+        "position": 9
+      },
+      {
+        "name": "holding_type",
+        "type": "character varying",
+        "max_length": 50,
+        "nullable": "YES",
+        "default": "'one_time'::character varying",
+        "position": 10
+      },
+      {
+        "name": "amount_per_month",
+        "type": "numeric",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "0",
+        "position": 11
+      },
+      {
+        "name": "start_date",
+        "type": "date",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 12
+      },
+      {
+        "name": "end_date",
+        "type": "date",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 13
+      },
+      {
+        "name": "owner",
+        "type": "character varying",
+        "max_length": 100,
+        "nullable": "YES",
+        "default": null,
+        "position": 14
+      },
+      {
+        "name": "liquidity",
+        "type": "character varying",
+        "max_length": 50,
+        "nullable": "YES",
+        "default": null,
+        "position": 15
+      },
+      {
+        "name": "expected_return",
+        "type": "numeric",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 16
+      }
+    ],
+    "constraints": [
+      {
+        "name": "assets_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "assets",
+        "foreign_column": "id"
+      },
+      {
+        "name": "assets_profile_id_fkey",
+        "type": "FOREIGN KEY",
+        "column": "profile_id",
+        "foreign_table": "financial_profile",
+        "foreign_column": "id"
+      },
+      {
+        "name": "check_holding_type",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "assets",
+        "foreign_column": "holding_type"
+      },
+      {
+        "name": "check_liquidity",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "assets",
+        "foreign_column": "liquidity"
+      },
+      {
+        "name": "check_expected_return",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "assets",
+        "foreign_column": "expected_return"
+      },
+      {
+        "name": "2200_34016_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34016_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34016_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34016_4_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34016_5_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  },
+  "financial_loan": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('financial_loan_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "user_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "profile_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "name",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 4
+      },
+      {
+        "name": "amount",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 5
+      },
+      {
+        "name": "emi",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 6
+      },
+      {
+        "name": "order_index",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "0",
+        "position": 7
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 8
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 9
+      },
+      {
+        "name": "lender",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 10
+      },
+      {
+        "name": "type",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 11
+      },
+      {
+        "name": "start_date",
+        "type": "date",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 12
+      },
+      {
+        "name": "end_date",
+        "type": "date",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 13
+      },
+      {
+        "name": "principal_outstanding",
+        "type": "numeric",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 14
+      },
+      {
+        "name": "rate",
+        "type": "numeric",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 15
+      },
+      {
+        "name": "emi_day",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "1",
+        "position": 16
+      },
+      {
+        "name": "prepay_allowed",
+        "type": "boolean",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "true",
+        "position": 17
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 18
+      }
+    ],
+    "constraints": [
+      {
+        "name": "financial_loan_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "financial_loan",
+        "foreign_column": "id"
+      },
+      {
+        "name": "financial_loan_profile_id_fkey",
+        "type": "FOREIGN KEY",
+        "column": "profile_id",
+        "foreign_table": "financial_profile",
+        "foreign_column": "id"
+      },
+      {
+        "name": "financial_loan_emi_day_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "financial_loan",
+        "foreign_column": "emi_day"
+      },
+      {
+        "name": "2200_33962_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33962_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33962_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  },
+  "financial_goal": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('financial_goal_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "user_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "profile_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "description",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 4
+      },
+      {
+        "name": "amount",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 5
+      },
+      {
+        "name": "order_index",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "0",
+        "position": 6
+      },
+      {
+        "name": "target_date",
+        "type": "date",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 7
+      },
+      {
+        "name": "priority",
+        "type": "character varying",
+        "max_length": 20,
+        "nullable": "YES",
+        "default": null,
+        "position": 8
+      },
+      {
+        "name": "status",
+        "type": "character varying",
+        "max_length": 20,
+        "nullable": "YES",
+        "default": null,
+        "position": 9
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 10
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 11
+      },
+      {
+        "name": "name",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 12
+      },
+      {
+        "name": "target_amount",
+        "type": "numeric",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 13
+      },
+      {
+        "name": "term",
+        "type": "character varying",
+        "max_length": 10,
+        "nullable": "YES",
+        "default": "'LT'::character varying",
+        "position": 14
+      },
+      {
+        "name": "recommended_allocation",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 15
+      },
+      {
+        "name": "funding_source",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 16
+      },
+      {
+        "name": "on_track",
+        "type": "boolean",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "false",
+        "position": 17
+      },
+      {
+        "name": "custom_data",
+        "type": "jsonb",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "'{}'::jsonb",
+        "position": 19
+      },
+      {
+        "name": "target_year",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 20
+      }
+    ],
+    "constraints": [
+      {
+        "name": "financial_goal_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "financial_goal",
+        "foreign_column": "id"
+      },
+      {
+        "name": "financial_goal_profile_id_fkey",
+        "type": "FOREIGN KEY",
+        "column": "profile_id",
+        "foreign_table": "financial_profile",
+        "foreign_column": "id"
+      },
+      {
+        "name": "2200_33909_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33909_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33909_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  },
+  "financial_expense": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('financial_expense_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "user_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "profile_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "description",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 4
+      },
+      {
+        "name": "amount",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 5
+      },
+      {
+        "name": "order_index",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "0",
+        "position": 6
+      },
+      {
+        "name": "expense_type",
+        "type": "character varying",
+        "max_length": 50,
+        "nullable": "YES",
+        "default": null,
+        "position": 7
+      },
+      {
+        "name": "frequency",
+        "type": "character varying",
+        "max_length": 20,
+        "nullable": "YES",
+        "default": "'Monthly'::character varying",
+        "position": 8
+      },
+      {
+        "name": "is_essential",
+        "type": "boolean",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 9
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 10
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 11
+      },
+      {
+        "name": "category",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 12
+      },
+      {
+        "name": "subcategory",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 13
+      },
+      {
+        "name": "personal_inflation",
+        "type": "numeric",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "0.06",
+        "position": 14
+      },
+      {
+        "name": "source",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "YES",
+        "default": null,
+        "position": 15
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 16
+      }
+    ],
+    "constraints": [
+      {
+        "name": "financial_expense_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "financial_expense",
+        "foreign_column": "id"
+      },
+      {
+        "name": "financial_expense_profile_id_fkey",
+        "type": "FOREIGN KEY",
+        "column": "profile_id",
+        "foreign_table": "financial_profile",
+        "foreign_column": "id"
+      },
+      {
+        "name": "2200_33926_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33926_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33926_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  },
+  "work_assets": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('work_assets_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "user_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "profile_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "stream",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "NO",
+        "default": null,
+        "position": 4
+      },
+      {
+        "name": "amount",
+        "type": "numeric",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 5
+      },
+      {
+        "name": "growth_rate",
+        "type": "numeric",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "0.03",
+        "position": 6
+      },
+      {
+        "name": "end_age",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 7
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "now()",
+        "position": 8
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "now()",
+        "position": 9
+      }
+    ],
+    "constraints": [
+      {
+        "name": "work_assets_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "work_assets",
+        "foreign_column": "id"
+      },
+      {
+        "name": "work_assets_profile_id_fkey",
+        "type": "FOREIGN KEY",
+        "column": "profile_id",
+        "foreign_table": "financial_profile",
+        "foreign_column": "id"
+      },
+      {
+        "name": "2200_34117_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34117_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34117_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34117_4_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34117_5_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34117_7_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  },
+  "user_tags": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('user_tags_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "user_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "tag_name",
+        "type": "character varying",
+        "max_length": 100,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "tag_order",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "0",
+        "position": 4
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "CURRENT_TIMESTAMP",
+        "position": 5
+      }
+    ],
+    "constraints": [
+      {
+        "name": "user_tags_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "user_tags",
+        "foreign_column": "id"
+      },
+      {
+        "name": "user_tags_user_id_tag_name_key",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "user_tags",
+        "foreign_column": "user_id"
+      },
+      {
+        "name": "user_tags_user_id_tag_name_key",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "user_tags",
+        "foreign_column": "tag_name"
+      },
+      {
+        "name": "user_tags_user_id_tag_name_key",
+        "type": "UNIQUE",
+        "column": "tag_name",
+        "foreign_table": "user_tags",
+        "foreign_column": "user_id"
+      },
+      {
+        "name": "user_tags_user_id_tag_name_key",
+        "type": "UNIQUE",
+        "column": "tag_name",
+        "foreign_table": "user_tags",
+        "foreign_column": "tag_name"
+      },
+      {
+        "name": "2200_34098_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34098_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34098_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  },
+  "user_asset_columns": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('user_asset_columns_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "user_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "column_key",
+        "type": "character varying",
+        "max_length": 100,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "column_label",
+        "type": "character varying",
+        "max_length": 255,
+        "nullable": "NO",
+        "default": null,
+        "position": 4
+      },
+      {
+        "name": "column_type",
+        "type": "character varying",
+        "max_length": 50,
+        "nullable": "YES",
+        "default": "'text'::character varying",
+        "position": 5
+      },
+      {
+        "name": "column_order",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "0",
+        "position": 6
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": "now()",
+        "position": 7
+      }
+    ],
+    "constraints": [
+      {
+        "name": "user_asset_columns_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "user_asset_columns",
+        "foreign_column": "id"
+      },
+      {
+        "name": "user_asset_columns_user_id_column_key_key",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "user_asset_columns",
+        "foreign_column": "user_id"
+      },
+      {
+        "name": "user_asset_columns_user_id_column_key_key",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "user_asset_columns",
+        "foreign_column": "column_key"
+      },
+      {
+        "name": "user_asset_columns_user_id_column_key_key",
+        "type": "UNIQUE",
+        "column": "column_key",
+        "foreign_table": "user_asset_columns",
+        "foreign_column": "user_id"
+      },
+      {
+        "name": "user_asset_columns_user_id_column_key_key",
+        "type": "UNIQUE",
+        "column": "column_key",
+        "foreign_table": "user_asset_columns",
+        "foreign_column": "column_key"
+      },
+      {
+        "name": "2200_34079_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34079_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34079_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_34079_4_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  },
+  "financial_scenario": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": "nextval('financial_scenario_id_seq'::regclass)",
+        "position": 1
+      },
+      {
+        "name": "user_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 2
+      },
+      {
+        "name": "profile_id",
+        "type": "integer",
+        "max_length": null,
+        "nullable": "NO",
+        "default": null,
+        "position": 3
+      },
+      {
+        "name": "scenario_name",
+        "type": "character varying",
+        "max_length": 100,
+        "nullable": "NO",
+        "default": null,
+        "position": 4
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 5
+      },
+      {
+        "name": "surplus",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 6
+      },
+      {
+        "name": "total_assets",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 7
+      },
+      {
+        "name": "total_liabilities",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 8
+      },
+      {
+        "name": "human_capital",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 9
+      },
+      {
+        "name": "future_expenses",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 10
+      },
+      {
+        "name": "net_worth",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 11
+      },
+      {
+        "name": "asset_growth_rate",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 12
+      },
+      {
+        "name": "income_growth_rate",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 13
+      },
+      {
+        "name": "expense_growth_rate",
+        "type": "double precision",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 14
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 15
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp without time zone",
+        "max_length": null,
+        "nullable": "YES",
+        "default": null,
+        "position": 16
+      }
+    ],
+    "constraints": [
+      {
+        "name": "financial_scenario_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "financial_scenario",
+        "foreign_column": "id"
+      },
+      {
+        "name": "financial_scenario_profile_id_fkey",
+        "type": "FOREIGN KEY",
+        "column": "profile_id",
+        "foreign_table": "financial_profile",
+        "foreign_column": "id"
+      },
+      {
+        "name": "2200_33943_1_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33943_2_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33943_3_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      },
+      {
+        "name": "2200_33943_4_not_null",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": null,
+        "foreign_column": null
+      }
+    ]
+  }
+}

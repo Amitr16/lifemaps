@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check-schema": "node check_production_schema.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
