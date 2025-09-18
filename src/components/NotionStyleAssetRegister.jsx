@@ -822,6 +822,13 @@ const NotionStyleAssetRegister = () => {
 
       // Handle cross-table sync: Update goals with new earmarking data
       console.log('🔄 Syncing earmarking changes to goals...');
+      console.log('🔄 Available goals for sync:', goals.length, goals);
+      
+      if (goals.length === 0) {
+        console.log('⚠️ No goals available for cross-sync, skipping...');
+        return;
+      }
+      
       for (const earmark of earmarks) {
         const goal = goals.find(g => g.id === earmark.goalId);
         if (goal) {
