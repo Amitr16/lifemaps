@@ -311,7 +311,7 @@ const NotionStyleAssetRegister = () => {
     try {
       setLoading(true)
       const response = await ApiService.createFinancialAsset({
-        name: 'New Asset',
+        name: '',
         tag: 'Investment',
         current_value: 0,
         custom_data: {
@@ -586,6 +586,7 @@ const NotionStyleAssetRegister = () => {
   const handleTabNavigation = (e, currentAssetId, currentField) => {
     if (e.key === 'Tab') {
       e.preventDefault()
+      e.stopPropagation()
       
       console.log('🔍 Tab pressed on field:', currentField)
       console.log('🔍 Current tempValue:', tempValue)
@@ -629,6 +630,15 @@ const NotionStyleAssetRegister = () => {
               }
               console.log('🔍 Next value for', nextField, ':', nextValue)
               handleCellEdit(currentAssetId, nextField, nextValue)
+              
+              // Ensure focus after state update
+              setTimeout(() => {
+                const nextInput = document.querySelector(`input[data-asset-id="${currentAssetId}"][data-field="${nextField}"]`)
+                if (nextInput) {
+                  nextInput.focus()
+                  nextInput.select()
+                }
+              }, 50)
             }
           } else {
             console.log('🔍 At last column, moving to next row')
@@ -1448,13 +1458,18 @@ const NotionStyleAssetRegister = () => {
                         }}
                         className="h-8"
                         autoFocus
+                        data-asset-id={asset.id}
+                        data-field="name"
+                        placeholder="Enter asset name"
                       />
                     ) : (
                       <div
                         className="cursor-pointer hover:bg-gray-100 p-1 rounded font-medium"
                         onClick={() => handleCellEdit(asset.id, 'name', asset.name || '')}
                       >
-                        {asset.name || 'Click to edit'}
+                        {asset.name || (
+                          <span className="text-gray-400 text-sm italic">Click to edit</span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1512,6 +1527,8 @@ const NotionStyleAssetRegister = () => {
                         }}
                         className="h-8"
                         autoFocus
+                        data-asset-id={asset.id}
+                        data-field="current_value"
                       />
                     ) : (
                       <div
@@ -1590,6 +1607,8 @@ const NotionStyleAssetRegister = () => {
                             }}
                             className="h-8"
                             autoFocus
+                            data-asset-id={asset.id}
+                            data-field={column.key}
                           />
                         ) : (
                           <div
@@ -1614,6 +1633,8 @@ const NotionStyleAssetRegister = () => {
                           }}
                           className="h-8"
                           autoFocus
+                          data-asset-id={asset.id}
+                          data-field={column.key}
                         />
                       ) : (
                         <div
