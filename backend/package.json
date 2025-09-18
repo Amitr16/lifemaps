@@ -15,7 +15,8 @@
     "dev:monitored": "nodemon --exec 'node --trace-uncaught --trace-warnings --trace-gc server.js'",
     "debug:crash": "node debug-crash.js",
     "debug:simple": "node simple-debug.js",
-    "init-db": "node scripts/init-db.js"
+    "init-db": "node scripts/init-db.js",
+    "init-render-db": "node scripts/init-render-db.js"
   },
   "dependencies": {
     "express": "^4.18.2",

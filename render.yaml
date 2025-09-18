@@ -1,0 +1,38 @@
+services:
+  # Backend service
+  - type: web
+    name: lifemaps-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node start-render.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lifemaps-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://lifemaps-frontend.onrender.com
+
+  # Frontend service
+  - type: web
+    name: lifemaps-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://lifemaps-backend.onrender.com/api
+
+  # PostgreSQL database
+  - type: pserv
+    name: lifemaps-db
+    plan: free
+    databaseName: lifemaps
+    user: lifemaps_user

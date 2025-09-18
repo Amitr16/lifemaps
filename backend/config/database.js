@@ -5,27 +5,50 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // PostgreSQL connection configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'life_sheet',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'password',
-  max: 10, // Reduced from 20 to prevent connection exhaustion
-  min: 2, // Keep minimum connections alive
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 5000, // Increased timeout for stability
-  acquireTimeoutMillis: 10000, // Time to wait for connection from pool
-  allowExitOnIdle: true, // Allow process to exit when all connections are idle
-};
+let dbConfig;
 
-console.log('🔍 Database connection config:', {
-  host: dbConfig.host,
-  port: dbConfig.port,
-  database: dbConfig.database,
-  user: dbConfig.user,
-  password: dbConfig.password ? '***' : 'undefined'
-});
+if (process.env.DATABASE_URL) {
+  // Production (Render) - use DATABASE_URL
+  dbConfig = {
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false
+    },
+    max: 10,
+    min: 2,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+    acquireTimeoutMillis: 10000,
+    allowExitOnIdle: true,
+  };
+} else {
+  // Development - use individual environment variables
+  dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    database: process.env.DB_NAME || 'life_sheet',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'password',
+    max: 10,
+    min: 2,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+    acquireTimeoutMillis: 10000,
+    allowExitOnIdle: true,
+  };
+}
+
+console.log('🔍 Database connection config:', 
+  process.env.DATABASE_URL 
+    ? { connectionString: 'DATABASE_URL provided', ssl: true }
+    : {
+        host: dbConfig.host,
+        port: dbConfig.port,
+        database: dbConfig.database,
+        user: dbConfig.user,
+        password: dbConfig.password ? '***' : 'undefined'
+      }
+);
 
 const pool = new Pool(dbConfig);
 
