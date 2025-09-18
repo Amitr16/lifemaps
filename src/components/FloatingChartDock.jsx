@@ -309,10 +309,16 @@ export function ChartToggleButton({ onClick, className = "" }) {
   return (
     <Button
       onClick={onClick}
-      className={`fixed bottom-6 right-6 z-40 professional-button professional-button-primary rounded-full w-14 h-14 p-0 shadow-lg hover:shadow-xl transition-all ${className}`}
-      title="Show Chart Dock"
+      className={`professional-button professional-button-primary rounded-full w-12 h-12 p-0 shadow-lg hover:shadow-xl transition-all ${className}`}
+      style={{
+        position: 'fixed',
+        top: '80px',
+        right: '24px',
+        zIndex: 40
+      }}
+      title="Show Net Worth Chart"
     >
-      <TrendingUp className="w-6 h-6" />
+      <TrendingUp className="w-5 h-5" />
     </Button>
   )
 }
