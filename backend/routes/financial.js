@@ -350,6 +350,9 @@ router.put('/goal/:goalId', [
     console.log('🎯 Goal update - updates:', updates);
     console.log('🎯 Goal update - values:', values);
     console.log('🎯 Goal update - custom_data:', req.body.custom_data);
+    console.log('🎯 Goal update - custom_data type:', typeof req.body.custom_data);
+    console.log('🎯 Goal update - custom_data stringified:', JSON.stringify(req.body.custom_data));
+    console.log('🎯 Goal update - full request body:', JSON.stringify(req.body));
 
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
@@ -1042,6 +1045,9 @@ router.put('/asset/:assetId', [
     const { name, tag, current_value, custom_data } = req.body;
     
     console.log('🔍 Asset update request:', { assetId, name, tag, current_value, custom_data });
+    console.log('🔍 Custom_data type:', typeof custom_data);
+    console.log('🔍 Custom_data stringified:', JSON.stringify(custom_data));
+    console.log('🔍 Custom_data parsed:', custom_data);
 
     // Validate tag if provided - check if it exists in user's tags
     if (tag) {
