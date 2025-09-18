@@ -266,6 +266,118 @@ export const calculateGoalsFundingNeed = (goals, assets, currentYear = new Date(
  */
 
 /**
+ * Calculate annual EMI outflow by loan
+ * @param {Array} loans - Array of loan objects
+ * @param {number} currentYear - Current year
+ * @returns {Array} Annual EMI outflow data
+ */
+export const calculateAnnualLoanOutflow = (loans, currentYear = new Date().getFullYear()) => {
+  console.log('🏦 calculateAnnualLoanOutflow called with:', { loans: loans.length, currentYear });
+  
+  if (!loans.length) return [];
+  
+  // Debug: Log all loan fields to see what's available
+  console.log('🏦 Sample loan data:', loans[0]);
+  
+  // Find the latest loan expiry year
+  const latestExpiryYear = Math.max(...loans.map(loan => {
+    // Try multiple possible field names for expiry year
+    const expiryYear = parseInt(
+      loan.loanExpiry ||
+      loan.expiry_year || 
+      loan.expiryYear || 
+      loan.loan_expiry || 
+      loan.expiry || 
+      loan.end_year ||
+      loan.expiry_date ||
+      loan.end_date
+    ) || currentYear + 10;
+    console.log(`🏦 Loan ${loan.lender || loan.name} expiry year:`, expiryYear, 'from fields:', {
+      expiry_year: loan.expiry_year,
+      expiryYear: loan.expiryYear,
+      loan_expiry: loan.loan_expiry,
+      expiry: loan.expiry,
+      end_year: loan.end_year,
+      expiry_date: loan.expiry_date,
+      end_date: loan.end_date
+    });
+    return expiryYear;
+  }));
+  
+  console.log('🏦 Latest expiry year:', latestExpiryYear);
+  
+  const years = [];
+  
+  // Generate year-by-year data from current year to latest expiry
+  for (let year = currentYear; year <= latestExpiryYear; year++) {
+    const yearData = { year };
+    let totalOutflow = 0;
+    
+    // Initialize all loan outflows to 0 for this year
+    loans.forEach(loan => {
+      const loanName = loan.lender || loan.name || `Loan ${loan.id}`;
+      const loanKey = loanName.replace(/[^a-zA-Z0-9]/g, '_');
+      yearData[loanKey] = 0;
+    });
+    
+    // Calculate outflow for each loan
+    loans.forEach(loan => {
+      const loanName = loan.lender || loan.name || `Loan ${loan.id}`;
+      const loanKey = loanName.replace(/[^a-zA-Z0-9]/g, '_');
+      const emi = parseFloat(loan.emi || loan.monthly_payment) || 0;
+      const expiryYear = parseInt(
+        loan.loanExpiry ||
+        loan.expiry_year || 
+        loan.expiryYear || 
+        loan.loan_expiry || 
+        loan.expiry || 
+        loan.end_year
+      ) || currentYear + 10;
+      
+      // Calculate payments per year based on frequency
+      let paymentsPerYear = 12; // Default monthly
+      const frequency = (loan.frequency || 'Monthly').toLowerCase();
+      switch (frequency) {
+        case 'monthly':
+          paymentsPerYear = 12;
+          break;
+        case 'quarterly':
+          paymentsPerYear = 4;
+          break;
+        case 'yearly':
+        case 'annual':
+          paymentsPerYear = 1;
+          break;
+        default:
+          paymentsPerYear = 12;
+      }
+      
+      // Calculate annual outflow for this year
+      const annualOutflow = (year <= expiryYear) ? emi * paymentsPerYear : 0;
+      
+      yearData[loanKey] = annualOutflow;
+      totalOutflow += annualOutflow;
+      
+      console.log(`🏦 Loan ${loanName} in ${year}:`, {
+        emi,
+        frequency,
+        paymentsPerYear,
+        expiryYear,
+        annualOutflow
+      });
+    });
+    
+    yearData.total = totalOutflow;
+    years.push(yearData);
+    
+    console.log(`🏦 Year ${year} data:`, yearData);
+  }
+  
+  console.log('🏦 Final annual loan outflow data:', years);
+  return years;
+};
+
+/**
  * Calculate loan amortization schedule
  * @param {Object} loan - Loan object
  * @param {number} currentYear - Current year
@@ -446,7 +558,18 @@ export const calculateExpenseProjections = (expenses, currentYear = new Date().g
     const category = expense.category || 'Other';
     const amount = parseFloat(expense.amount) || 0;
     const frequency = expense.frequency || 'Monthly';
-    const inflation = parseFloat(expense.personal_inflation) || 0.06; // 6% default
+    // Handle inflation rate - if it's already a decimal (0.06), use as is; if it's a percentage (6), convert to decimal
+    let inflation = parseFloat(expense.inflation || expense.personal_inflation) || 0.06;
+    const originalInflation = inflation;
+    if (inflation > 1) {
+      inflation = inflation / 100; // Convert percentage to decimal
+    }
+    
+    console.log(`💰 Expense ${expense.category} inflation:`, {
+      original: originalInflation,
+      processed: inflation,
+      field: expense.inflation || expense.personal_inflation
+    });
     
     if (!categories[category]) {
       categories[category] = {
