@@ -48,7 +48,9 @@ async function createTables(client) {
   
   for (const table of tablesToDrop) {
     try {
-      await client.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
+      // Quote table names to handle reserved keywords like 'user'
+      const quotedTable = table === 'user' ? '"user"' : table;
+      await client.query(`DROP TABLE IF EXISTS ${quotedTable} CASCADE`);
       console.log(`✅ Dropped table: ${table}`);
     } catch (error) {
       console.log(`⚠️ Could not drop ${table}: ${error.message}`);
