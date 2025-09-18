@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
-import UnifiedChart from '@/components/UnifiedChart.jsx';
+import GoalsChart from '@/components/GoalsChart.jsx';
 
 export default function GoalsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -169,7 +169,7 @@ export default function GoalsPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <UnifiedChart defaultEnabled={['goals']} />
+      <GoalsChart />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Goals</h1>
       </div>

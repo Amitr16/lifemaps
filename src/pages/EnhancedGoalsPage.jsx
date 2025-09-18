@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
-import UnifiedChart from '@/components/UnifiedChart.jsx';
+import GoalsChart from '@/components/GoalsChart.jsx';
 import LinkedAssetsEditor from '@/components/LinkedAssetsEditor.jsx';
 import { calculateGoalFunding, formatCurrency, syncEarmarkingData } from '@/lib/goalCalculations';
 import { eventBus } from '@/lib/eventBus';
@@ -447,7 +447,7 @@ export default function EnhancedGoalsPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <UnifiedChart defaultEnabled={['goals']} />
+      <GoalsChart goals={rows} assets={assets} />
       
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

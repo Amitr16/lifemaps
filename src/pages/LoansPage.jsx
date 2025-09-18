@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import EditableGrid from '@/components/EditableGrid.jsx'
 import { useAuth } from '../contexts/AuthContext'
 import ApiService from '../services/api'
-import UnifiedChart from '@/components/UnifiedChart.jsx'
+import LoansChart from '@/components/LoansChart.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -207,7 +207,7 @@ export default function LoansPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <UnifiedChart defaultEnabled={['loans']} />
+      <LoansChart />
       
       {/* Header */}
       <div className="flex items-center justify-between">

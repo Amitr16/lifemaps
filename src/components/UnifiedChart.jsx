@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  AreaChart, Area, BarChart, Bar, ComposedChart, RadialBarChart, RadialBar, PieChart, Pie, Cell
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '../contexts/AuthContext';
 import { useLifeSheetStore, eventBus } from '../store/enhanced-store';
 import ApiService from '../services/api';
+import { 
+  calculateGoalsProgress, calculateGoalsFundingNeed,
+  calculateLoanAmortization, aggregateToAnnual, calculateEMIScenarios,
+  calculateExpenseProjections, calculateNeedsWantsSavings
+} from '../lib/chartCalculations';
 
 /**
  * Calculate SIP projection with proper compounding logic

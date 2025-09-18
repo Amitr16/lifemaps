@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
-import UnifiedChart from '@/components/UnifiedChart.jsx';
+import ExpensesChart from '@/components/ExpensesChart.jsx';
 import { useAuth } from '@/contexts/AuthContext';
 import ApiService from '@/services/api';
 
@@ -196,7 +196,7 @@ export default function ExpensesPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <UnifiedChart defaultSelections={['Expenses']} />
+      <ExpensesChart />
       
       <div className="flex items-center justify-between">
         <div>
