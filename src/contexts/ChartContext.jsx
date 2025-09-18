@@ -109,9 +109,10 @@ export const ChartProvider = ({ children }) => {
       // Total Human Capital: currentIncome * workTenure
       const totalHumanCapital = currentIncome * workTenure
 
-      // Total Future Expenses: sum(expense.amount) * (lifespan - age)
+      // Total Future Expenses: (sum(expense.amount) + sum(loan.emi)) * (lifespan - age)
       const annualExpense = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0)
-      const totalFutureExpenses = annualExpense * (lifespan - age)
+      const annualEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0), 0)
+      const totalFutureExpenses = (annualExpense + annualEmi) * (lifespan - age)
 
       // Total Financial Goals: sum(goal.amount)
       const totalFinancialGoals = goals.reduce((sum, goal) => sum + (parseFloat(goal.amount) || 0), 0)
