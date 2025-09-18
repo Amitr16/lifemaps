@@ -207,6 +207,54 @@ app.get('/api/oauth/demo/facebook', (req, res) => {
   });
 });
 
+// Debug route to check database schema (no auth required)
+app.get('/api/debug/schema', async (req, res) => {
+  try {
+    console.log('🔍 Checking production database schema...');
+    
+    // Check if custom_data column exists in assets table
+    const assetsColumns = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'assets' AND column_name = 'custom_data'
+    `);
+    
+    // Check if custom_data column exists in financial_goal table
+    const goalsColumns = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'financial_goal' AND column_name = 'custom_data'
+    `);
+    
+    // Check actual data in the tables
+    const assetsData = await pool.query(`
+      SELECT id, name, custom_data 
+      FROM assets 
+      WHERE custom_data IS NOT NULL 
+      AND custom_data != '{}'::jsonb
+      LIMIT 5
+    `);
+    
+    const goalsData = await pool.query(`
+      SELECT id, name, custom_data 
+      FROM financial_goal 
+      WHERE custom_data IS NOT NULL 
+      AND custom_data != '{}'::jsonb
+      LIMIT 5
+    `);
+    
+    res.json({
+      assets_custom_data_column: assetsColumns.rows,
+      goals_custom_data_column: goalsColumns.rows,
+      assets_with_custom_data: assetsData.rows,
+      goals_with_custom_data: goalsData.rows
+    });
+  } catch (error) {
+    console.error('❌ Schema check failed:', error);
+    res.status(500).json({ error: 'Schema check failed', details: error.message });
+  }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
