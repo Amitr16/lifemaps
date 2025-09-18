@@ -31,9 +31,33 @@ async function initRenderDatabase() {
 async function createTables(client) {
   console.log('📋 Creating tables...');
   
+  // Drop existing tables first (in reverse dependency order)
+  console.log('🗑️ Dropping existing tables...');
+  const tablesToDrop = [
+    'financial_scenario',
+    'user_asset_columns', 
+    'user_tags',
+    'work_assets',
+    'financial_expense',
+    'financial_goal',
+    'financial_loan',
+    'assets',
+    'financial_profile',
+    'user'
+  ];
+  
+  for (const table of tablesToDrop) {
+    try {
+      await client.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
+      console.log(`✅ Dropped table: ${table}`);
+    } catch (error) {
+      console.log(`⚠️ Could not drop ${table}: ${error.message}`);
+    }
+  }
+  
   // Create user table
   await client.query(`
-CREATE TABLE IF NOT EXISTS user (
+CREATE TABLE user (
   id INTEGER NOT NULL DEFAULT nextval('user_id_seq'::regclass),
   email CHARACTER VARYING(255) NOT NULL,
   password_hash CHARACTER VARYING(255) NOT NULL,
@@ -51,7 +75,7 @@ CREATE TABLE IF NOT EXISTS user (
 
   // Create financial_profile table
   await client.query(`
-CREATE TABLE IF NOT EXISTS financial_profile (
+CREATE TABLE financial_profile (
   id INTEGER NOT NULL DEFAULT nextval('financial_profile_id_seq'::regclass),
   user_id INTEGER NOT NULL,
   age INTEGER NOT NULL,
@@ -78,7 +102,7 @@ CREATE TABLE IF NOT EXISTS financial_profile (
 
   // Create assets table
   await client.query(`
-CREATE TABLE IF NOT EXISTS assets (
+CREATE TABLE assets (
   id INTEGER NOT NULL DEFAULT nextval('assets_id_seq'::regclass),
   user_id INTEGER NOT NULL,
   profile_id INTEGER NOT NULL,
@@ -106,7 +130,7 @@ CREATE TABLE IF NOT EXISTS assets (
 
   // Create financial_loan table
   await client.query(`
-CREATE TABLE IF NOT EXISTS financial_loan (
+CREATE TABLE financial_loan (
   id INTEGER NOT NULL DEFAULT nextval('financial_loan_id_seq'::regclass),
   user_id INTEGER NOT NULL,
   profile_id INTEGER NOT NULL,
@@ -136,7 +160,7 @@ CREATE TABLE IF NOT EXISTS financial_loan (
 
   // Create financial_goal table
   await client.query(`
-CREATE TABLE IF NOT EXISTS financial_goal (
+CREATE TABLE financial_goal (
   id INTEGER NOT NULL DEFAULT nextval('financial_goal_id_seq'::regclass),
   user_id INTEGER NOT NULL,
   profile_id INTEGER NOT NULL,
@@ -167,7 +191,7 @@ CREATE TABLE IF NOT EXISTS financial_goal (
 
   // Create financial_expense table
   await client.query(`
-CREATE TABLE IF NOT EXISTS financial_expense (
+CREATE TABLE financial_expense (
   id INTEGER NOT NULL DEFAULT nextval('financial_expense_id_seq'::regclass),
   user_id INTEGER NOT NULL,
   profile_id INTEGER NOT NULL,
@@ -195,7 +219,7 @@ CREATE TABLE IF NOT EXISTS financial_expense (
 
   // Create work_assets table
   await client.query(`
-CREATE TABLE IF NOT EXISTS work_assets (
+CREATE TABLE work_assets (
   id INTEGER NOT NULL DEFAULT nextval('work_assets_id_seq'::regclass),
   user_id INTEGER NOT NULL,
   profile_id INTEGER NOT NULL,
@@ -216,7 +240,7 @@ CREATE TABLE IF NOT EXISTS work_assets (
 
   // Create user_tags table
   await client.query(`
-CREATE TABLE IF NOT EXISTS user_tags (
+CREATE TABLE user_tags (
   id INTEGER NOT NULL DEFAULT nextval('user_tags_id_seq'::regclass),
   user_id INTEGER NOT NULL,
   tag_name CHARACTER VARYING(100) NOT NULL,
@@ -239,7 +263,7 @@ CREATE TABLE IF NOT EXISTS user_tags (
 
   // Create user_asset_columns table
   await client.query(`
-CREATE TABLE IF NOT EXISTS user_asset_columns (
+CREATE TABLE user_asset_columns (
   id INTEGER NOT NULL DEFAULT nextval('user_asset_columns_id_seq'::regclass),
   user_id INTEGER NOT NULL,
   column_key CHARACTER VARYING(100) NOT NULL,
@@ -264,7 +288,7 @@ CREATE TABLE IF NOT EXISTS user_asset_columns (
 
   // Create financial_scenario table
   await client.query(`
-CREATE TABLE IF NOT EXISTS financial_scenario (
+CREATE TABLE financial_scenario (
   id INTEGER NOT NULL DEFAULT nextval('financial_scenario_id_seq'::regclass),
   user_id INTEGER NOT NULL,
   profile_id INTEGER NOT NULL,
