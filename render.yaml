@@ -34,3 +34,4 @@ services:
   - type: pserv
     name: lifemaps-db
     plan: free
+    runtime: postgresql
