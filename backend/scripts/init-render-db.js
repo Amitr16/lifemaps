@@ -168,6 +168,32 @@ async function createTables(client) {
   `);
   console.log('✅ Work asset table created');
 
+  // Create user_tags table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS user_tags (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+      tag_name VARCHAR(100) NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  console.log('✅ User tags table created');
+
+  // Create user_asset_columns table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS user_asset_columns (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+      column_name VARCHAR(100) NOT NULL,
+      column_type VARCHAR(50) DEFAULT 'text',
+      is_visible BOOLEAN DEFAULT true,
+      display_order INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  console.log('✅ User asset columns table created');
+
   console.log('🎉 All tables created successfully!');
 }
 
