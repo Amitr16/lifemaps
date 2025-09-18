@@ -16,8 +16,8 @@ import '../styles/professional-theme.css'
 
 export default function OriginalLifeSheet() {
   const { user, logout, isAuthenticated } = useAuth()
-  const { chartData } = useChart()
-  const { updateLifeSheet, addGoal: addStoreGoal, updateGoal: updateStoreGoal, deleteGoal: deleteStoreGoal, addExpense: addStoreExpense, updateExpense: updateStoreExpense, deleteExpense: deleteStoreExpense, addLoan: addStoreLoan, updateLoan: updateStoreLoan, deleteLoan: deleteStoreLoan } = useLifeSheetStore()
+  const { chartData, calculateFinancials } = useChart()
+  const { updateLifeSheet, addGoal: addStoreGoal, updateGoal: updateStoreGoal, deleteGoal: deleteStoreGoal, addExpense: addStoreExpense, updateExpense: updateStoreExpense, deleteExpense: deleteStoreExpense, addLoan: addStoreLoan, updateLoan: updateStoreLoan, deleteLoan: deleteStoreLoan, setLoans: setStoreLoans, setExpenses: setStoreExpenses, setGoals: setStoreGoals } = useLifeSheetStore()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -44,16 +44,8 @@ export default function OriginalLifeSheet() {
   const [goals, setGoals] = useState([])
   const [expenses, setExpenses] = useState([])
   
-  // Calculated values
-  const [calculations, setCalculations] = useState({
-    totalExistingAssets: 0,
-    totalHumanCapital: 0,
-    totalExistingLiabilities: 0,
-    totalFutureExpenses: 0,
-    totalFinancialGoals: 0,
-    currentNetworth: 0,
-    surplusDeficit: 0
-  })
+  // Get calculated values from ChartContext (exactly as specified)
+  const calculations = calculateFinancials()
 
   const [financialProfile, setFinancialProfile] = useState(null)
 
@@ -72,12 +64,19 @@ export default function OriginalLifeSheet() {
       // Load loans
       ApiService.getFinancialLoans(user.id).then(res => {
         console.log('🏦 Loans fetch response:', res)
-        setLoans(
-          (res.loans || []).map(loan => ({
-            ...loan,
-            description: loan.name // Map backend 'name' to frontend 'description'
-          }))
-        );
+        const mappedLoans = (res.loans || []).map(loan => ({
+          ...loan,
+          description: loan.name // Map backend 'name' to frontend 'description'
+        }));
+        setLoans(mappedLoans);
+        
+        // Map loans for store with correct field names
+        const mappedLoansForStore = mappedLoans.map(loan => ({
+          ...loan,
+          principal_outstanding: loan.amount, // Map amount to principal_outstanding for store
+          lender: loan.description // Map description to lender for store
+        }))
+        setStoreLoans(mappedLoansForStore); // Also update store
       }).catch(error => {
         console.error('❌ Loans fetch error:', error)
       })
@@ -90,6 +89,7 @@ export default function OriginalLifeSheet() {
           amount: parseFloat(goal.target_amount) || parseFloat(goal.amount) || 0 // Map target_amount to amount for display
         }));
         setGoals(mappedGoals);
+        setStoreGoals(mappedGoals); // Also update store
       }).catch(error => {
         console.error('❌ Goals fetch error:', error)
       })
@@ -97,7 +97,9 @@ export default function OriginalLifeSheet() {
       // Load expenses
       ApiService.getFinancialExpenses(user.id).then(res => {
         console.log('💰 Expenses fetch response:', res)
-        setExpenses(res.expenses || []);
+        const expensesData = res.expenses || [];
+        setExpenses(expensesData);
+        setStoreExpenses(expensesData); // Also update store
       }).catch(error => {
         console.error('❌ Expenses fetch error:', error)
       })
@@ -122,8 +124,8 @@ export default function OriginalLifeSheet() {
 
   // Update store goals when local goals change
   useEffect(() => {
-    if (isAuthenticated && user && goals.length > 0) {
-      // Clear existing goals and add new ones
+    if (isAuthenticated && user) {
+      // Always sync goals to store, even if empty
       goals.forEach(goal => {
         if (goal.id && !goal.isNew) {
           updateStoreGoal(goal.id, {
@@ -135,12 +137,15 @@ export default function OriginalLifeSheet() {
           })
         }
       })
+      // Also update the entire goals array in store
+      setStoreGoals(goals)
     }
-  }, [goals, isAuthenticated, user, updateStoreGoal])
+  }, [goals, isAuthenticated, user, updateStoreGoal, setStoreGoals])
 
   // Update store expenses when local expenses change
   useEffect(() => {
-    if (isAuthenticated && user && expenses.length > 0) {
+    if (isAuthenticated && user) {
+      // Always sync expenses to store, even if empty
       expenses.forEach(expense => {
         if (expense.id && !expense.isNew) {
           updateStoreExpense(expense.id, {
@@ -151,12 +156,15 @@ export default function OriginalLifeSheet() {
           })
         }
       })
+      // Also update the entire expenses array in store
+      setStoreExpenses(expenses)
     }
-  }, [expenses, isAuthenticated, user, updateStoreExpense])
+  }, [expenses, isAuthenticated, user, updateStoreExpense, setStoreExpenses])
 
   // Update store loans when local loans change
   useEffect(() => {
-    if (isAuthenticated && user && loans.length > 0) {
+    if (isAuthenticated && user) {
+      // Always sync loans to store, even if empty
       loans.forEach(loan => {
         if (loan.id && !loan.isNew) {
           updateStoreLoan(loan.id, {
@@ -166,15 +174,17 @@ export default function OriginalLifeSheet() {
           })
         }
       })
+      // Also update the entire loans array in store with correct field mapping
+      const mappedLoansForStore = loans.map(loan => ({
+        ...loan,
+        principal_outstanding: loan.amount, // Map amount to principal_outstanding for store
+        lender: loan.description // Map description to lender for store
+      }))
+      setStoreLoans(mappedLoansForStore)
     }
-  }, [loans, isAuthenticated, user, updateStoreLoan])
+  }, [loans, isAuthenticated, user, updateStoreLoan, setStoreLoans])
 
-  // Calculate financials when form data, goals, or expenses change
-  useEffect(() => {
-    if (formData.age && formData.currentAnnualGrossIncome) {
-      calculateFinancials()
-    }
-  }, [formData, goals, expenses, loans])
+  // Calculations now come from ChartContext automatically
 
   const loadFinancialData = async () => {
     try {
@@ -365,61 +375,14 @@ export default function OriginalLifeSheet() {
       setGoals([])
       setExpenses([])
       setLoans([])
-      setCalculations({
-        totalExistingAssets: 0,
-        totalHumanCapital: 0,
-        totalExistingLiabilities: 0,
-        totalFutureExpenses: 0,
-        totalFinancialGoals: 0,
-        currentNetworth: 0,
-        surplusDeficit: 0
-      })
+      // Calculations now come from ChartContext
       setFinancialProfile(null)
     } catch (error) {
       console.error('Error during logout:', error)
     }
   }
 
-  const calculateFinancials = () => {
-    const age = parseInt(formData.age) || 0
-    const currentIncome = parseFloat(formData.currentAnnualGrossIncome) || 0
-    const workTenure = parseInt(formData.workTenureYears) || 0
-    const assets = parseFloat(formData.totalAssetGrossMarketValue) || 0
-    const liabilities = loans.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0)
-    const lifespan = parseInt(formData.lifespanYears) || 85
-    const incomeGrowthRate = parseFloat(formData.incomeGrowthRate) || 0.06
-    const remainingLife = lifespan - age
-    
-    // Calculate Total Human Capital: Current Annual Gross Income × Work Tenure Years
-    const totalHumanCapital = currentIncome * workTenure
-    
-    // Calculate Total Future Expenses
-    const totalFutureExpenses = expenses.reduce((total, expense) => {
-      return total + (expense.amount * remainingLife)
-    }, 0)
-    
-    // Calculate Total Financial Goals
-    const totalFinancialGoals = goals.reduce((total, goal) => {
-      return total + goal.amount
-    }, 0)
-    
-    // Calculate other values
-    const totalExistingAssets = assets
-    const totalExistingLiabilities = liabilities
-    const currentNetworth = totalExistingAssets - totalExistingLiabilities
-    const surplusDeficit = (totalExistingAssets + totalHumanCapital) - 
-                          (totalExistingLiabilities + totalFutureExpenses + totalFinancialGoals)
-    
-    setCalculations({
-      totalExistingAssets,
-      totalHumanCapital,
-      totalExistingLiabilities,
-      totalFutureExpenses,
-      totalFinancialGoals,
-      currentNetworth,
-      surplusDeficit
-    })
-  }
+  // calculateFinancials now comes from ChartContext (exactly as specified)
 
 
   // Dynamic Goals Management

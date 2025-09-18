@@ -18,7 +18,7 @@ export const ChartProvider = ({ children }) => {
   const [chartData, setChartData] = useState([])
   const [workAssets, setWorkAssets] = useState([])
   const { isAuthenticated, user } = useAuth()
-  const { lifeSheet, assets, loans, expenses, goals } = useLifeSheetStore()
+  const { lifeSheet, assets, loans, expenses, goals, setLoans, setExpenses, setGoals } = useLifeSheetStore()
 
   // Load work assets
   const loadWorkAssets = useCallback(async () => {
@@ -32,7 +32,7 @@ export const ChartProvider = ({ children }) => {
     }
   }, [isAuthenticated, user])
 
-  // Calculate chart data using the same logic as the main page
+  // Calculate chart data using the exact logic from the main page
   const calculateChartData = useCallback(() => {
     if (!isAuthenticated || !user) {
       setChartData([])
@@ -52,49 +52,29 @@ export const ChartProvider = ({ children }) => {
         return
       }
 
-      // Calculate annual expenses and EMI
+      // Calculate annual expenses and EMI (exactly as specified)
       const annualExpense = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0)
       const totalEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0), 0)
-
-      // Calculate work assets income for each year
-      const calculateWorkAssetsIncome = (year) => {
-        let totalIncome = 0
-        workAssets.forEach(asset => {
-          const assetAge = age + year
-          const endAge = parseInt(asset.endAge) || 65
-          if (assetAge <= endAge) {
-            const amount = parseFloat(asset.amount) || 0
-            const growthRate = parseFloat(asset.growthRate) || 0.03
-            totalIncome += amount * Math.pow(1 + growthRate, year)
-          }
-        })
-        return totalIncome
-      }
 
       const data = []
       const currentYear = new Date().getFullYear()
       let cumulativeEarnings = 0
 
+      // Generate chart data for each year until lifespan (exactly as specified)
       for (let year = 0; year <= (lifespan - age); year++) {
-        // Add annual earnings only for active years
+        // Add annual earnings only while working (exactly as specified)
         if (year < workTenure) {
           cumulativeEarnings += currentIncome || 0
         }
         
-        // Add work assets income for this year
-        const workAssetsIncome = calculateWorkAssetsIncome(year)
-        cumulativeEarnings += workAssetsIncome
-        
-        // Asset value for this year (same calculation as main page)
+        // Asset value calculation (exactly as specified):
+        // assetValue = initialAssets + cumulativeEarnings - (annualExpense + totalEmi) * year
         const assetValue = (parseFloat(assetsValue) || 0) + cumulativeEarnings - ((annualExpense + totalEmi) * year)
         
         data.push({
           year: currentYear + year,
           age: age + year,
-          asset: Math.round(assetValue),
-          netWorth: Math.round(assetValue), // For floating chart compatibility
-          assets: Math.round(assetValue),
-          liabilities: 0 // Simplified for now
+          asset: Math.round(assetValue)
         })
       }
 
@@ -105,6 +85,72 @@ export const ChartProvider = ({ children }) => {
     }
   }, [isAuthenticated, user, lifeSheet, assets, loans, expenses, goals, workAssets])
 
+  // Calculate financial metrics (exactly as specified)
+  const calculateFinancials = useCallback(() => {
+    if (!isAuthenticated || !user) {
+      return {
+        totalExistingAssets: 0,
+        totalHumanCapital: 0,
+        totalFutureExpenses: 0,
+        totalFinancialGoals: 0,
+        totalExistingLiabilities: 0,
+        currentNetworth: 0,
+        surplusDeficit: 0
+      }
+    }
+
+    try {
+      const age = parseInt(lifeSheet.age) || 0
+      const currentIncome = parseFloat(lifeSheet.currentAnnualGrossIncome) || 0
+      const workTenure = parseInt(lifeSheet.workTenureYears) || 0
+      const assetsValue = parseFloat(lifeSheet.totalAssetGrossMarketValue) || 0
+      const lifespan = parseInt(lifeSheet.lifespanYears) || 85
+
+      // Total Human Capital: currentIncome * workTenure
+      const totalHumanCapital = currentIncome * workTenure
+
+      // Total Future Expenses: sum(expense.amount) * (lifespan - age)
+      const annualExpense = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0)
+      const totalFutureExpenses = annualExpense * (lifespan - age)
+
+      // Total Financial Goals: sum(goal.amount)
+      const totalFinancialGoals = goals.reduce((sum, goal) => sum + (parseFloat(goal.amount) || 0), 0)
+
+      // Total Existing Assets: starts from totalAssetGrossMarketValue
+      const totalExistingAssets = assetsValue
+
+      // Total Existing Liabilities: sum of loan amounts
+      const totalExistingLiabilities = loans.reduce((sum, loan) => sum + (parseFloat(loan.principal_outstanding) || 0), 0)
+
+      // Current Networth: assets - liabilities
+      const currentNetworth = totalExistingAssets - totalExistingLiabilities
+
+      // Surplus/Deficit: (assets + humanCapital) - (liabilities + futureExpenses + goals)
+      const surplusDeficit = (totalExistingAssets + totalHumanCapital) - (totalExistingLiabilities + totalFutureExpenses + totalFinancialGoals)
+
+      return {
+        totalExistingAssets,
+        totalHumanCapital,
+        totalFutureExpenses,
+        totalFinancialGoals,
+        totalExistingLiabilities,
+        currentNetworth,
+        surplusDeficit
+      }
+    } catch (error) {
+      console.error('Error calculating financials:', error)
+      return {
+        totalExistingAssets: 0,
+        totalHumanCapital: 0,
+        totalFutureExpenses: 0,
+        totalFinancialGoals: 0,
+        totalExistingLiabilities: 0,
+        currentNetworth: 0,
+        surplusDeficit: 0
+      }
+    }
+  }, [isAuthenticated, user, lifeSheet, expenses, goals, loans])
+
   // Load work assets when user changes
   useEffect(() => {
     loadWorkAssets()
@@ -114,6 +160,40 @@ export const ChartProvider = ({ children }) => {
   useEffect(() => {
     calculateChartData()
   }, [calculateChartData])
+
+  // Listen for updates from other pages
+  useEffect(() => {
+    const handleLoansUpdated = (event) => {
+      console.log('🔍 ChartContext received loansUpdated event:', event.detail)
+      if (event.detail?.loans) {
+        setLoans(event.detail.loans)
+      }
+    }
+
+    const handleExpensesUpdated = (event) => {
+      console.log('🔍 ChartContext received expensesUpdated event:', event.detail)
+      if (event.detail?.expenses) {
+        setExpenses(event.detail.expenses)
+      }
+    }
+
+    const handleGoalsUpdated = (event) => {
+      console.log('🔍 ChartContext received goalsUpdated event:', event.detail)
+      if (event.detail?.goals) {
+        setGoals(event.detail.goals)
+      }
+    }
+
+    window.addEventListener('loansUpdated', handleLoansUpdated)
+    window.addEventListener('expensesUpdated', handleExpensesUpdated)
+    window.addEventListener('goalsUpdated', handleGoalsUpdated)
+
+    return () => {
+      window.removeEventListener('loansUpdated', handleLoansUpdated)
+      window.removeEventListener('expensesUpdated', handleExpensesUpdated)
+      window.removeEventListener('goalsUpdated', handleGoalsUpdated)
+    }
+  }, [])
 
   const toggleChart = () => {
     setIsChartVisible(prev => !prev)
@@ -126,6 +206,7 @@ export const ChartProvider = ({ children }) => {
   const value = {
     isChartVisible,
     chartData,
+    calculateFinancials,
     toggleChart,
     closeChart
   }

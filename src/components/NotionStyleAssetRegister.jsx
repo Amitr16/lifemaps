@@ -329,13 +329,16 @@ const NotionStyleAssetRegister = () => {
         const updatedAssets = [...assets, response.asset]
         setAssets(updatedAssets)
         
-        // Emit event to notify chart of asset addition
+        // Emit event to notify chart of asset addition (legacy)
         eventBus.emit('assetUpdated', {
           action: 'add',
           assetId: response.asset.id,
           updatedAsset: response.asset,
           allAssets: updatedAssets
         })
+        
+        // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+        dispatchAssetsEvent(updatedAssets)
       }
     } catch (error) {
       console.error('❌ Asset creation error:', error)
@@ -354,12 +357,15 @@ const NotionStyleAssetRegister = () => {
       const updatedAssets = assets.filter(asset => asset.id !== assetId)
       setAssets(updatedAssets)
       
-      // Emit event to notify chart of asset deletion
+      // Emit event to notify chart of asset deletion (legacy)
       eventBus.emit('assetUpdated', {
         action: 'delete',
         assetId,
         allAssets: updatedAssets
       })
+      
+      // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+      dispatchAssetsEvent(updatedAssets)
     } catch (error) {
       console.error('❌ Asset deletion error:', error)
       setError('Failed to delete asset')
@@ -372,6 +378,16 @@ const NotionStyleAssetRegister = () => {
     setEditingCell({ assetId, field })
     setTempValue(value)
   }
+
+  // Event dispatching for live chart updates (following WorkAssetsPage pattern)
+  const dispatchAssetsEvent = (updatedAssets) => {
+    try {
+      const payload = Array.isArray(updatedAssets) ? updatedAssets.map(a => ({ ...a })) : [];
+      window.dispatchEvent(new CustomEvent('assetsUpdated', { detail: { assets: payload } }));
+    } catch (e) {
+      console.warn('Failed to dispatch assetsUpdated event:', e);
+    }
+  };
 
   const handleCellSave = async (assetId, field, value = null) => {
     if (editingCell && editingCell.assetId === assetId && editingCell.field === field) {
@@ -410,7 +426,7 @@ const NotionStyleAssetRegister = () => {
           setAssets(updatedAssets)
           console.log('✅ Asset updated successfully')
           
-          // Emit event to notify chart of asset update
+          // Emit event to notify chart of asset update (legacy)
           eventBus.emit('assetUpdated', {
             assetId,
             field,
@@ -418,6 +434,9 @@ const NotionStyleAssetRegister = () => {
             updatedAsset: response.asset,
             allAssets: updatedAssets
           })
+          
+          // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+          dispatchAssetsEvent(updatedAssets)
         }
         
         setEditingCell(null)

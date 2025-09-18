@@ -11,6 +11,16 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [savingRows, setSavingRows] = useState(new Set());
 
+  // Event dispatching for live chart updates (following WorkAssetsPage pattern)
+  const dispatchExpensesEvent = (updatedExpenses) => {
+    try {
+      const payload = Array.isArray(updatedExpenses) ? updatedExpenses.map(e => ({ ...e })) : [];
+      window.dispatchEvent(new CustomEvent('expensesUpdated', { detail: { expenses: payload } }));
+    } catch (e) {
+      console.warn('Failed to dispatch expensesUpdated event:', e);
+    }
+  };
+
   useEffect(() => {
     if (user?.id) {
       loadExpenses();
@@ -39,6 +49,9 @@ export default function ExpensesPage() {
       }));
       
       setRows(mappedExpenses);
+      
+      // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+      dispatchExpensesEvent(mappedExpenses);
     } catch (error) {
       console.error('Error loading expenses:', error);
     } finally {
@@ -63,16 +76,20 @@ export default function ExpensesPage() {
   const delRow = async (rowIndex) => {
     const row = rows[rowIndex];
     
+    const updatedRows = rows.filter((_, i) => i !== rowIndex);
+    
     if (row.id && !row.id.toString().startsWith('temp_')) {
       try {
         await ApiService.deleteFinancialExpense(row.id);
-        setRows(rows.filter((_, i) => i !== rowIndex));
       } catch (error) {
         console.error('Error deleting expense:', error);
       }
-    } else {
-      setRows(rows.filter((_, i) => i !== rowIndex));
     }
+    
+    setRows(updatedRows);
+    
+    // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+    dispatchExpensesEvent(updatedRows);
   };
 
   const handleCellChange = (rowIndex, field, value) => {
@@ -80,6 +97,9 @@ export default function ExpensesPage() {
       const updatedRows = [...rows];
       updatedRows[rowIndex] = { ...updatedRows[rowIndex], [field]: value };
       setRows(updatedRows);
+
+      // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+      dispatchExpensesEvent(updatedRows);
 
       const row = updatedRows[rowIndex];
       

@@ -212,6 +212,22 @@ export const useLifeSheetStore = create(
         get().recalculateAll()
       }),
 
+      // Set entire arrays (for loading data from API)
+      setLoans: (loansArray) => set((state) => {
+        state.loans = loansArray || []
+        get().recalculateAll()
+      }),
+
+      setExpenses: (expensesArray) => set((state) => {
+        state.expenses = expensesArray || []
+        get().recalculateAll()
+      }),
+
+      setGoals: (goalsArray) => set((state) => {
+        state.goals = goalsArray || []
+        get().recalculateAll()
+      }),
+
       // Expense actions
       addExpense: (expense) => set((state) => {
         const newExpense = {

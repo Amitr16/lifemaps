@@ -267,6 +267,86 @@ const UnifiedChart = ({ defaultEnabled = ['assets'] }) => {
     return () => window.removeEventListener('workAssetsUpdated', handler);
   }, [calculateChartData]);
 
+  // Listen for assets updates from NotionStyleAssetRegister (event-based)
+  useEffect(() => {
+    const handler = (evt) => {
+      try {
+        const incoming = (evt && evt.detail && Array.isArray(evt.detail.assets)) ? evt.detail.assets : [];
+        // force new references
+        const copied = incoming.map(a => ({ ...a }));
+        setAssets(copied);
+        // ensure the chart recomputes
+        if (typeof calculateChartData === 'function') {
+          calculateChartData();
+        }
+      } catch (err) {
+        console.error('Failed to handle assetsUpdated event:', err);
+      }
+    };
+    window.addEventListener('assetsUpdated', handler);
+    return () => window.removeEventListener('assetsUpdated', handler);
+  }, [calculateChartData]);
+
+  // Listen for loans updates from LoansPage (event-based)
+  useEffect(() => {
+    const handler = (evt) => {
+      try {
+        const incoming = (evt && evt.detail && Array.isArray(evt.detail.loans)) ? evt.detail.loans : [];
+        // force new references
+        const copied = incoming.map(l => ({ ...l }));
+        setLoans(copied);
+        // ensure the chart recomputes
+        if (typeof calculateChartData === 'function') {
+          calculateChartData();
+        }
+      } catch (err) {
+        console.error('Failed to handle loansUpdated event:', err);
+      }
+    };
+    window.addEventListener('loansUpdated', handler);
+    return () => window.removeEventListener('loansUpdated', handler);
+  }, [calculateChartData]);
+
+  // Listen for expenses updates from ExpensesPage (event-based)
+  useEffect(() => {
+    const handler = (evt) => {
+      try {
+        const incoming = (evt && evt.detail && Array.isArray(evt.detail.expenses)) ? evt.detail.expenses : [];
+        // force new references
+        const copied = incoming.map(e => ({ ...e }));
+        setExpenses(copied);
+        // ensure the chart recomputes
+        if (typeof calculateChartData === 'function') {
+          calculateChartData();
+        }
+      } catch (err) {
+        console.error('Failed to handle expensesUpdated event:', err);
+      }
+    };
+    window.addEventListener('expensesUpdated', handler);
+    return () => window.removeEventListener('expensesUpdated', handler);
+  }, [calculateChartData]);
+
+  // Listen for goals updates from GoalsPage (event-based)
+  useEffect(() => {
+    const handler = (evt) => {
+      try {
+        const incoming = (evt && evt.detail && Array.isArray(evt.detail.goals)) ? evt.detail.goals : [];
+        // force new references
+        const copied = incoming.map(g => ({ ...g }));
+        setGoals(copied);
+        // ensure the chart recomputes
+        if (typeof calculateChartData === 'function') {
+          calculateChartData();
+        }
+      } catch (err) {
+        console.error('Failed to handle goalsUpdated event:', err);
+      }
+    };
+    window.addEventListener('goalsUpdated', handler);
+    return () => window.removeEventListener('goalsUpdated', handler);
+  }, [calculateChartData]);
+
   const loadWorkAssets = async () => {
     try {
       const workAssetsData = await ApiService.getWorkAssets(user.id);

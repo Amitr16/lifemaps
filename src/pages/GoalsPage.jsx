@@ -11,6 +11,16 @@ export default function GoalsPage() {
   const [loading, setLoading] = useState(false);
   const [savingRows, setSavingRows] = useState(new Set()); // Track which rows are being saved
 
+  // Event dispatching for live chart updates (following WorkAssetsPage pattern)
+  const dispatchGoalsEvent = (updatedGoals) => {
+    try {
+      const payload = Array.isArray(updatedGoals) ? updatedGoals.map(g => ({ ...g })) : [];
+      window.dispatchEvent(new CustomEvent('goalsUpdated', { detail: { goals: payload } }));
+    } catch (e) {
+      console.warn('Failed to dispatch goalsUpdated event:', e);
+    }
+  };
+
   // Load goals from database
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -38,6 +48,9 @@ export default function GoalsPage() {
       const goals = response.goals || response || [];
       console.log('🎯 Goals array:', goals);
       setRows(goals);
+      
+      // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+      dispatchGoalsEvent(goals);
     } catch (error) {
       console.error('Error loading goals:', error);
       setRows([]); // Set empty array on error
@@ -58,6 +71,8 @@ export default function GoalsPage() {
 
   const delRow = async (idx) => {
     const row = rows[idx];
+    const updatedRows = rows.filter((_, i) => i !== idx);
+    
     if (row.id && !row.id.toString().startsWith('temp_')) {
       try {
         await ApiService.deleteFinancialGoal(row.id);
@@ -65,7 +80,11 @@ export default function GoalsPage() {
         console.error('Error deleting goal:', error);
       }
     }
-    setRows(rows.filter((_, i) => i !== idx));
+    
+    setRows(updatedRows);
+    
+    // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+    dispatchGoalsEvent(updatedRows);
   };
 
   const handleCellChange = (rowIndex, field, value) => {
@@ -73,6 +92,9 @@ export default function GoalsPage() {
       const updatedRows = [...rows];
       updatedRows[rowIndex] = { ...updatedRows[rowIndex], [field]: value };
       setRows(updatedRows);
+
+      // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+      dispatchGoalsEvent(updatedRows);
 
       const row = updatedRows[rowIndex];
       

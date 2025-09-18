@@ -12,6 +12,16 @@ export default function LoansPage() {
   const [loading, setLoading] = useState(false);
   const [savingRows, setSavingRows] = useState(new Set());
 
+  // Event dispatching for live chart updates (following WorkAssetsPage pattern)
+  const dispatchLoansEvent = (updatedLoans) => {
+    try {
+      const payload = Array.isArray(updatedLoans) ? updatedLoans.map(l => ({ ...l })) : [];
+      window.dispatchEvent(new CustomEvent('loansUpdated', { detail: { loans: payload } }));
+    } catch (e) {
+      console.warn('Failed to dispatch loansUpdated event:', e);
+    }
+  };
+
   // Load loans from database
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -31,6 +41,9 @@ export default function LoansPage() {
       console.log('💰 First loan loanExpiry:', loans[0]?.loanExpiry);
       console.log('💰 First loan end_date from DB:', loans[0]?.end_date);
       setRows(loans);
+      
+      // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+      dispatchLoansEvent(loans);
     } catch (error) {
       console.error('Error loading loans:', error);
       setRows([]);
@@ -61,7 +74,11 @@ export default function LoansPage() {
         console.error('Error deleting loan:', error);
       }
     }
-    setRows(rows.filter((_, i) => i !== idx));
+    const updatedRows = rows.filter((_, i) => i !== idx);
+    setRows(updatedRows);
+    
+    // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+    dispatchLoansEvent(updatedRows);
   };
 
   const handleCellChange = (rowIndex, field, value) => {
@@ -69,6 +86,9 @@ export default function LoansPage() {
       const updatedRows = [...rows];
       updatedRows[rowIndex] = { ...updatedRows[rowIndex], [field]: value };
       setRows(updatedRows);
+
+      // Dispatch event for live chart updates (following WorkAssetsPage pattern)
+      dispatchLoansEvent(updatedRows);
 
       const row = updatedRows[rowIndex];
       
