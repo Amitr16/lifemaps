@@ -43,17 +43,50 @@ async function createTables(client) {
     'financial_loan',
     'assets',
     'financial_profile',
-    'user'
+    '"user"'  // Quote user table
   ];
   
   for (const table of tablesToDrop) {
     try {
-      // Quote table names to handle reserved keywords like 'user'
-      const quotedTable = table === 'user' ? '"user"' : table;
-      await client.query(`DROP TABLE IF EXISTS ${quotedTable} CASCADE`);
+      await client.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
       console.log(`✅ Dropped table: ${table}`);
     } catch (error) {
       console.log(`⚠️ Could not drop ${table}: ${error.message}`);
+    }
+  }
+  
+  // Drop sequences first
+  console.log('🗑️ Dropping existing sequences...');
+  const sequencesToDrop = [
+    'user_id_seq',
+    'financial_profile_id_seq', 
+    'assets_id_seq',
+    'financial_loan_id_seq',
+    'financial_goal_id_seq',
+    'financial_expense_id_seq',
+    'work_assets_id_seq',
+    'user_tags_id_seq',
+    'user_asset_columns_id_seq',
+    'financial_scenario_id_seq'
+  ];
+  
+  for (const seq of sequencesToDrop) {
+    try {
+      await client.query(`DROP SEQUENCE IF EXISTS ${seq} CASCADE`);
+      console.log(`✅ Dropped sequence: ${seq}`);
+    } catch (error) {
+      console.log(`⚠️ Could not drop sequence ${seq}: ${error.message}`);
+    }
+  }
+  
+  // Create sequences first
+  console.log('📋 Creating sequences...');
+  for (const seq of sequencesToDrop) {
+    try {
+      await client.query(`CREATE SEQUENCE ${seq} START 1`);
+      console.log(`✅ Created sequence: ${seq}`);
+    } catch (error) {
+      console.log(`⚠️ Could not create sequence ${seq}: ${error.message}`);
     }
   }
   
@@ -65,12 +98,9 @@ CREATE TABLE "user" (
   password_hash CHARACTER VARYING(255) NOT NULL,
   name CHARACTER VARYING(255) NOT NULL,
   created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
-,
-  PRIMARY KEY (id)
-,
+  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+  PRIMARY KEY (id),
   UNIQUE (email)
-
 )
   `);
   console.log('✅ user table created');
@@ -94,10 +124,9 @@ CREATE TABLE financial_profile (
   income_growth_rate DOUBLE PRECISION,
   asset_growth_rate DOUBLE PRECISION,
   created_at TIMESTAMP WITHOUT TIME ZONE,
-  updated_at TIMESTAMP WITHOUT TIME ZONE
-,
-  PRIMARY KEY (id)
-
+  updated_at TIMESTAMP WITHOUT TIME ZONE,
+  PRIMARY KEY (id),
+  FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
 )
   `);
   console.log('✅ financial_profile table created');
@@ -120,12 +149,9 @@ CREATE TABLE assets (
   end_date DATE,
   owner CHARACTER VARYING(100),
   liquidity CHARACTER VARYING(50),
-  expected_return NUMERIC
-,
-  PRIMARY KEY (id)
-,
+  expected_return NUMERIC,
+  PRIMARY KEY (id),
   FOREIGN KEY (profile_id) REFERENCES financial_profile(id) ON DELETE CASCADE
-
 )
   `);
   console.log('✅ assets table created');
@@ -150,12 +176,9 @@ CREATE TABLE financial_loan (
   rate NUMERIC,
   emi_day INTEGER DEFAULT 1,
   prepay_allowed BOOLEAN DEFAULT true,
-  notes TEXT
-,
-  PRIMARY KEY (id)
-,
+  notes TEXT,
+  PRIMARY KEY (id),
   FOREIGN KEY (profile_id) REFERENCES financial_profile(id) ON DELETE CASCADE
-
 )
   `);
   console.log('✅ financial_loan table created');
@@ -181,12 +204,9 @@ CREATE TABLE financial_goal (
   funding_source CHARACTER VARYING(255),
   on_track BOOLEAN DEFAULT false,
   custom_data JSONB DEFAULT '{}'::jsonb,
-  target_year INTEGER
-,
-  PRIMARY KEY (id)
-,
+  target_year INTEGER,
+  PRIMARY KEY (id),
   FOREIGN KEY (profile_id) REFERENCES financial_profile(id) ON DELETE CASCADE
-
 )
   `);
   console.log('✅ financial_goal table created');
@@ -209,12 +229,9 @@ CREATE TABLE financial_expense (
   subcategory CHARACTER VARYING(255),
   personal_inflation NUMERIC DEFAULT 0.06,
   source CHARACTER VARYING(255),
-  notes TEXT
-,
-  PRIMARY KEY (id)
-,
+  notes TEXT,
+  PRIMARY KEY (id),
   FOREIGN KEY (profile_id) REFERENCES financial_profile(id) ON DELETE CASCADE
-
 )
   `);
   console.log('✅ financial_expense table created');
@@ -230,12 +247,9 @@ CREATE TABLE work_assets (
   growth_rate NUMERIC DEFAULT 0.03,
   end_age INTEGER NOT NULL,
   created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
-,
-  PRIMARY KEY (id)
-,
+  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+  PRIMARY KEY (id),
   FOREIGN KEY (profile_id) REFERENCES financial_profile(id) ON DELETE CASCADE
-
 )
   `);
   console.log('✅ work_assets table created');
@@ -247,18 +261,9 @@ CREATE TABLE user_tags (
   user_id INTEGER NOT NULL,
   tag_name CHARACTER VARYING(100) NOT NULL,
   tag_order INTEGER DEFAULT 0,
-  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-,
-  PRIMARY KEY (id)
-,
-  UNIQUE (user_id)
-,
-  UNIQUE (user_id)
-,
-  UNIQUE (tag_name)
-,
-  UNIQUE (tag_name)
-
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE (user_id, tag_name)
 )
   `);
   console.log('✅ user_tags table created');
@@ -272,18 +277,9 @@ CREATE TABLE user_asset_columns (
   column_label CHARACTER VARYING(255) NOT NULL,
   column_type CHARACTER VARYING(50) DEFAULT 'text'::character varying,
   column_order INTEGER DEFAULT 0,
-  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
-,
-  PRIMARY KEY (id)
-,
-  UNIQUE (user_id)
-,
-  UNIQUE (user_id)
-,
-  UNIQUE (column_key)
-,
-  UNIQUE (column_key)
-
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+  PRIMARY KEY (id),
+  UNIQUE (user_id, column_key)
 )
   `);
   console.log('✅ user_asset_columns table created');
@@ -306,12 +302,9 @@ CREATE TABLE financial_scenario (
   income_growth_rate DOUBLE PRECISION,
   expense_growth_rate DOUBLE PRECISION,
   created_at TIMESTAMP WITHOUT TIME ZONE,
-  updated_at TIMESTAMP WITHOUT TIME ZONE
-,
-  PRIMARY KEY (id)
-,
+  updated_at TIMESTAMP WITHOUT TIME ZONE,
+  PRIMARY KEY (id),
   FOREIGN KEY (profile_id) REFERENCES financial_profile(id) ON DELETE CASCADE
-
 )
   `);
   console.log('✅ financial_scenario table created');
