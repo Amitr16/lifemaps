@@ -15,13 +15,28 @@ def migrate_database():
     """Add source tracking columns to the database"""
     
     # Database connection parameters
-    db_config = {
-        'host': os.getenv('DB_HOST', 'localhost'),
-        'port': os.getenv('DB_PORT', '5432'),
-        'database': os.getenv('DB_NAME', 'life_sheet'),
-        'user': os.getenv('DB_USER', 'postgres'),
-        'password': os.getenv('DB_PASSWORD', 'admin')
-    }
+    # Use DATABASE_URL if available, otherwise fall back to individual params
+    database_url = os.getenv('DATABASE_URL')
+    if database_url:
+        # Parse DATABASE_URL
+        from urllib.parse import urlparse
+        parsed = urlparse(database_url)
+        db_config = {
+            'host': parsed.hostname,
+            'port': parsed.port or 5432,
+            'database': parsed.path[1:],  # Remove leading slash
+            'user': parsed.username,
+            'password': parsed.password
+        }
+    else:
+        # Fallback to individual environment variables
+        db_config = {
+            'host': os.getenv('DB_HOST', 'localhost'),
+            'port': os.getenv('DB_PORT', '5432'),
+            'database': os.getenv('DB_NAME', 'life_sheet'),
+            'user': os.getenv('DB_USER', 'postgres'),
+            'password': os.getenv('DB_PASSWORD', 'admin')
+        }
     
     print("🔄 Starting database migration for source tracking...")
     print(f"🔍 Connecting to database: {db_config['database']} on {db_config['host']}:{db_config['port']}")

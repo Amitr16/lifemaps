@@ -61,7 +61,14 @@ async function initializeDatabaseWithRetry(maxRetries = 3, delay = 5000) {
   return false;
 }
 
-// Initialize database and start server
-initializeDatabaseWithRetry().then(() => {
+// Start server directly - database should already be initialized
+// Only run init script if DATABASE_INIT=true environment variable is set
+if (process.env.DATABASE_INIT === 'true') {
+  console.log('🔧 DATABASE_INIT=true, running database initialization...');
+  initializeDatabaseWithRetry().then(() => {
+    startServer();
+  });
+} else {
+  console.log('🚀 Starting server without database initialization (data will persist)');
   startServer();
-});
+}
