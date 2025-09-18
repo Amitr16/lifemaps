@@ -4,8 +4,13 @@ async function initRenderDatabase() {
   try {
     console.log('🚀 Initializing database for Render...');
     
-    // Test connection
-    const client = await pool.connect();
+    // Test connection with timeout
+    const client = await Promise.race([
+      pool.connect(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Connection timeout')), 10000)
+      )
+    ]);
     console.log('✅ Connected to Render PostgreSQL database');
     
     // Create tables
@@ -15,7 +20,10 @@ async function initRenderDatabase() {
     console.log('✅ Database initialization completed successfully');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    console.error('❌ Database initialization failed:', error.message);
+    if (error.code === 'ECONNREFUSED') {
+      console.error('💡 Database connection refused - database might not be ready yet');
+    }
     process.exit(1);
   }
 }
