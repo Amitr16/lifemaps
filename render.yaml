@@ -34,5 +34,3 @@ services:
   - type: pserv
     name: lifemaps-db
     plan: free
-    databaseName: lifemaps
-    user: lifemaps_user
