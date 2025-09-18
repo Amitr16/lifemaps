@@ -59,7 +59,7 @@ async function createTables(client) {
   
   // Create user table
   await client.query(`
-CREATE TABLE user (
+CREATE TABLE "user" (
   id INTEGER NOT NULL DEFAULT nextval('user_id_seq'::regclass),
   email CHARACTER VARYING(255) NOT NULL,
   password_hash CHARACTER VARYING(255) NOT NULL,
