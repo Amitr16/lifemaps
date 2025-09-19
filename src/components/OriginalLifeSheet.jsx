@@ -47,26 +47,19 @@ export default function OriginalLifeSheet() {
   // Get calculated values from store (ChatGPT's fix - single source of truth)
   const currentYear = new Date().getFullYear();
   const currentYearData = chartData?.find(d => d.year === currentYear) || {};
-  
-  const calculations = {
-    totalExistingAssets: currentYearData.portfolio || lifeSheet.totalExistingAssets || 0,
-    totalExistingLiabilities: currentYearData.emi || lifeSheet.totalExistingLiabilities || 0,
-    totalHumanCapital: currentYearData.income || lifeSheet.totalHumanCapital || 0,
-    totalFutureExpenses: currentYearData.expenses || lifeSheet.totalFutureExpense || 0,
-    totalFinancialGoals: lifeSheet.totalGoals || 0, // Goals are not in chartData, keep from lifeSheet
-    surplusDeficit: (currentYearData.portfolio || lifeSheet.totalExistingAssets || 0) + 
-                   (currentYearData.income || lifeSheet.totalHumanCapital || 0) - 
-                   (currentYearData.emi || lifeSheet.totalExistingLiabilities || 0) - 
-                   (currentYearData.expenses || lifeSheet.totalFutureExpense || 0) - 
-                   (lifeSheet.totalGoals || 0)
-  }
 
-  // Handle user input changes (these should take precedence over Assets detail)
+  // Handle user input changes (these should take precedence over detailed data)
   const handleUserInputChange = (field, value) => {
     setFormData({...formData, [field]: value})
     
     // Set source preference to main page (0) when user edits main inputs
-    setSourcePreference('assets', 0);
+    // Map fields to their corresponding source components
+    if (field === 'currentAnnualGrossIncome' || field === 'workTenureYears' || field === 'incomeGrowthRate') {
+      setSourcePreference('income', 0); // Work Assets
+    }
+    if (field === 'totalAssetGrossMarketValue' || field === 'assetGrowthRate') {
+      setSourcePreference('assets', 0); // Assets
+    }
     
     // Map form fields to store fields and update with user origin
     const storeFieldMap = {
@@ -90,15 +83,25 @@ export default function OriginalLifeSheet() {
       }, { origin: 'user' })
     }
   }
+
+  // Handle loan changes - set source preference to Quick Calculator
+  const handleLoanChange = (index, field, value) => {
+    updateLoan(index, field, value);
+    setSourcePreference('loans', 0); // Set to Quick Calculator
+  }
+
+  // Handle expense changes - set source preference to Quick Calculator  
+  const handleExpenseChange = (index, field, value) => {
+    updateExpense(index, field, value);
+    setSourcePreference('expenses', 0); // Set to Quick Calculator
+  }
+
+  // Handle goal changes - set source preference to Quick Calculator
+  const handleGoalChange = (index, field, value) => {
+    updateGoal(index, field, value);
+    setSourcePreference('goals', 0); // Set to Quick Calculator
+  }
   
-  // Debug: Log calculations and chartData
-  React.useEffect(() => {
-    console.log('🔄 OriginalLifeSheet: Page mounted/updated');
-    console.log('🔄 OriginalLifeSheet: calculations:', calculations);
-    console.log('🔄 OriginalLifeSheet: chartData length:', chartData?.length);
-    console.log('🔄 OriginalLifeSheet: chartData sample:', chartData?.slice(0, 3));
-    console.log('🔄 OriginalLifeSheet: Full chartData:', chartData);
-  }, [calculations, chartData]);
 
   // Event dispatching for live chart updates (following Assets page pattern)
   const dispatchGoalsEvent = (updatedGoals) => {
@@ -142,6 +145,33 @@ export default function OriginalLifeSheet() {
     { description: 'l2', amount: 10000, emi: 70, _tempId: 'default-2', isNew: true },
     { description: 'l3', amount: 10, emi: 15, _tempId: 'default-3', isNew: true }
   ])
+
+  // Calculate values from left pane cells (not chart data)
+  const totalLoans = loans.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0);
+  const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+  const totalGoals = goals.reduce((sum, goal) => sum + (parseFloat(goal.amount) || 0), 0);
+  
+  const calculations = {
+    totalExistingAssets: parseFloat(formData.totalAssetGrossMarketValue) || 0,
+    totalExistingLiabilities: totalLoans,
+    totalHumanCapital: parseFloat(formData.currentAnnualGrossIncome) || 0,
+    totalFutureExpenses: totalExpenses,
+    totalFinancialGoals: totalGoals,
+    surplusDeficit: (parseFloat(formData.totalAssetGrossMarketValue) || 0) + 
+                   (parseFloat(formData.currentAnnualGrossIncome) || 0) - 
+                   totalLoans - 
+                   totalExpenses - 
+                   totalGoals
+  }
+
+  // Debug: Log calculations and chartData
+  React.useEffect(() => {
+    console.log('🔄 OriginalLifeSheet: Page mounted/updated');
+    console.log('🔄 OriginalLifeSheet: calculations:', calculations);
+    console.log('🔄 OriginalLifeSheet: chartData length:', chartData?.length);
+    console.log('🔄 OriginalLifeSheet: chartData sample:', chartData?.slice(0, 3));
+    console.log('🔄 OriginalLifeSheet: Full chartData:', chartData);
+  }, [calculations, chartData]);
 
   // Load user's financial data when authenticated
   useEffect(() => {
@@ -203,18 +233,33 @@ export default function OriginalLifeSheet() {
   useEffect(() => {
     if (isAuthenticated && user) {
       console.log('🔄 OriginalLifeSheet: Hydrating main inputs (system update)');
+      
+      // Calculate expenses0 from expenses array
+      const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+      
+      // Calculate quickEmiByYear from loans array
+      const quickEmiByYear = {};
+      const currentYear = new Date().getFullYear();
+      const horizonYears = (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0);
+      
+      for (let i = 0; i < horizonYears; i++) {
+        const year = currentYear + i;
+        const annualEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
+        quickEmiByYear[year] = annualEmi;
+      }
+      
       // Hydrate main inputs for Net Worth system (doesn't bump lastEditedAt)
       hydrateMainInputs({
         initialAssets: parseFloat(formData.totalAssetGrossMarketValue) || 0,
-        startYear: new Date().getFullYear(),
-        horizonYears: (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0),
+        startYear: currentYear,
+        horizonYears: horizonYears,
         r_assets: parseFloat(formData.assetGrowthRate) || 0.06,
         g_income: parseFloat(formData.incomeGrowthRate) || 0.06,
         i_expenses: 0.06, // Fixed expense inflation
         workTenureYears: parseInt(formData.workTenureYears) || 35,
         income0: parseFloat(formData.currentAnnualGrossIncome) || 0,
-        expenses0: 0, // Will be calculated from expenses array
-        quickEmiByYear: {} // Will be calculated from loans array
+        expenses0: totalExpenses, // Calculate from expenses array
+        quickEmiByYear: quickEmiByYear // Calculate from loans array
       })
       
       // Also update legacy lifeSheet for compatibility
@@ -229,7 +274,7 @@ export default function OriginalLifeSheet() {
         assetGrowthRate: formData.assetGrowthRate
       })
     }
-  }, [formData, isAuthenticated, user, hydrateMainInputs, updateLifeSheet])
+  }, [formData, expenses, loans, isAuthenticated, user, hydrateMainInputs, updateLifeSheet])
 
   // Update store goals when local goals change
   useEffect(() => {
@@ -512,6 +557,8 @@ export default function OriginalLifeSheet() {
     updatedGoals[index] = { ...updatedGoals[index], [field]: value }
     setGoals(updatedGoals)
     dispatchGoalsEvent(updatedGoals)
+    // Set source preference to Quick Calculator when user edits goals
+    setSourcePreference('goals', 0);
   }
 
   const saveGoalOnBlur = async (index, field, value) => {
@@ -597,6 +644,8 @@ export default function OriginalLifeSheet() {
     updatedExpenses[index] = { ...updatedExpenses[index], [field]: value }
     setExpenses(updatedExpenses)
     dispatchExpensesEvent(updatedExpenses)
+    // Set source preference to Quick Calculator when user edits expenses
+    setSourcePreference('expenses', 0);
   }
 
   const saveExpenseOnBlur = async (index, field, value) => {
@@ -653,6 +702,27 @@ export default function OriginalLifeSheet() {
     const updatedExpenses = expenses.filter((_, i) => i !== index);
     setExpenses(updatedExpenses);
     dispatchExpensesEvent(updatedExpenses);
+    
+    // Update store with new expenses array
+    setStoreExpenses(updatedExpenses);
+    
+    // Trigger immediate recalculation
+    const totalExpenses = updatedExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+    const currentYear = new Date().getFullYear();
+    const horizonYears = (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0);
+    
+    const quickEmiByYear = {};
+    for (let i = 0; i < horizonYears; i++) {
+      const year = currentYear + i;
+      const annualEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
+      quickEmiByYear[year] = annualEmi;
+    }
+    
+    // Update main inputs with new values
+    setMainInputs({
+      expenses0: totalExpenses,
+      quickEmiByYear: quickEmiByYear
+    }, { origin: 'user' });
   }
 
   // 2. Add loan CRUD handlers using backend
@@ -681,6 +751,8 @@ export default function OriginalLifeSheet() {
       dispatchLoansEvent(updatedLoans);
       return updatedLoans;
     });
+    // Set source preference to Quick Calculator when user edits loans
+    setSourcePreference('loans', 0);
   }
 
   const saveLoanOnBlur = async (loanKey, field, value) => {
@@ -775,6 +847,33 @@ export default function OriginalLifeSheet() {
         setLoans(loans => {
           const updatedLoans = loans.filter((_, idx) => idx !== loanIndex);
           dispatchLoansEvent(updatedLoans);
+          
+          // Update store with new loans array
+          const mappedLoansForStore = updatedLoans.map(loan => ({
+            ...loan,
+            principal_outstanding: loan.amount,
+            lender: loan.description
+          }));
+          setStoreLoans(mappedLoansForStore);
+          
+          // Trigger immediate recalculation
+          const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+          const currentYear = new Date().getFullYear();
+          const horizonYears = (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0);
+          
+          const quickEmiByYear = {};
+          for (let i = 0; i < horizonYears; i++) {
+            const year = currentYear + i;
+            const annualEmi = updatedLoans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
+            quickEmiByYear[year] = annualEmi;
+          }
+          
+          // Update main inputs with new values
+          setMainInputs({
+            expenses0: totalExpenses,
+            quickEmiByYear: quickEmiByYear
+          }, { origin: 'user' });
+          
           return updatedLoans;
         });
         
@@ -791,6 +890,33 @@ export default function OriginalLifeSheet() {
       setLoans(loans => {
         const updatedLoans = loans.filter((_, idx) => idx !== loanIndex);
         dispatchLoansEvent(updatedLoans);
+        
+        // Update store with new loans array
+        const mappedLoansForStore = updatedLoans.map(loan => ({
+          ...loan,
+          principal_outstanding: loan.amount,
+          lender: loan.description
+        }));
+        setStoreLoans(mappedLoansForStore);
+        
+        // Trigger immediate recalculation
+        const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+        const currentYear = new Date().getFullYear();
+        const horizonYears = (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0);
+        
+        const quickEmiByYear = {};
+        for (let i = 0; i < horizonYears; i++) {
+          const year = currentYear + i;
+          const annualEmi = updatedLoans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
+          quickEmiByYear[year] = annualEmi;
+        }
+        
+        // Update main inputs with new values
+        setMainInputs({
+          expenses0: totalExpenses,
+          quickEmiByYear: quickEmiByYear
+        }, { origin: 'user' });
+        
         return updatedLoans;
       });
     }
@@ -975,7 +1101,7 @@ export default function OriginalLifeSheet() {
                         <Input
                           placeholder="Description"
                           value={loan.description || ''}
-                          onChange={e => updateLoan(loan.id || loan._tempId || index, 'description', e.target.value)}
+                          onChange={e => handleLoanChange(loan.id || loan._tempId || index, 'description', e.target.value)}
                           onBlur={e => saveLoanOnBlur(loan.id || loan._tempId || index, 'description', e.target.value)}
                           className="text-sm"
                         />
@@ -985,7 +1111,7 @@ export default function OriginalLifeSheet() {
                           value={loan.amount === "" ? "" : loan.amount}
                           onChange={e => {
                             const val = e.target.value;
-                            updateLoan(loan.id || loan._tempId || index, 'amount', val === "" ? "" : parseFloat(val));
+                            handleLoanChange(loan.id || loan._tempId || index, 'amount', val === "" ? "" : parseFloat(val));
                           }}
                           onBlur={e => {
                             const val = e.target.value;
@@ -1000,7 +1126,7 @@ export default function OriginalLifeSheet() {
                             value={loan.emi === "" ? "" : loan.emi}
                             onChange={e => {
                               const val = e.target.value;
-                              updateLoan(loan.id || loan._tempId || index, 'emi', val === "" ? "" : parseFloat(val));
+                              handleLoanChange(loan.id || loan._tempId || index, 'emi', val === "" ? "" : parseFloat(val));
                             }}
                             onBlur={e => {
                               const val = e.target.value;
@@ -1061,7 +1187,7 @@ export default function OriginalLifeSheet() {
                         <Input
                           placeholder="Goal description"
                           value={goal.description || ''}
-                          onChange={e => updateGoal(index, 'description', e.target.value)}
+                          onChange={e => handleGoalChange(index, 'description', e.target.value)}
                           onBlur={e => saveGoalOnBlur(index, 'description', e.target.value)}
                           className="text-sm"
                         />
@@ -1071,7 +1197,7 @@ export default function OriginalLifeSheet() {
                           value={goal.amount === "" ? "" : goal.amount}
                           onChange={e => {
                             const val = e.target.value;
-                            updateGoal(index, 'amount', val === "" ? "" : parseFloat(val));
+                            handleGoalChange(index, 'amount', val === "" ? "" : parseFloat(val));
                           }}
                           onBlur={e => {
                             const val = e.target.value;
@@ -1114,7 +1240,7 @@ export default function OriginalLifeSheet() {
                         <Input
                           placeholder="Expense description"
                           value={expense.description || ''}
-                          onChange={e => updateExpense(index, 'description', e.target.value)}
+                          onChange={e => handleExpenseChange(index, 'description', e.target.value)}
                           onBlur={e => saveExpenseOnBlur(index, 'description', e.target.value)}
                           className="text-sm"
                         />
@@ -1125,7 +1251,7 @@ export default function OriginalLifeSheet() {
                             value={expense.amount === "" ? "" : expense.amount}
                             onChange={e => {
                               const val = e.target.value;
-                              updateExpense(index, 'amount', val === "" ? "" : parseFloat(val));
+                              handleExpenseChange(index, 'amount', val === "" ? "" : parseFloat(val));
                             }}
                             onBlur={e => {
                               const val = e.target.value;

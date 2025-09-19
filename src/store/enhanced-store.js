@@ -579,18 +579,24 @@ export const useLifeSheetStore = create(
         let cash = 0;
 
         for (const y of yearsArray) {
-          // Portfolio = from Assets page (if edited) OR Quick Calculator (includes all cash flows)
+          // Get values for this year
           const port = portfolio[y] ?? 0;
+          const inc = income[y] ?? 0;
+          const exp = expenses[y] ?? 0;
+          const emiAmount = emi[y] ?? 0;
           
-          // Cash = 0 (since portfolio already includes all cash flows)
-          cash = 0;
+          // Update cash flow: income - expenses - EMIs
+          cash += inc - exp - emiAmount;
           
-          // Net worth = Portfolio (since portfolio includes everything)
-          const nw = port;
+          // Net worth = Portfolio + Cash
+          const nw = port + cash;
 
           out.push({
             year: y,
             portfolio: Math.round(port),
+            income: Math.round(inc),
+            expenses: Math.round(exp),
+            emi: Math.round(emiAmount),
             cash: Math.round(cash),
             netWorth: Math.round(nw),
           });
@@ -714,19 +720,19 @@ export const useLifeSheetStore = create(
         state.detail.assets = { portfolioSeries, lastEditedAt: createTimestamp() };
         console.log('🔄 Store: detail.assets updated with lastEditedAt:', state.detail.assets.lastEditedAt);
         console.log('🔄 Store: detail.assets.portfolioSeries stored:', state.detail.assets.portfolioSeries);
-      }, false, 'detail/assets'),
+      }, false, 'detail/assets') && get().recalculateAll(),
 
       setDetailIncome: (series) => set((state) => {
         state.detail.workIncome = { series, lastEditedAt: createTimestamp() };
-      }, false, 'detail/income'),
+      }, false, 'detail/income') && get().recalculateAll(),
 
       setDetailExpenses: (series) => set((state) => {
         state.detail.expenses = { series, lastEditedAt: createTimestamp() };
-      }, false, 'detail/expenses'),
+      }, false, 'detail/expenses') && get().recalculateAll(),
 
       setDetailEmi: (series) => set((state) => {
         state.detail.loans = { series, lastEditedAt: createTimestamp() };
-      }, false, 'detail/loans'),
+      }, false, 'detail/loans') && get().recalculateAll(),
 
       // Update chart data using new simulation
       updateChartData: () => set((state) => {
