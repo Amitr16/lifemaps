@@ -39,11 +39,20 @@ export default function LoansPage() {
         loansData.forEach(loan => {
           const principal = parseFloat(loan.amount) || 0;
           const emi = parseFloat(loan.emi) || 0;
-          const tenureYears = parseFloat(loan.tenureYears) || 0;
+          const loanExpiry = parseInt(loan.loanExpiry) || 0;
           
-          // Only include EMI if the loan is still active (within tenure)
-          if (yearOffset < tenureYears && emi > 0) {
+          console.log('🔄 Loans: Processing loan:', { 
+            provider: loan.provider, 
+            emi, 
+            loanExpiry, 
+            year, 
+            yearOffset 
+          });
+          
+          // Only include EMI if the loan is still active (before expiry year)
+          if (loanExpiry > 0 && year <= loanExpiry && emi > 0) {
             totalEmi += emi * 12; // Convert monthly EMI to annual
+            console.log('🔄 Loans: Adding EMI for year', year, ':', emi * 12);
           }
         });
         
@@ -174,13 +183,13 @@ export default function LoansPage() {
               });
             }).catch(error => console.error('Error updating loan:', error));
           }
-        } else if (row.provider && row.amount && row.id.toString().startsWith('temp_')) {
+        } else if (row.provider && row.amount && row.emi && row.id && row.id.toString().startsWith('temp_')) {
           // Create new row - only for temp rows with both provider and amount
           setSavingRows(prev => new Set(prev).add(rowIndex));
           const endDate = row.loanExpiry ? `${parseInt(row.loanExpiry)}-12-31` : null;
           console.log('💾 Creating loan with expiry:', { loanExpiry: row.loanExpiry, endDate });
           
-          ApiService.createFinancialLoan({
+          const loanPayload = {
             lender: row.provider,
             type: 'Personal',
             principal_outstanding: parseFloat(row.amount) || 0,
@@ -188,7 +197,17 @@ export default function LoansPage() {
             emi: parseFloat(row.emi) || 0,
             start_date: new Date().toISOString().split('T')[0],
             end_date: endDate
-          }).then(newLoan => {
+          };
+          
+          console.log('💾 Creating loan with payload:', loanPayload);
+          console.log('💾 Row data:', { 
+            provider: row.provider, 
+            amount: row.amount, 
+            interestRate: row.interestRate, 
+            emi: row.emi 
+          });
+          
+          ApiService.createFinancialLoan(loanPayload).then(newLoan => {
             // Update the row with the new ID
             const updatedRowsWithId = [...rows];
             updatedRowsWithId[rowIndex] = { ...row, id: newLoan.id };

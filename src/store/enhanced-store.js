@@ -551,11 +551,23 @@ export const useLifeSheetStore = create(
 
         // EMI series
         const emi = {};
+        console.log('🔄 Store: EMI source selection:', {
+          useEmiDetail: f.useEmiDetail,
+          hasDetailLoans: !!detail.loans,
+          hasDetailLoansSeries: !!detail.loans?.series,
+          detailLoansKeys: detail.loans?.series ? Object.keys(detail.loans.series).length : 0,
+          hasQuickEmiByYear: !!main.quickEmiByYear,
+          quickEmiKeys: main.quickEmiByYear ? Object.keys(main.quickEmiByYear).length : 0
+        });
+        
         for (const y of yearsArray) {
           emi[y] = f.useEmiDetail
             ? (detail.loans.series[y] ?? 0)
             : (main.quickEmiByYear[y] ?? 0);
         }
+        
+        console.log('🔄 Store: EMI series for first 3 years:', 
+          yearsArray.slice(0, 3).map(y => [y, emi[y]]));
 
         return { portfolio, income, expenses, emi };
       },

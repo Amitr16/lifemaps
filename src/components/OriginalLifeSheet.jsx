@@ -186,8 +186,9 @@ export default function OriginalLifeSheet() {
         console.log('🏦 Loans fetch response:', res)
         const mappedLoans = (res.loans || []).map(loan => ({
           ...loan,
-          description: loan.name // Map backend 'name' to frontend 'description'
+          description: loan.provider || loan.lender || loan.name || '' // Map backend 'provider' to frontend 'description'
         }));
+        console.log('🏦 Mapped loans with descriptions:', mappedLoans.map(l => ({ id: l.id, description: l.description, lender: l.lender })));
         setLoans(mappedLoans);
         dispatchLoansEvent(mappedLoans);
         
@@ -242,11 +243,22 @@ export default function OriginalLifeSheet() {
       const currentYear = new Date().getFullYear();
       const horizonYears = (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0);
       
+      console.log('🔄 EMI Calculation Debug:', {
+        loans: loans.map(l => ({ id: l.id, emi: l.emi, description: l.description })),
+        currentYear,
+        horizonYears
+      });
+      
       for (let i = 0; i < horizonYears; i++) {
         const year = currentYear + i;
         const annualEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
         quickEmiByYear[year] = annualEmi;
+        if (i < 3) { // Log first 3 years
+          console.log(`🔄 Year ${year} EMI calculation:`, { annualEmi, loans: loans.map(l => ({ emi: l.emi, monthlyEmi: parseFloat(l.emi) || 0 })) });
+        }
       }
+      
+      console.log('🔄 Final quickEmiByYear:', quickEmiByYear);
       
       // Hydrate main inputs for Net Worth system (doesn't bump lastEditedAt)
       hydrateMainInputs({
@@ -690,15 +702,23 @@ export default function OriginalLifeSheet() {
     }
   }
 
-  const removeExpense = async (index) => {
+  const removeExpense = (index) => {
+    console.log('🗑️ Main page removeExpense called with index:', index);
+    console.log('🗑️ Current expenses:', expenses);
+    
     const expenseToRemove = expenses[index];
-    if (expenseToRemove.id) {
-      try {
-        await ApiService.deleteFinancialExpense(expenseToRemove.id);
-      } catch (error) {
-        console.error('Failed to delete expense from backend:', error);
-      }
+    if (!expenseToRemove) {
+      console.log('❌ Expense not found');
+      return;
     }
+    
+    // Main page only removes from local state - does NOT delete from database
+    // This ensures Expenses page is not affected
+    console.log('🗑️ Main page: Removing expense from local state only (not from database)');
+    
+    // Set source preference to Quick Calculator when deleting from main page
+    setSourcePreference('expenses', 0);
+    
     const updatedExpenses = expenses.filter((_, i) => i !== index);
     setExpenses(updatedExpenses);
     dispatchExpensesEvent(updatedExpenses);
@@ -723,9 +743,12 @@ export default function OriginalLifeSheet() {
       expenses0: totalExpenses,
       quickEmiByYear: quickEmiByYear
     }, { origin: 'user' });
+    
+    setSaveStatus('Expense removed from main page');
+    setTimeout(() => setSaveStatus(''), 1000);
   }
 
-  // 2. Add loan CRUD handlers using backend
+  // Loan CRUD handlers using backend
   const addLoan = () => {
     const newLoan = { 
       description: '', 
@@ -740,14 +763,19 @@ export default function OriginalLifeSheet() {
   }
 
   const updateLoan = (loanKey, field, value) => {
+    console.log('🔄 updateLoan called:', { loanKey, field, value });
     setLoans(loans => {
       const updatedLoans = loans.map((loan, idx) => {
         // Match by ID if it exists, otherwise by tempId, otherwise by index
         const isMatch = loan.id ? loan.id === loanKey : 
                        loan._tempId ? loan._tempId === loanKey : 
                        idx === loanKey;
+        if (isMatch) {
+          console.log('🔄 Updating loan:', { before: loan, field, value, after: { ...loan, [field]: value } });
+        }
         return isMatch ? { ...loan, [field]: value } : loan;
       });
+      console.log('🔄 Updated loans array:', updatedLoans.map(l => ({ id: l.id, description: l.description })));
       dispatchLoansEvent(updatedLoans);
       return updatedLoans;
     });
@@ -803,8 +831,8 @@ export default function OriginalLifeSheet() {
     }
   }
 
-  const removeLoan = async (loanKey) => {
-    console.log('🗑️ removeLoan called with loanKey:', loanKey);
+  const removeLoan = (loanKey) => {
+    console.log('🗑️ Main page removeLoan called with loanKey:', loanKey);
     console.log('🗑️ Current loans:', loans);
     
     let loanToRemove;
@@ -837,89 +865,48 @@ export default function OriginalLifeSheet() {
       return;
     }
     
-    if (loanToRemove.id) {
-      try {
-        console.log('🗑️ Deleting loan with ID:', loanToRemove.id);
-        const response = await ApiService.deleteFinancialLoan(loanToRemove.id);
-        console.log('✅ Delete response:', response);
-        
-        // Only remove from UI if backend deletion was successful
-        setLoans(loans => {
-          const updatedLoans = loans.filter((_, idx) => idx !== loanIndex);
-          dispatchLoansEvent(updatedLoans);
-          
-          // Update store with new loans array
-          const mappedLoansForStore = updatedLoans.map(loan => ({
-            ...loan,
-            principal_outstanding: loan.amount,
-            lender: loan.description
-          }));
-          setStoreLoans(mappedLoansForStore);
-          
-          // Trigger immediate recalculation
-          const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
-          const currentYear = new Date().getFullYear();
-          const horizonYears = (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0);
-          
-          const quickEmiByYear = {};
-          for (let i = 0; i < horizonYears; i++) {
-            const year = currentYear + i;
-            const annualEmi = updatedLoans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
-            quickEmiByYear[year] = annualEmi;
-          }
-          
-          // Update main inputs with new values
-          setMainInputs({
-            expenses0: totalExpenses,
-            quickEmiByYear: quickEmiByYear
-          }, { origin: 'user' });
-          
-          return updatedLoans;
-        });
-        
-        setSaveStatus('Loan deleted');
-        setTimeout(() => setSaveStatus(''), 1000);
-      } catch (error) {
-        console.error('❌ Failed to delete loan from backend:', error);
-        setSaveError('Error deleting loan');
-        setTimeout(() => setSaveError(''), 3000);
+    // Main page only removes from local state - does NOT delete from database
+    // This ensures Loans page is not affected
+    console.log('🗑️ Main page: Removing loan from local state only (not from database)');
+    
+    // Set source preference to Quick Calculator when deleting from main page
+    setSourcePreference('loans', 0);
+    
+    setLoans(loans => {
+      const updatedLoans = loans.filter((_, idx) => idx !== loanIndex);
+      dispatchLoansEvent(updatedLoans);
+      
+      // Update store with new loans array
+      const mappedLoansForStore = updatedLoans.map(loan => ({
+        ...loan,
+        principal_outstanding: loan.amount,
+        lender: loan.description
+      }));
+      setStoreLoans(mappedLoansForStore);
+      
+      // Trigger immediate recalculation
+      const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+      const currentYear = new Date().getFullYear();
+      const horizonYears = (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0);
+      
+      const quickEmiByYear = {};
+      for (let i = 0; i < horizonYears; i++) {
+        const year = currentYear + i;
+        const annualEmi = updatedLoans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
+        quickEmiByYear[year] = annualEmi;
       }
-    } else {
-      console.log('🗑️ No ID found, removing from UI only');
-      // For loans without ID (not saved yet), just remove from UI
-      setLoans(loans => {
-        const updatedLoans = loans.filter((_, idx) => idx !== loanIndex);
-        dispatchLoansEvent(updatedLoans);
-        
-        // Update store with new loans array
-        const mappedLoansForStore = updatedLoans.map(loan => ({
-          ...loan,
-          principal_outstanding: loan.amount,
-          lender: loan.description
-        }));
-        setStoreLoans(mappedLoansForStore);
-        
-        // Trigger immediate recalculation
-        const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
-        const currentYear = new Date().getFullYear();
-        const horizonYears = (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0);
-        
-        const quickEmiByYear = {};
-        for (let i = 0; i < horizonYears; i++) {
-          const year = currentYear + i;
-          const annualEmi = updatedLoans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
-          quickEmiByYear[year] = annualEmi;
-        }
-        
-        // Update main inputs with new values
-        setMainInputs({
-          expenses0: totalExpenses,
-          quickEmiByYear: quickEmiByYear
-        }, { origin: 'user' });
-        
-        return updatedLoans;
-      });
-    }
+      
+      // Update main inputs with new values
+      setMainInputs({
+        expenses0: totalExpenses,
+        quickEmiByYear: quickEmiByYear
+      }, { origin: 'user' });
+      
+      return updatedLoans;
+    });
+    
+    setSaveStatus('Loan removed from main page');
+    setTimeout(() => setSaveStatus(''), 1000);
   }
 
   const formatCurrency = (amount) => {
