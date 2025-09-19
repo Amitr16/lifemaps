@@ -311,7 +311,7 @@ const NotionStyleAssetRegister = () => {
     try {
       setLoading(true)
       const response = await ApiService.createFinancialAsset({
-        name: '',
+        name: 'New Asset',
         tag: 'Investment',
         current_value: 0,
         custom_data: {
