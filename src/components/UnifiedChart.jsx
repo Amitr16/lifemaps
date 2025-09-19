@@ -91,7 +91,7 @@ const calculateSIPProjection = ({ initial, sipAmount, sipFrequency, annualRate, 
   return lumpValue + sipValue;
 };
 
-const UnifiedChart = ({ defaultEnabled = ['assets'] }) => {
+const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
   const { user, isAuthenticated } = useAuth();
   const { lifeSheet, loans, expenses, goals } = useLifeSheetStore();
   const [assets, setAssets] = useState([]);
@@ -396,12 +396,7 @@ const UnifiedChart = ({ defaultEnabled = ['assets'] }) => {
 
   const dataTypes = [
     { key: 'assets', label: 'Assets', color: '#3b82f6' },
-    { key: 'workAssets', label: 'Work Assets', color: '#10b981' },
-    { key: 'goals', label: 'Goals', color: '#f59e0b' },
-    { key: 'loans', label: 'Loans', color: '#ef4444' },
-    { key: 'expenses', label: 'Expenses', color: '#8b5cf6' },
-    { key: 'insurance', label: 'Insurance', color: '#06b6d4' },
-    { key: 'dependants', label: 'Dependants', color: '#84cc16' }
+    { key: 'workAssets', label: 'Work Assets', color: '#10b981' }
   ];
 
   return (
@@ -464,51 +459,6 @@ const UnifiedChart = ({ defaultEnabled = ['assets'] }) => {
                   stroke="#10b981" 
                   strokeWidth={2}
                   dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-                />
-              )}
-              {enabledData.includes('goals') && (
-                <Line 
-                  type="monotone" 
-                  dataKey="goals" 
-                  stroke="#f59e0b" 
-                  strokeWidth={2}
-                  dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
-                />
-              )}
-              {enabledData.includes('loans') && (
-                <Line 
-                  type="monotone" 
-                  dataKey="loans" 
-                  stroke="#ef4444" 
-                  strokeWidth={2}
-                  dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
-                />
-              )}
-              {enabledData.includes('expenses') && (
-                <Line 
-                  type="monotone" 
-                  dataKey="expenses" 
-                  stroke="#8b5cf6" 
-                  strokeWidth={2}
-                  dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
-                />
-              )}
-              {enabledData.includes('insurance') && (
-                <Line 
-                  type="monotone" 
-                  dataKey="insurance" 
-                  stroke="#06b6d4" 
-                  strokeWidth={2}
-                  dot={{ fill: '#06b6d4', strokeWidth: 2, r: 4 }}
-                />
-              )}
-              {enabledData.includes('dependants') && (
-                <Line 
-                  type="monotone" 
-                  dataKey="dependants" 
-                  stroke="#84cc16" 
-                  strokeWidth={2}
-                  dot={{ fill: '#84cc16', strokeWidth: 2, r: 4 }}
                 />
               )}
             </LineChart>
