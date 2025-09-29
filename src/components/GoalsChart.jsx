@@ -182,6 +182,7 @@ export default function GoalsChart({ goals = [], assets = [] }) {
           <CardHeader>
             <CardTitle>Saving Need Over Time</CardTitle>
             <p className="text-sm text-gray-600">Annual contributions required to meet all goals</p>
+            <p className="text-xs text-gray-500 mt-1">Assumes 5% annual compounding on contributions</p>
           </CardHeader>
           <CardContent>
             <div className="h-80">

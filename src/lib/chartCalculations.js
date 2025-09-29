@@ -167,112 +167,100 @@ export const calculateGoalsFundingNeed = (goals, assets, currentYear = new Date(
   const endYear = Math.max(...goals.map(g => parseInt(g.target_year || g.targetYear) || currentYear + 10));
   console.log('🎯 End year:', endYear);
   
-  const years = [];
+  // Calculate fixed annual contribution for each goal
+  const goalContributions = {};
+  const contribReturn = 0.05; // 5% return on contributions
   
-  // Generate year-by-year data from current year to end year
+  goals.forEach(goal => {
+    const targetYear = parseInt(goal.target_year || goal.targetYear) || currentYear + 10;
+    const targetAmountFV = parseFloat(goal.target_amount || goal.amount) || 0;
+    const yearsToTarget = targetYear - currentYear;
+    
+    console.log(`🎯 Processing goal ${goal.name || goal.description}:`, {
+      targetYear,
+      targetAmountFV,
+      yearsToTarget
+    });
+    
+    // Calculate future value of linked assets at target year
+    const linkedAssets = goal.custom_data?.linkedAssets || [];
+    let fvLinked = 0;
+    
+    linkedAssets.forEach(linkedAsset => {
+      const asset = assets.find(a => a.id === linkedAsset.assetId);
+      if (asset) {
+        const currentValue = parseFloat(asset.current_value || asset.currentValue) || 0;
+        const percentage = parseFloat(linkedAsset.percent) || 0;
+        
+        // Use EXACT same SIP FV calculation as goalCalculations.js
+        const customData = asset.custom_data || {};
+        const sipAmount = parseFloat(customData.sipAmount) || 0;
+        const sipFrequency = customData.sipFrequency || 'Monthly';
+        const expectedReturn = parseFloat(customData.expectedReturn) || 5;
+        const sipExpiryDate = customData.sipExpiryDate || '';
+        
+        // Calculate earmarked amount first
+        const earmarkedValue = currentValue * percentage / 100;
+        
+        // Calculate projected value at target year using earmarked amount
+        const annualRate = expectedReturn / 100;
+        const projectedValue = calculateSIPProjection({
+          initial: earmarkedValue,
+          sipAmount: sipAmount * percentage / 100,
+          sipFrequency: sipFrequency,
+          annualRate: annualRate,
+          years: yearsToTarget,
+          sipExpiryDate: sipExpiryDate
+        });
+        
+        fvLinked += projectedValue;
+        
+        console.log(`🎯 Linked asset ${asset.name}:`, {
+          currentValue,
+          percentage,
+          projectedValue,
+          fvLinked
+        });
+      }
+    });
+    
+    // Calculate funding gap at target year
+    const gap = Math.max(0, targetAmountFV - fvLinked);
+    
+    console.log(`🎯 Funding gap: ${targetAmountFV} - ${fvLinked} = ${gap}`);
+    
+    // Calculate fixed annual contribution needed (ordinary annuity formula)
+    let annualContribution = 0;
+    if (yearsToTarget > 0) {
+      if (contribReturn > 0) {
+        // P = G × r / ((1 + r)^n - 1)
+        annualContribution = (gap * contribReturn) / (Math.pow(1 + contribReturn, yearsToTarget) - 1);
+      } else {
+        // P = G / n
+        annualContribution = gap / yearsToTarget;
+      }
+    } else {
+      // If target year is current year, show the gap
+      annualContribution = gap;
+    }
+    
+    const goalName = goal.name || goal.description || `Goal ${goal.id}`;
+    const goalKey = goalName.replace(/[^a-zA-Z0-9]/g, '_');
+    goalContributions[goalKey] = annualContribution;
+    
+    console.log(`🎯 Fixed annual contribution for ${goalName}: ${annualContribution}`);
+  });
+  
+  // Generate year-by-year data with fixed contributions
+  const years = [];
   for (let year = currentYear; year <= endYear; year++) {
     const yearData = { year };
     let requiredTotal = 0;
     
-    // Initialize all goal contributions to 0 for this year
-    goals.forEach(goal => {
-      const goalName = goal.name || goal.description || `Goal ${goal.id}`;
-      const goalKey = goalName.replace(/[^a-zA-Z0-9]/g, '_');
-      yearData[goalKey] = 0;
-    });
-    
-    // Calculate contribution for each goal
-    goals.forEach(goal => {
-      const targetYear = parseInt(goal.target_year || goal.targetYear) || currentYear + 10;
-      const targetAmountFV = parseFloat(goal.target_amount || goal.amount) || 0;
-      
-      console.log(`🎯 Processing goal ${goal.name || goal.description}:`, {
-        targetYear,
-        targetAmountFV,
-        currentYear,
-        year
-      });
-      
-      // Only calculate if this year is before the target year
-      if (year < targetYear) {
-        const n = Math.max(0, targetYear - year); // Years left from current iteration year to target year
-        const contribReturn = 0.06; // Default 6% return on contributions
-        
-        console.log(`🎯 Years left (n): ${n}, contribReturn: ${contribReturn}`);
-        
-        // Calculate future value of linked assets using SIP projection (matching table calculation)
-        const linkedAssets = goal.custom_data?.linkedAssets || [];
-        let fvLinked = 0;
-        
-        linkedAssets.forEach(linkedAsset => {
-          const asset = assets.find(a => a.id === linkedAsset.assetId);
-          if (asset) {
-            const currentValue = parseFloat(asset.current_value) || 0;
-            const percentage = parseFloat(linkedAsset.percent) || 0;
-            
-            // Get asset projection parameters (same as table calculation)
-            const customData = asset.custom_data || {};
-            const sipAmount = parseFloat(customData.sipAmount) || 0;
-            const sipFrequency = customData.sipFrequency || 'Monthly';
-            const expectedReturn = parseFloat(customData.expectedReturn) || 5;
-            const sipExpiryDate = customData.sipExpiryDate || '';
-            
-            // Calculate projected value using SIP projection
-            const annualRate = expectedReturn / 100;
-            const projectedValue = calculateSIPProjection({
-              initial: currentValue,
-              sipAmount: sipAmount,
-              sipFrequency: sipFrequency,
-              annualRate: annualRate,
-              years: n,
-              sipExpiryDate: sipExpiryDate
-            });
-            
-            // Calculate funded amount based on projected value
-            const assetContribution = projectedValue * (percentage / 100);
-            fvLinked += assetContribution;
-            
-            console.log(`🎯 Linked asset ${asset.name} (SIP projection):`, {
-              currentValue,
-              percentage,
-              projectedValue,
-              assetContribution,
-              expectedReturn,
-              sipAmount,
-              n,
-              runningTotal: fvLinked
-            });
-          }
-        });
-        
-        // Calculate funding gap at target (in future ₹)
-        const gap = Math.max(0, targetAmountFV - fvLinked);
-        
-        console.log(`🎯 Funding gap: ${targetAmountFV} - ${fvLinked} = ${gap}`);
-        
-        // Calculate annual contribution needed (ordinary annuity formula)
-        let annualContribution = 0;
-        if (n > 0) {
-          if (contribReturn > 0) {
-            // P = G × r / ((1 + r)^n - 1)
-            annualContribution = (gap * contribReturn) / (Math.pow(1 + contribReturn, n) - 1);
-          } else {
-            // P = G / n
-            annualContribution = gap / n;
-          }
-        } else if (n === 0) {
-          // Lump sum this year
-          annualContribution = gap;
-        }
-        
-        console.log(`🎯 Annual contribution for ${goal.name || goal.description}: ${annualContribution}`);
-        
-        // Add to this year's data
-        const goalName = goal.name || goal.description || `Goal ${goal.id}`;
-        const goalKey = goalName.replace(/[^a-zA-Z0-9]/g, '_');
-        yearData[goalKey] = annualContribution;
-        requiredTotal += annualContribution;
-      }
+    // Apply fixed contribution for each goal
+    Object.entries(goalContributions).forEach(([goalKey, contribution]) => {
+      yearData[goalKey] = contribution;
+      requiredTotal += contribution;
     });
     
     yearData.requiredTotal = requiredTotal;
