@@ -103,32 +103,26 @@ export const calculateGoalsProgress = (goals, assets, currentYear = new Date().g
       if (asset) {
         const assetValue = parseFloat(asset.current_value) || 0;
         const percentage = parseFloat(linkedAsset.percent) || 0;
+        
+        // Use EXACT same SIP FV calculation as goalCalculations.js
+        const customData = asset.custom_data || {};
+        const sipAmount = parseFloat(customData.sipAmount) || 0;
+        const sipFrequency = customData.sipFrequency || 'Monthly';
+        const expectedReturn = parseFloat(customData.expectedReturn) || 5;
+        const sipExpiryDate = customData.sipExpiryDate || '';
+        
+        // Calculate earmarked amount first (same as goalCalculations.js)
         const earmarkedValue = assetValue * (percentage / 100);
         
-        // Use EXACT same SIP FV calculation as Assets page
-        const customData = asset.custom_data || {};
-        const expectedReturn = parseFloat(customData.expectedReturn) || 5; // Default 5% (same as Assets)
-        const growthRate = expectedReturn / 100;
-        
-        console.log('🎯 Goals Chart Calculation:', {
-          goalName: goal.name || goal.description,
-          assetName: asset.name,
-          assetValue,
-          percentage,
-          earmarkedValue,
-          expectedReturn,
-          growthRate,
-          yearsToGoal,
-          customData
-        });
-        
+        // Calculate projected value at target year using earmarked amount (same as goalCalculations.js)
+        const annualRate = expectedReturn / 100;
         const sipProjection = calculateSIPProjection({
           initial: earmarkedValue,
-          sipAmount: (parseFloat(customData.sipAmount) || 0) * (percentage / 100), // SIP amount * 15%
-          sipFrequency: customData.sipFrequency || '', // Use asset's SIP frequency
-          annualRate: growthRate,
+          sipAmount: sipAmount * percentage / 100, // Only the earmarked portion of SIP
+          sipFrequency: sipFrequency,
+          annualRate: annualRate,
           years: yearsToGoal,
-          sipExpiryDate: customData.sipExpiryDate || '' // Use asset's SIP expiry
+          sipExpiryDate: sipExpiryDate
         });
         
         console.log('🎯 SIP Projection Result:', {
@@ -201,7 +195,7 @@ export const calculateGoalsFundingNeed = (goals, assets, currentYear = new Date(
       
       // Only calculate if this year is before the target year
       if (year < targetYear) {
-        const n = Math.max(0, targetYear - currentYear); // Years left from current year
+        const n = Math.max(0, targetYear - year); // Years left from current iteration year to target year
         const contribReturn = 0.06; // Default 6% return on contributions
         
         console.log(`🎯 Years left (n): ${n}, contribReturn: ${contribReturn}`);

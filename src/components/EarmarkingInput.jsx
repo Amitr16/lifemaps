@@ -32,7 +32,7 @@ const EarmarkingInput = ({
   }, [value])
 
   const handleOpen = () => {
-    console.log('🎯 EarmarkingInput handleOpen called:', { availableGoals: availableGoals.length, availableGoals })
+    console.log('🎯 EarmarkingInput handleOpen called:', { availableGoalsCount: availableGoals.length, availableGoals })
     setIsOpen(true)
     setEarmarks(value || [])
     setNewGoalId('')
@@ -49,7 +49,7 @@ const EarmarkingInput = ({
   }
 
   const handleAddEarmark = () => {
-    console.log('➕ EarmarkingInput handleAddEarmark called:', { newGoalId, newPercent, availableGoals: availableGoals.length })
+    console.log('➕ EarmarkingInput handleAddEarmark called:', { newGoalId, newPercent, availableGoalsCount: availableGoals.length })
     
     const errors = {}
     
@@ -124,7 +124,7 @@ const EarmarkingInput = ({
   }
 
   const handleSave = () => {
-    console.log('💾 EarmarkingInput handleSave called:', { earmarks, availableGoals: availableGoals.length })
+    console.log('💾 EarmarkingInput handleSave called:', { earmarks, availableGoalsCount: availableGoals.length })
     onChange(earmarks)
     setIsOpen(false)
   }
@@ -138,7 +138,7 @@ const EarmarkingInput = ({
   }
 
   const getAvailableGoals = () => {
-    console.log('🎯 getAvailableGoals called:', { availableGoals: availableGoals.length, availableGoals })
+    console.log('🎯 getAvailableGoals called:', { availableGoalsCount: availableGoals.length, availableGoals })
     console.log('🎯 First goal structure:', availableGoals[0])
     const filtered = availableGoals.filter(goal => 
       !earmarks.some(e => e.goalId === goal.id)

@@ -154,11 +154,11 @@ export default function OriginalLifeSheet() {
   const calculations = {
     totalExistingAssets: parseFloat(formData.totalAssetGrossMarketValue) || 0,
     totalExistingLiabilities: totalLoans,
-    totalHumanCapital: parseFloat(formData.currentAnnualGrossIncome) || 0,
+    totalHumanCapital: (parseFloat(formData.currentAnnualGrossIncome) || 0) * (parseInt(formData.workTenureYears) || 0),
     totalFutureExpenses: totalExpenses,
     totalFinancialGoals: totalGoals,
     surplusDeficit: (parseFloat(formData.totalAssetGrossMarketValue) || 0) + 
-                   (parseFloat(formData.currentAnnualGrossIncome) || 0) - 
+                   ((parseFloat(formData.currentAnnualGrossIncome) || 0) * (parseInt(formData.workTenureYears) || 0)) - 
                    totalLoans - 
                    totalExpenses - 
                    totalGoals
@@ -181,27 +181,46 @@ export default function OriginalLifeSheet() {
       // Load source preferences from database
       loadSourcePreferences()
       
-      // Load loans
-      ApiService.getFinancialLoans(user.id).then(res => {
-        console.log('🏦 Loans fetch response:', res)
-        const mappedLoans = (res.loans || []).map(loan => ({
-          ...loan,
-          description: loan.provider || loan.lender || loan.name || '' // Map backend 'provider' to frontend 'description'
-        }));
-        console.log('🏦 Mapped loans with descriptions:', mappedLoans.map(l => ({ id: l.id, description: l.description, lender: l.lender })));
-        setLoans(mappedLoans);
-        dispatchLoansEvent(mappedLoans);
-        
-        // Map loans for store with correct field names
-        const mappedLoansForStore = mappedLoans.map(loan => ({
-          ...loan,
-          principal_outstanding: loan.amount, // Map amount to principal_outstanding for store
-          lender: loan.description // Map description to lender for store
-        }))
-        setStoreLoans(mappedLoansForStore); // Also update store
-      }).catch(error => {
-        console.error('❌ Loans fetch error:', error)
-      })
+      // Load loans based on source preference
+      const loadLoansBasedOnSource = async () => {
+        try {
+          // Get current source preferences
+          const sourcePrefs = await ApiService.getSourcePreferences();
+          console.log('🏦 Current source preferences:', sourcePrefs);
+          
+          if (sourcePrefs.loans === 0) {
+            // Quick Calculator: Use store data, don't load from database
+            console.log('🏦 Using Quick Calculator loan data from store');
+            const { main } = useLifeSheetStore.getState();
+            console.log('🏦 Store quickEmiByYear:', main.quickEmiByYear);
+            // Don't set loans from database - use Quick Calculator data
+          } else {
+            // Detailed: Load from database
+            console.log('🏦 Using Detailed loan data from database');
+            const res = await ApiService.getFinancialLoans(user.id);
+            console.log('🏦 Loans fetch response:', res)
+            const mappedLoans = (res.loans || []).map(loan => ({
+              ...loan,
+              description: loan.provider || loan.lender || loan.name || '' // Map backend 'provider' to frontend 'description'
+            }));
+            console.log('🏦 Mapped loans with descriptions:', mappedLoans.map(l => ({ id: l.id, description: l.description, lender: l.lender })));
+            setLoans(mappedLoans);
+            dispatchLoansEvent(mappedLoans);
+            
+            // Map loans for store with correct field names
+            const mappedLoansForStore = mappedLoans.map(loan => ({
+              ...loan,
+              principal_outstanding: loan.amount, // Map amount to principal_outstanding for store
+              lender: loan.description // Map description to lender for store
+            }))
+            setStoreLoans(mappedLoansForStore); // Also update store
+          }
+        } catch (error) {
+          console.error('❌ Loans loading error:', error)
+        }
+      };
+      
+      loadLoansBasedOnSource();
       
       // Load goals
       ApiService.getFinancialGoals(user.id).then(res => {
@@ -1347,6 +1366,16 @@ export default function OriginalLifeSheet() {
                       </span>
                     </div>
                   </div>
+                </div>
+              </div>
+              
+              {/* Net Total Row */}
+              <div className="border-t-2 pt-4 mt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold text-gray-900">Net Total</span>
+                  <span className={`text-2xl font-bold ${(calculations.totalExistingAssets + calculations.totalHumanCapital) - (calculations.totalExistingLiabilities + calculations.totalFutureExpenses + calculations.totalFinancialGoals) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency((calculations.totalExistingAssets + calculations.totalHumanCapital) - (calculations.totalExistingLiabilities + calculations.totalFutureExpenses + calculations.totalFinancialGoals))}
+                  </span>
                 </div>
               </div>
             </CardContent>

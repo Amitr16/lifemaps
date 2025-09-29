@@ -87,7 +87,7 @@ const calculateSIPProjection = ({ initial, sipAmount, sipFrequency, annualRate, 
  */
 export const calculateGoalFunding = (goal, assets) => {
   const targetAmount = parseFloat(goal.target_amount || goal.amount) || 0
-  const targetYear = parseInt(goal.target_year) || (new Date().getFullYear() + 35)
+  const targetYear = parseInt(goal.target_year || goal.targetYear) || (new Date().getFullYear() + 10)
   const linkedAssets = goal.custom_data?.linkedAssets || []
   
   if (targetAmount === 0) {
@@ -99,7 +99,7 @@ export const calculateGoalFunding = (goal, assets) => {
   }
 
   const currentYear = new Date().getFullYear()
-  const yearsToTarget = Math.max(0, targetYear - currentYear)
+  const yearsToTarget = Math.max(1, targetYear - currentYear)
 
   console.log(`🎯 Goal funding calculation:`, {
     goalId: goal.id,
