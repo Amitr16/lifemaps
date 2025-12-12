@@ -447,6 +447,7 @@ router.delete('/goal/:goalId', async (req, res) => {
 
 // Expenses routes (singular)
 router.post('/expense', [
+  body('description').optional().trim(),
   body('category').optional().custom((value) => {
     if (value === null || value === undefined || value === '') return true;
     return typeof value === 'string' && value.trim().length >= 1;
@@ -458,6 +459,9 @@ router.post('/expense', [
     return !isNaN(parseFloat(value)) && parseFloat(value) >= 0;
   }),
   body('personal_inflation').optional().isFloat({ min: 0, max: 1 }),
+  body('tag_for').optional().trim(),
+  body('lifestyle_level').optional().trim(),
+  body('payment_from').optional().trim(),
   body('source').optional().trim(),
   body('notes').optional().trim()
 ], async (req, res) => {
@@ -474,6 +478,9 @@ router.post('/expense', [
     const frequency = req.body.frequency ?? 'Monthly';
     const amount = req.body.amount ?? null;
     const personal_inflation = req.body.personal_inflation ?? 0.06;
+    const tag_for = req.body.tag_for ?? null;
+    const lifestyle_level = req.body.lifestyle_level ?? null;
+    const payment_from = req.body.payment_from ?? null;
     const source = req.body.source ?? null;
     const notes = req.body.notes ?? null;
 
@@ -504,6 +511,9 @@ router.post('/expense', [
     if (frequency !== null && frequency !== undefined) { fields.push('frequency'); values.push(frequency); }
     if (amount !== null && amount !== undefined) { fields.push('amount'); values.push(amount); }
     if (personal_inflation !== null && personal_inflation !== undefined) { fields.push('personal_inflation'); values.push(personal_inflation); }
+    if (tag_for !== null && tag_for !== undefined) { fields.push('tag_for'); values.push(tag_for); }
+    if (lifestyle_level !== null && lifestyle_level !== undefined) { fields.push('lifestyle_level'); values.push(lifestyle_level); }
+    if (payment_from !== null && payment_from !== undefined) { fields.push('payment_from'); values.push(payment_from); }
     if (source !== null && source !== undefined) { fields.push('source'); values.push(source); }
     if (notes !== null && notes !== undefined) { fields.push('notes'); values.push(notes); }
 
@@ -543,11 +553,15 @@ router.get('/expense/:userId', async (req, res) => {
 });
 
 router.put('/expense/:expenseId', [
+  body('description').optional().trim(),
   body('category').optional().trim().isLength({ min: 1 }),
   body('subcategory').optional().trim(),
   body('frequency').optional().isIn(['Monthly', 'Quarterly', 'Yearly']),
   body('amount').optional().isFloat({ min: 0 }),
   body('personal_inflation').optional().isFloat({ min: 0, max: 1 }),
+  body('tag_for').optional().trim(),
+  body('lifestyle_level').optional().trim(),
+  body('payment_from').optional().trim(),
   body('source').optional().trim(),
   body('notes').optional().trim()
 ], async (req, res) => {
@@ -576,15 +590,25 @@ router.put('/expense/:expenseId', [
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Build dynamic update query with field mapping
+    // Build dynamic update query - map frontend fields to database columns
+    const fieldMap = {
+      'description': 'description',
+      'category': 'category',
+      'subcategory': 'subcategory',
+      'frequency': 'frequency',
+      'amount': 'amount',
+      'personal_inflation': 'personal_inflation',
+      'tag_for': 'tag_for',
+      'lifestyle_level': 'lifestyle_level',
+      'payment_from': 'payment_from',
+      'source': 'source',
+      'notes': 'notes'
+    };
+    
     const usedColumns = new Set();
     Object.entries(req.body).forEach(([key, value]) => {
-      if (value !== undefined) {
-        // Map frontend field names to database column names for expenses
-        let dbColumn = key;
-        if (key === 'description') dbColumn = 'category';
-        if (key === 'expense_type') dbColumn = 'subcategory';
-        
+      if (value !== undefined && fieldMap[key]) {
+        const dbColumn = fieldMap[key];
         // Only add if we haven't already used this column
         if (!usedColumns.has(dbColumn)) {
           updates.push(`${dbColumn} = $${paramCount}`);
@@ -637,6 +661,53 @@ router.delete('/expense/:expenseId', async (req, res) => {
   } catch (error) {
     console.error('Expense deletion error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Classify expense using LLM (calls Python service)
+router.post('/expense/classify', [
+  body('description').notEmpty().trim(),
+  body('user_id').optional().isInt()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    const { description, user_id } = req.body;
+    const userId = user_id || req.user?.id;
+
+    // Call Python classification service
+    const classifierUrl = process.env.CLASSIFIER_SERVICE_URL || 'http://localhost:5001';
+    
+    // Use built-in fetch (Node 18+) or fallback to node-fetch
+    let fetchFn;
+    try {
+      // Try built-in fetch first (Node 18+)
+      fetchFn = globalThis.fetch || fetch;
+    } catch (e) {
+      // Fallback to node-fetch if needed
+      const nodeFetch = await import('node-fetch');
+      fetchFn = nodeFetch.default;
+    }
+    
+    const response = await fetchFn(`${classifierUrl}/classify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description, user_id: userId })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Classification service error' }));
+      return res.status(response.status).json(errorData);
+    }
+
+    const result = await response.json();
+    res.json(result);
+  } catch (error) {
+    console.error('Expense classification error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -1975,6 +2046,107 @@ router.put('/insurances/:insuranceId', (req, res, next) => {
 router.delete('/insurances/:insuranceId', (req, res, next) => {
   req.url = `/insurance/${req.params.insuranceId}`;
   router.handle(req, res, next);
+});
+
+// ==================== EXPENSE CATEGORIES ROUTES ====================
+
+// Get all expense categories (global + user-specific)
+router.get('/expense-categories/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (req.user.id !== parseInt(userId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get global categories (user_id = 0) and user-specific categories
+    const result = await pool.query(
+      `SELECT id, user_id, category, subcategory, display_order, created_at
+       FROM expense_categories 
+       WHERE user_id = 0 OR user_id = $1
+       ORDER BY user_id DESC, display_order, category, subcategory`,
+      [userId]
+    );
+
+    res.json({ categories: result.rows });
+  } catch (error) {
+    console.error('Expense categories fetch error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add new user-specific expense category
+router.post('/expense-category', [
+  body('category').notEmpty().trim().isLength({ min: 1, max: 255 }),
+  body('subcategory').notEmpty().trim().isLength({ min: 1, max: 255 }),
+  body('display_order').optional().isInt({ min: 0 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    const { category, subcategory, display_order = 0 } = req.body;
+    const userId = req.user.id;
+
+    // Check if this category/subcategory combination already exists for this user
+    const existing = await pool.query(
+      'SELECT id FROM expense_categories WHERE user_id = $1 AND category = $2 AND subcategory = $3',
+      [userId, category, subcategory]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'This category/subcategory combination already exists' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO expense_categories (user_id, category, subcategory, display_order) VALUES ($1, $2, $3, $4) RETURNING *',
+      [userId, category, subcategory, display_order]
+    );
+
+    res.status(201).json({ category: result.rows[0] });
+  } catch (error) {
+    console.error('Expense category creation error:', error);
+    if (error.code === '23505') { // Unique constraint violation
+      res.status(400).json({ error: 'This category/subcategory combination already exists' });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
+// Delete user-specific expense category
+router.delete('/expense-category/:categoryId', async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+    const userId = req.user.id;
+
+    // Check ownership - only allow deletion of user-specific categories (user_id > 0)
+    const categoryCheck = await pool.query(
+      'SELECT id, user_id FROM expense_categories WHERE id = $1',
+      [categoryId]
+    );
+
+    if (categoryCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    if (categoryCheck.rows[0].user_id === 0) {
+      return res.status(403).json({ error: 'Cannot delete global categories' });
+    }
+
+    if (categoryCheck.rows[0].user_id !== userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await pool.query('DELETE FROM expense_categories WHERE id = $1', [categoryId]);
+
+    res.json({ message: 'Category deleted successfully' });
+  } catch (error) {
+    console.error('Expense category deletion error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;

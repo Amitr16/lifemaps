@@ -267,6 +267,14 @@ class ApiService {
     });
   }
 
+  // Classify expense using LLM
+  async classifyExpense(description, userId) {
+    return this.request('/financial/expense/classify', {
+      method: 'POST',
+      body: { description, user_id: userId },
+    });
+  }
+
   // Financial Insurance APIs
   async createFinancialInsurance(insuranceData) {
     return this.request('/financial/insurance', {
@@ -394,6 +402,24 @@ class ApiService {
     return this.request('/financial/source-preferences', {
       method: 'POST',
       body: JSON.stringify({ component, source }),
+    });
+  }
+
+  // Expense Categories APIs
+  async getExpenseCategories(userId) {
+    return this.request(`/financial/expense-categories/${userId}`);
+  }
+
+  async createExpenseCategory(categoryData) {
+    return this.request('/financial/expense-category', {
+      method: 'POST',
+      body: categoryData,
+    });
+  }
+
+  async deleteExpenseCategory(categoryId) {
+    return this.request(`/financial/expense-category/${categoryId}`, {
+      method: 'DELETE',
     });
   }
 }

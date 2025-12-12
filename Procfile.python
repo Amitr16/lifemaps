@@ -1,0 +1,2 @@
+web: python expense_classifier_service.py
+

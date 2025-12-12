@@ -2,9 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import ExpensesChart from '@/components/ExpensesChart.jsx';
+import ExpenseCategoriesModal from '@/components/ExpenseCategoriesModal.jsx';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLifeSheetStore } from '../store/enhanced-store';
 import ApiService from '@/services/api';
+import { Button } from '@/components/ui/button';
+import { Settings2 } from 'lucide-react';
 
 export default function ExpensesPage() {
   const { user } = useAuth();
@@ -12,6 +15,8 @@ export default function ExpensesPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingRows, setSavingRows] = useState(new Set());
+  const [classifyingRows, setClassifyingRows] = useState(new Set());
+  const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
 
   // Event dispatching for live chart updates (following WorkAssetsPage pattern)
   const dispatchExpensesEvent = (updatedExpenses) => {
@@ -36,8 +41,8 @@ export default function ExpensesPage() {
         let totalExpenses = 0;
         
         expensesData.forEach(expense => {
-          const annualAmount = parseFloat(expense.amount) || 0;
-          const inflationRate = (parseFloat(expense.inflationRate) || 0) / 100;
+          const annualAmount = parseFloat(expense.annual_budget) || 0;
+          const inflationRate = (parseFloat(expense.personal_inflation) || 6) / 100;
           
           // Apply inflation for each year
           const inflatedAmount = annualAmount * Math.pow(1 + inflationRate, yearOffset);
@@ -75,19 +80,36 @@ export default function ExpensesPage() {
       const expenses = response.expenses || response || [];
       
       // Map database fields to frontend field names
-      const mappedExpenses = expenses.map(expense => ({
-        id: expense.id,
-        category: expense.category,
-        amount: expense.amount,
-        frequency: expense.frequency || 'Yearly',
-        subcategory: expense.subcategory,
-        personal_inflation: expense.personal_inflation || 6,
-        source: expense.source,
-        notes: expense.notes,
-        user_id: expense.user_id,
-        created_at: expense.created_at,
-        updated_at: expense.updated_at
-      }));
+      const mappedExpenses = expenses.map(expense => {
+        const amount = parseFloat(expense.amount) || 0;
+        const frequency = expense.frequency || 'Monthly';
+        
+        // Calculate annual budget based on frequency
+        let annualBudget = amount;
+        if (frequency === 'Weekly') annualBudget = amount * 52;
+        else if (frequency === 'Fortnightly') annualBudget = amount * 26;
+        else if (frequency === 'Monthly') annualBudget = amount * 12;
+        else if (frequency === 'Quarterly') annualBudget = amount * 4;
+        else if (frequency === 'Semi-Annually') annualBudget = amount * 2;
+        else if (frequency === 'Annually') annualBudget = amount;
+        
+        return {
+          id: expense.id,
+          description: expense.description || '', // Specific Goods/Service
+          amount: amount, // Price/Unit
+          frequency: frequency, // Expense Frequency
+          annual_budget: annualBudget, // Annual Budget (calculated)
+          category: expense.category || '',
+          subcategory: expense.subcategory || '',
+          tag_for: expense.tag_for || '', // For tag
+          lifestyle_level: expense.lifestyle_level || '', // Lifestyle level
+          payment_from: expense.payment_from || '', // Payment From
+          source: expense.source,
+          user_id: expense.user_id,
+          created_at: expense.created_at,
+          updated_at: expense.updated_at
+        };
+      });
       
       setRows(mappedExpenses);
       
@@ -106,13 +128,16 @@ export default function ExpensesPage() {
   const addRow = () => {
     const newRow = {
       id: `temp_${Date.now()}`,
-      category: '',
-      amount: 0,
-      frequency: 'Yearly',
-      subcategory: '',
-      personal_inflation: 6,
-      source: '',
-      notes: ''
+      description: '', // Specific Goods/Service
+      amount: 0, // Price/Unit
+      frequency: 'Monthly', // Expense Frequency
+      annual_budget: 0, // Annual Budget (calculated)
+      category: '', // Will be auto-classified by LLM
+      subcategory: '', // Will be auto-classified by LLM
+      tag_for: '', // For tag
+      lifestyle_level: '', // Lifestyle level
+      payment_from: '', // Payment From
+      source: ''
     };
     setRows([...rows, newRow]);
   };
@@ -136,72 +161,199 @@ export default function ExpensesPage() {
     dispatchExpensesEvent(updatedRows);
   };
 
-  const handleCellChange = (rowIndex, field, value) => {
-    try {
-      const updatedRows = [...rows];
-      updatedRows[rowIndex] = { ...updatedRows[rowIndex], [field]: value };
-      setRows(updatedRows);
-
-      // Dispatch event for live chart updates (following WorkAssetsPage pattern)
-      dispatchExpensesEvent(updatedRows);
+  // Save row to database (used after classification and on blur)
+  const saveRowToDb = async (rowIndex) => {
+    if (savingRows.has(rowIndex)) {
+      return;
+    }
+    
+    setRows(prevRows => {
+      const row = prevRows[rowIndex];
+      if (!row) return prevRows;
       
-      // Update store with detailed expenses time series
-      updateStoreWithExpensesTimeSeries(updatedRows);
-
-      const row = updatedRows[rowIndex];
-      
-      // Debounce auto-save
-      const timeoutKey = `expense_row_${rowIndex}`;
-      clearTimeout(window[timeoutKey]);
-      
-      window[timeoutKey] = setTimeout(() => {
-        if (savingRows.has(rowIndex)) {
-          return;
-        }
-        
-        if (row.id && !row.id.toString().startsWith('temp_')) {
-          // Update existing row
-          if (row.category && row.amount) {
-            setSavingRows(prev => new Set(prev).add(rowIndex));
-            ApiService.updateFinancialExpense(row.id, {
-              category: row.category,
-              amount: parseFloat(row.amount) || 0,
-              frequency: row.frequency || 'Yearly',
-              subcategory: row.subcategory,
-              personal_inflation: parseFloat(row.personal_inflation) / 100 || 0.06,
-              source: row.source,
-              notes: row.notes
-            }).finally(() => {
-              setSavingRows(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(rowIndex);
-                return newSet;
-              });
-            }).catch(error => console.error('Error updating expense:', error));
-          }
-        } else if (row.category && row.amount && row.id.toString().startsWith('temp_')) {
-          // Create new row
+      if (row.id && !row.id.toString().startsWith('temp_')) {
+        // Update existing row
+        if (row.description && row.amount) {
           setSavingRows(prev => new Set(prev).add(rowIndex));
-          ApiService.createFinancialExpense({
-            category: row.category,
+          
+          const updatePayload = {
+            description: row.description,
             amount: parseFloat(row.amount) || 0,
-            frequency: row.frequency || 'Yearly',
-            subcategory: row.subcategory,
-            personal_inflation: parseFloat(row.personal_inflation) / 100 || 0.06,
-            source: row.source,
-            notes: row.notes
-          }).then(newExpense => {
-            const updatedRowsWithId = [...rows];
-            updatedRowsWithId[rowIndex] = { ...row, id: newExpense.expense.id };
-            setRows(updatedRowsWithId);
-          }).finally(() => {
+            frequency: row.frequency || 'Monthly',
+          };
+          
+          if (row.category && row.category.trim()) {
+            updatePayload.category = row.category.trim();
+          }
+          if (row.subcategory && row.subcategory.trim()) {
+            updatePayload.subcategory = row.subcategory.trim();
+          }
+          if (row.tag_for && row.tag_for.trim()) {
+            updatePayload.tag_for = row.tag_for.trim();
+          }
+          if (row.lifestyle_level && row.lifestyle_level.trim()) {
+            updatePayload.lifestyle_level = row.lifestyle_level.trim();
+          }
+          if (row.payment_from && row.payment_from.trim()) {
+            updatePayload.payment_from = row.payment_from.trim();
+          }
+          if (row.source && row.source.trim()) {
+            updatePayload.source = row.source.trim();
+          }
+          
+          ApiService.updateFinancialExpense(row.id, updatePayload).finally(() => {
             setSavingRows(prev => {
               const newSet = new Set(prev);
               newSet.delete(rowIndex);
               return newSet;
             });
-          }).catch(error => console.error('Error creating expense:', error));
+          }).catch(error => console.error('Error updating expense:', error));
         }
+      } else if (row.description && row.amount && row.id.toString().startsWith('temp_')) {
+        // Create new row
+        setSavingRows(prev => new Set(prev).add(rowIndex));
+        
+        const createPayload = {
+          description: row.description,
+          amount: parseFloat(row.amount) || 0,
+          frequency: row.frequency || 'Monthly',
+          personal_inflation: parseFloat(row.personal_inflation) / 100 || 0.06,
+        };
+        
+        if (row.category && row.category.trim()) {
+          createPayload.category = row.category.trim();
+        }
+        if (row.subcategory && row.subcategory.trim()) {
+          createPayload.subcategory = row.subcategory.trim();
+        }
+        if (row.tag_for && row.tag_for.trim()) {
+          createPayload.tag_for = row.tag_for.trim();
+        }
+        if (row.lifestyle_level && row.lifestyle_level.trim()) {
+          createPayload.lifestyle_level = row.lifestyle_level.trim();
+        }
+        if (row.payment_from && row.payment_from.trim()) {
+          createPayload.payment_from = row.payment_from.trim();
+        }
+        if (row.source && row.source.trim()) {
+          createPayload.source = row.source.trim();
+        }
+        if (row.notes && row.notes.trim()) {
+          createPayload.notes = row.notes.trim();
+        }
+        
+        ApiService.createFinancialExpense(createPayload).then(newExpense => {
+          setRows(prevRows => {
+            const updatedRows = [...prevRows];
+            updatedRows[rowIndex] = { ...row, id: newExpense.expense.id };
+            return updatedRows;
+          });
+        }).finally(() => {
+          setSavingRows(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(rowIndex);
+            return newSet;
+          });
+        }).catch(error => console.error('Error creating expense:', error));
+      }
+      
+      return prevRows;
+    });
+  };
+
+  // Handle LLM classification on description blur
+  const handleDescriptionBlur = async (row, rowIndex, value, handleCell) => {
+    if (!value || !value.trim() || !user?.id) return;
+    
+    // Skip if already classifying
+    if (classifyingRows.has(rowIndex)) return;
+    
+    // Always classify when description changes (even if category/subcategory already exist)
+    // This allows re-classification if user changes the description
+    
+    try {
+      setClassifyingRows(prev => new Set(prev).add(rowIndex));
+      
+      const result = await ApiService.classifyExpense(value.trim(), user.id);
+      
+      console.log('Classification result:', result);
+      console.log('Current row before update:', rows[rowIndex]);
+      console.log('Row index:', rowIndex);
+      
+      // Use handleCellChange which properly updates state and triggers re-render
+      if (result.category && result.subcategory) {
+        // Update both fields
+        handleCellChange(rowIndex, 'category', result.category);
+        handleCellChange(rowIndex, 'subcategory', result.subcategory);
+        
+        // Save to DB immediately after classification
+        setTimeout(() => {
+          saveRowToDb(rowIndex);
+        }, 200);
+      } else if (result.category) {
+        handleCellChange(rowIndex, 'category', result.category);
+        setTimeout(() => {
+          saveRowToDb(rowIndex);
+        }, 200);
+      } else if (result.subcategory) {
+        handleCellChange(rowIndex, 'subcategory', result.subcategory);
+        setTimeout(() => {
+          saveRowToDb(rowIndex);
+        }, 200);
+      }
+    } catch (error) {
+      console.error('Error classifying expense:', error);
+      // Don't show error to user, just log it
+    } finally {
+      setClassifyingRows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(rowIndex);
+        return newSet;
+      });
+    }
+  };
+
+  const handleCellChange = async (rowIndex, field, value) => {
+    try {
+      console.log(`handleCellChange: rowIndex=${rowIndex}, field=${field}, value=${value}`);
+      
+      // Use functional update to avoid stale closure issues - do everything in one call
+      setRows(prevRows => {
+        const updatedRows = [...prevRows];
+        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [field]: value };
+        console.log(`Updated row ${rowIndex}:`, updatedRows[rowIndex]);
+        
+        // Recalculate annual_budget when amount or frequency changes
+        if (field === 'amount' || field === 'frequency') {
+          const amount = parseFloat(updatedRows[rowIndex].amount) || 0;
+          const frequency = updatedRows[rowIndex].frequency || 'Monthly';
+          
+          let annualBudget = amount;
+          if (frequency === 'Weekly') annualBudget = amount * 52;
+          else if (frequency === 'Fortnightly') annualBudget = amount * 26;
+          else if (frequency === 'Monthly') annualBudget = amount * 12;
+          else if (frequency === 'Quarterly') annualBudget = amount * 4;
+          else if (frequency === 'Semi-Annually') annualBudget = amount * 2;
+          else if (frequency === 'Annually') annualBudget = amount;
+          
+          updatedRows[rowIndex].annual_budget = annualBudget;
+        }
+        
+        // Dispatch event for live chart updates (use updatedRows, not prevRows)
+        dispatchExpensesEvent(updatedRows);
+        
+        // Update store with detailed expenses time series (use updatedRows)
+        updateStoreWithExpensesTimeSeries(updatedRows);
+        
+        return updatedRows;
+      });
+
+      // Debounce auto-save on blur (like LoansPage pattern)
+      const timeoutKey = `expense_row_${rowIndex}`;
+      clearTimeout(window[timeoutKey]);
+      
+      window[timeoutKey] = setTimeout(() => {
+        saveRowToDb(rowIndex);
       }, 1000); // 1 second debounce
     } catch (error) {
       console.error('Error in handleCellChange:', error);
@@ -210,25 +362,76 @@ export default function ExpensesPage() {
 
   // Calculate summary statistics
   const totalAnnualExpenses = rows.reduce((sum, expense) => {
-    const amount = parseFloat(expense.amount) || 0;
-    const frequency = expense.frequency || 'Yearly';
-    
-    // Convert to annual amount
-    let annualAmount = amount;
-    if (frequency === 'Monthly') annualAmount = amount * 12;
-    else if (frequency === 'Quarterly') annualAmount = amount * 4;
-    
-    return sum + annualAmount;
+    return sum + (parseFloat(expense.annual_budget) || 0);
   }, 0);
 
   const columns = [
-    { field: 'category', headerName: 'Category' },
-    { field: 'amount', headerName: 'Amount', type: 'number' },
-    { field: 'frequency', headerName: 'Frequency' },
-    { field: 'subcategory', headerName: 'Subcategory' },
-    { field: 'personal_inflation', headerName: 'Inflation %', type: 'number' },
-    { field: 'source', headerName: 'Source' },
-    { field: 'notes', headerName: 'Notes' }
+    { 
+      field: 'description', 
+      headerName: 'Specific Goods / Service',
+      onBlur: handleDescriptionBlur
+    },
+    { field: 'amount', headerName: 'Price/Unit', type: 'number' },
+    { 
+      field: 'frequency', 
+      headerName: 'Expense Frequency',
+      type: 'select',
+      options: ['Weekly', 'Fortnightly', 'Monthly', 'Quarterly', 'Semi-Annually', 'Annually']
+    },
+    { field: 'annual_budget', headerName: 'Annual Budget', type: 'number', render: (row) => (
+      <span className="font-semibold">₹{parseFloat(row.annual_budget || 0).toLocaleString('en-IN')}</span>
+    )},
+    { 
+      field: 'category', 
+      headerName: 'Category',
+      render: (row, onChange) => {
+        const rowIndex = rows.findIndex(r => r.id === row.id);
+        const isClassifying = rowIndex >= 0 && classifyingRows.has(rowIndex);
+        return (
+          <input
+            className={`w-full border rounded px-2 py-1 ${isClassifying ? 'opacity-50 bg-gray-100' : ''}`}
+            type="text"
+            value={isClassifying ? 'Assigning...' : (row.category || '')}
+            onChange={e => onChange(e.target.value)}
+            placeholder={isClassifying ? 'Assigning...' : ''}
+            disabled={isClassifying}
+            onBlur={() => {
+              // Trigger auto-save on blur
+              if (rowIndex >= 0 && row.category) {
+                handleCellChange(rowIndex, 'category', row.category);
+              }
+            }}
+          />
+        );
+      }
+    },
+    { 
+      field: 'subcategory', 
+      headerName: 'Subcategory',
+      render: (row, onChange) => {
+        const rowIndex = rows.findIndex(r => r.id === row.id);
+        const isClassifying = rowIndex >= 0 && classifyingRows.has(rowIndex);
+        return (
+          <input
+            className={`w-full border rounded px-2 py-1 min-w-[120px] ${isClassifying ? 'opacity-50 bg-gray-100' : ''}`}
+            type="text"
+            value={isClassifying ? 'Assigning...' : (row.subcategory || '')}
+            onChange={e => onChange(e.target.value)}
+            placeholder={isClassifying ? 'Assigning...' : ''}
+            disabled={isClassifying}
+            onBlur={() => {
+              // Trigger auto-save on blur
+              if (rowIndex >= 0 && row.subcategory) {
+                handleCellChange(rowIndex, 'subcategory', row.subcategory);
+              }
+            }}
+          />
+        );
+      }
+    },
+    { field: 'tag_for', headerName: 'For' },
+    { field: 'lifestyle_level', headerName: 'Lifestyle Level' },
+    { field: 'payment_from', headerName: 'Payment From' }
   ];
 
   if (loading) {
@@ -250,11 +453,22 @@ export default function ExpensesPage() {
           <h1 className="text-2xl font-bold">Expenses</h1>
           <p className="text-gray-600">Track your recurring expenses and their growth</p>
         </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-red-600">
-            ₹{totalAnnualExpenses.toLocaleString('en-IN')}
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCategoriesModalOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Settings2 className="h-4 w-4" />
+            Manage Categories
+          </Button>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-red-600">
+              ₹{totalAnnualExpenses.toLocaleString('en-IN')}
+            </div>
+            <p className="text-sm text-gray-500">Total Annual Expenses</p>
           </div>
-          <p className="text-sm text-gray-500">Total Annual Expenses</p>
         </div>
       </div>
 
@@ -271,6 +485,14 @@ export default function ExpensesPage() {
         <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
           Saving changes...
         </div>
+      )}
+
+      {user?.id && (
+        <ExpenseCategoriesModal
+          userId={user.id}
+          open={categoriesModalOpen}
+          onOpenChange={setCategoriesModalOpen}
+        />
       )}
     </div>
   );

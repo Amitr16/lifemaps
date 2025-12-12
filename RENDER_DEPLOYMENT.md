@@ -28,8 +28,10 @@ git push origin main
 6. **Review the configuration**:
    - Backend service (Node.js)
    - Frontend service (Static site)
+   - Classifier service (Python/Flask)
    - PostgreSQL database
 7. **Click "Apply"** to deploy all services
+8. **IMPORTANT: Set Environment Variables** (see below)
 
 ### 3. Environment Variables
 
@@ -41,9 +43,29 @@ The following environment variables are automatically configured:
 - `DATABASE_URL` (automatically provided by Render)
 - `JWT_SECRET` (automatically generated)
 - `CORS_ORIGIN` (set to frontend URL)
+- `CLASSIFIER_SERVICE_URL` (set to classifier service URL)
 
 **Frontend Service:**
 - `VITE_API_URL` (set to backend URL)
+
+**Classifier Service (Python):**
+- `DATABASE_URL` (automatically provided by Render)
+- `CLASSIFIER_PORT=5001`
+
+**⚠️ REQUIRED: Manual Setup for Classifier Service**
+
+You **MUST** manually set the OpenAI API key in Render dashboard:
+
+1. Go to **lifemaps-classifier** service in Render dashboard
+2. Click **"Environment"** tab
+3. Click **"Add Environment Variable"**
+4. Add:
+   - Key: `OPENAI_API_KEY`
+   - Value: `sk-your-actual-openai-api-key-here`
+5. Click **"Save Changes"**
+6. The service will automatically redeploy
+
+See `DEPLOYMENT_ENV_SETUP.md` for detailed instructions.
 
 ### 4. Database Initialization
 
@@ -57,6 +79,7 @@ The database will be automatically initialized when the backend starts up. The `
 After deployment, you'll get URLs for:
 - **Frontend**: `https://lifemaps-frontend.onrender.com`
 - **Backend API**: `https://lifemaps-backend.onrender.com`
+- **Classifier Service**: `https://lifemaps-classifier.onrender.com`
 - **Database**: Managed by Render (internal access only)
 
 ## File Structure

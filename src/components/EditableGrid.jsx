@@ -33,22 +33,47 @@ export default function EditableGrid({ columns, rows, onChange, onAdd, onDelete,
         <thead className="bg-gray-50">
           <tr>
             {columns.map(col=>(
-              <th key={col.field} className="px-3 py-2 text-left font-semibold">{col.headerName}</th>
+              <th key={col.field} className="px-4 py-2 text-left font-semibold min-w-[120px]">{col.headerName}</th>
             ))}
-            <th className="px-3 py-2"></th>
+            <th className="px-4 py-2"></th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row, idx)=>(
             <tr key={row.id || idx} className="border-t">
               {columns.map(col=>(
-                <td key={col.field} className="px-3 py-1">
-                  {col.render ? col.render(row, (v)=>handleCell(idx, col.field, v)) : (
+                <td key={col.field} className="px-4 py-2 min-w-[120px]">
+                  {col.render ? col.render(row, (v)=>handleCell(idx, col.field, v)) : 
+                   col.type === 'select' && col.options ? (
+                    <select
+                      className="w-full border rounded px-2 py-1 min-w-[100px]"
+                      value={row[col.field] ?? ''}
+                      onChange={e=>handleCell(idx, col.field, e.target.value)}
+                      onBlur={col.onBlur ? (e) => col.onBlur(row, idx, e.target.value, handleCell) : undefined}
+                    >
+                      <option value="">Select {col.headerName}</option>
+                      {(typeof col.options === 'function' ? col.options(row) : col.options).map(opt => (
+                        <option key={typeof opt === 'string' ? opt : opt.value} value={typeof opt === 'string' ? opt : opt.value}>
+                          {typeof opt === 'string' ? opt : (opt.label || opt.value)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
                     <input
-                      className="w-full border rounded px-2 py-1"
+                      className="w-full border rounded px-2 py-1 min-w-[100px]"
                       type={col.type || 'text'}
                       value={row[col.field] ?? ''}
                       onChange={e=>handleCell(idx, col.field, e.target.value)}
+                      onBlur={(e) => {
+                        // Call column-specific onBlur if provided
+                        if (col.onBlur) {
+                          col.onBlur(row, idx, e.target.value, handleCell);
+                        }
+                        // Always trigger onCellChange for auto-save (if provided)
+                        if (onCellChange) {
+                          onCellChange(idx, col.field, e.target.value);
+                        }
+                      }}
                     />
                   )}
                 </td>
