@@ -4,10 +4,12 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '../contexts/AuthContext';
-import { calculateAnnualLoanOutflow } from '../lib/chartCalculations';
+import { useLifeSheetStore } from '../store/enhanced-store';
+import { calculateAnnualLoanOutflow, calculateProjectionYears } from '../lib/chartCalculations';
 
 export default function LoansChart({ loans = [] }) {
   const { user, isAuthenticated } = useAuth();
+  const { lifeSheet } = useLifeSheetStore();
   const [outflowData, setOutflowData] = useState([]);
 
   const calculateData = useCallback(() => {
@@ -18,12 +20,14 @@ export default function LoansChart({ loans = [] }) {
 
     try {
       const currentYear = new Date().getFullYear();
-      const outflow = calculateAnnualLoanOutflow(loans, currentYear);
+      const currentAge = parseInt(lifeSheet?.age) || 30;
+      const projectionYears = calculateProjectionYears(currentAge, 80);
+      const outflow = calculateAnnualLoanOutflow(loans, currentYear, projectionYears);
       setOutflowData(outflow);
     } catch (error) {
       console.error('Error calculating loans chart data:', error);
     }
-  }, [isAuthenticated, user, loans]);
+  }, [isAuthenticated, user, loans, lifeSheet?.age]);
 
   useEffect(() => {
     calculateData();

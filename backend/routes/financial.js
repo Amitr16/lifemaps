@@ -463,7 +463,8 @@ router.post('/expense', [
   body('lifestyle_level').optional().trim(),
   body('payment_from').optional().trim(),
   body('source').optional().trim(),
-  body('notes').optional().trim()
+  body('notes').optional().trim(),
+  body('expiry').optional().isISO8601()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -483,6 +484,7 @@ router.post('/expense', [
     const payment_from = req.body.payment_from ?? null;
     const source = req.body.source ?? null;
     const notes = req.body.notes ?? null;
+    const expiry = req.body.expiry ?? null;
 
     // Build dynamic query for expense creation
     const fields = ['user_id'];
@@ -516,6 +518,7 @@ router.post('/expense', [
     if (payment_from !== null && payment_from !== undefined) { fields.push('payment_from'); values.push(payment_from); }
     if (source !== null && source !== undefined) { fields.push('source'); values.push(source); }
     if (notes !== null && notes !== undefined) { fields.push('notes'); values.push(notes); }
+    if (expiry !== null && expiry !== undefined) { fields.push('expiry'); values.push(expiry); }
 
     const placeholders = fields.map((_, index) => `$${index + 1}`).join(', ');
     const query = `INSERT INTO financial_expense (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -563,7 +566,8 @@ router.put('/expense/:expenseId', [
   body('lifestyle_level').optional().trim(),
   body('payment_from').optional().trim(),
   body('source').optional().trim(),
-  body('notes').optional().trim()
+  body('notes').optional().trim(),
+  body('expiry').optional().isISO8601()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -602,7 +606,8 @@ router.put('/expense/:expenseId', [
       'lifestyle_level': 'lifestyle_level',
       'payment_from': 'payment_from',
       'source': 'source',
-      'notes': 'notes'
+      'notes': 'notes',
+      'expiry': 'expiry'
     };
     
     const usedColumns = new Set();
@@ -641,9 +646,9 @@ router.delete('/expense/:expenseId', async (req, res) => {
   try {
     const { expenseId } = req.params;
 
-    // Check ownership
+    // Check ownership and get loan_id if present
     const expenseCheck = await pool.query(
-      'SELECT user_id FROM financial_expense WHERE id = $1',
+      'SELECT user_id, loan_id FROM financial_expense WHERE id = $1',
       [expenseId]
     );
 
@@ -655,7 +660,34 @@ router.delete('/expense/:expenseId', async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    const loanId = expenseCheck.rows[0].loan_id;
+
+    // Delete the expense
     await pool.query('DELETE FROM financial_expense WHERE id = $1', [expenseId]);
+
+    // If this expense was linked to a loan, delete the associated loan as well
+    if (loanId) {
+      try {
+        console.log(`🗑️ Expense ${expenseId} was linked to loan ${loanId}, deleting loan as well`);
+        
+        // Check loan ownership before deleting
+        const loanCheck = await pool.query(
+          'SELECT user_id FROM financial_loan WHERE id = $1',
+          [loanId]
+        );
+
+        if (loanCheck.rows.length > 0 && loanCheck.rows[0].user_id === req.user.id) {
+          // Delete the loan (CASCADE will handle any other expenses linked to it)
+          await pool.query('DELETE FROM financial_loan WHERE id = $1', [loanId]);
+          console.log(`✅ Deleted associated loan ${loanId}`);
+        } else {
+          console.log(`⚠️ Loan ${loanId} not found or access denied, skipping loan deletion`);
+        }
+      } catch (loanError) {
+        console.error('Error deleting associated loan:', loanError);
+        // Don't fail the expense deletion if loan deletion fails
+      }
+    }
 
     res.json({ message: 'Expense deleted successfully' });
   } catch (error) {
@@ -781,10 +813,52 @@ router.post('/loan', [
     const query = `INSERT INTO financial_loan (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
     
     const result = await pool.query(query, values);
+    const newLoan = result.rows[0];
+
+    // If loan has EMI and expiry (end_date), create corresponding expense
+    if (emi && end_date) {
+      try {
+        // Get profile_id for the expense
+        let expenseProfileId = profileId;
+        if (!expenseProfileId) {
+          const profileResult = await pool.query(
+            'SELECT id FROM financial_profile WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+            [req.user.id]
+          );
+          if (profileResult.rows.length > 0) {
+            expenseProfileId = profileResult.rows[0].id;
+          }
+        }
+
+        if (expenseProfileId) {
+          // Create expense with EMI amount and expiry matching loan
+          const expenseFields = ['user_id', 'profile_id', 'loan_id', 'description', 'amount', 'frequency', 'expiry', 'category', 'subcategory'];
+          const expenseValues = [
+            req.user.id,
+            expenseProfileId,
+            newLoan.id,
+            `Loan EMI - ${lender || 'Loan'}`,
+            emi,
+            'Monthly',
+            end_date,
+            'Debt',
+            'Loan EMI'
+          ];
+          const expensePlaceholders = expenseValues.map((_, index) => `$${index + 1}`).join(', ');
+          const expenseQuery = `INSERT INTO financial_expense (${expenseFields.join(', ')}) VALUES (${expensePlaceholders}) RETURNING *`;
+          
+          await pool.query(expenseQuery, expenseValues);
+          console.log(`✅ Created expense for loan ${newLoan.id}`);
+        }
+      } catch (expenseError) {
+        console.error('Error creating expense for loan:', expenseError);
+        // Don't fail the loan creation if expense creation fails
+      }
+    }
 
     res.status(201).json({
       message: 'Loan created successfully',
-      loan: result.rows[0]
+      loan: newLoan
     });
   } catch (error) {
     console.error('Loan creation error:', error);
@@ -920,10 +994,72 @@ router.put('/loan/:loanId', [
     values.push(loanId);
     const query = `UPDATE financial_loan SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING *`;
     const result = await pool.query(query, values);
+    const updatedLoan = result.rows[0];
+
+    // Handle expense creation/update for loan EMI
+    try {
+      // Get the updated loan data (including EMI and end_date)
+      const loanData = await pool.query(
+        'SELECT emi, end_date, lender, user_id FROM financial_loan WHERE id = $1',
+        [loanId]
+      );
+      
+      if (loanData.rows.length > 0) {
+        const loan = loanData.rows[0];
+        const emi = loan.emi;
+        const end_date = loan.end_date;
+        const lender = loan.lender;
+        
+        // Check if expense already exists for this loan
+        const existingExpense = await pool.query(
+          'SELECT id FROM financial_expense WHERE loan_id = $1',
+          [loanId]
+        );
+        
+        if (emi && end_date) {
+          // Get profile_id for the expense
+          const profileResult = await pool.query(
+            'SELECT id FROM financial_profile WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+            [loan.user_id]
+          );
+          
+          if (profileResult.rows.length > 0) {
+            const profileId = profileResult.rows[0].id;
+            
+            if (existingExpense.rows.length > 0) {
+              // Update existing expense
+              await pool.query(
+                `UPDATE financial_expense 
+                 SET amount = $1, expiry = $2, description = $3, updated_at = NOW() 
+                 WHERE loan_id = $4`,
+                [emi, end_date, `Loan EMI - ${lender || 'Loan'}`, loanId]
+              );
+              console.log(`✅ Updated expense for loan ${loanId}`);
+            } else {
+              // Create new expense
+              await pool.query(
+                `INSERT INTO financial_expense 
+                 (user_id, profile_id, loan_id, description, amount, frequency, expiry, category, subcategory) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [loan.user_id, profileId, loanId, `Loan EMI - ${lender || 'Loan'}`, emi, 'Monthly', end_date, 'Debt', 'Loan EMI']
+              );
+              console.log(`✅ Created expense for loan ${loanId}`);
+            }
+          }
+        } else if (existingExpense.rows.length > 0) {
+          // If EMI or end_date is removed, delete the expense
+          await pool.query('DELETE FROM financial_expense WHERE loan_id = $1', [loanId]);
+          console.log(`✅ Deleted expense for loan ${loanId} (EMI or expiry removed)`);
+        }
+      }
+    } catch (expenseError) {
+      console.error('Error handling expense for loan update:', expenseError);
+      // Don't fail the loan update if expense handling fails
+    }
 
     res.json({
       message: 'Loan updated successfully',
-      loan: result.rows[0]
+      loan: updatedLoan
     });
   } catch (error) {
     console.error('Loan update error:', error);
@@ -953,6 +1089,11 @@ router.delete('/loan/:loanId', async (req, res) => {
     }
 
     console.log('✅ Proceeding with deletion of loan ID:', loanId);
+    
+    // Delete associated expense (CASCADE should handle this, but explicit deletion for clarity)
+    const expenseDeleteResult = await pool.query('DELETE FROM financial_expense WHERE loan_id = $1', [loanId]);
+    console.log(`✅ Deleted ${expenseDeleteResult.rowCount} expense(s) for loan ${loanId}`);
+    
     const result = await pool.query('DELETE FROM financial_loan WHERE id = $1 RETURNING id', [loanId]);
     console.log('✅ Loan deleted successfully:', result.rows[0]);
 
@@ -2145,6 +2286,111 @@ router.delete('/expense-category/:categoryId', async (req, res) => {
     res.json({ message: 'Category deleted successfully' });
   } catch (error) {
     console.error('Expense category deletion error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== EXPENSE TAGS ROUTES ====================
+
+// Get all expense tags for a user (grouped by tag_label)
+router.get('/expense-tags/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (req.user.id !== parseInt(userId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, user_id, tag_label, tag_name, display_order, created_at, updated_at
+       FROM expense_tags 
+       WHERE user_id = $1
+       ORDER BY tag_label, display_order, tag_name`,
+      [userId]
+    );
+
+    // Group by tag_label
+    const groupedTags = {
+      'For': [],
+      'Lifestyle Level': [],
+      'Payment From': []
+    };
+
+    result.rows.forEach(tag => {
+      if (groupedTags[tag.tag_label]) {
+        groupedTags[tag.tag_label].push(tag);
+      }
+    });
+
+    res.json({ tags: groupedTags });
+  } catch (error) {
+    console.error('Expense tags fetch error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create new expense tag
+router.post('/expense-tag', [
+  body('tag_label').isIn(['For', 'Lifestyle Level', 'Payment From']),
+  body('tag_name').notEmpty().trim().isLength({ min: 1, max: 255 }),
+  body('display_order').optional().isInt({ min: 0 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    }
+
+    const { tag_label, tag_name, display_order = 0 } = req.body;
+    const userId = req.user.id;
+
+    // Check if this tag already exists for this user
+    const existing = await pool.query(
+      'SELECT id FROM expense_tags WHERE user_id = $1 AND tag_label = $2 AND tag_name = $3',
+      [userId, tag_label, tag_name.trim()]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'This tag already exists' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO expense_tags (user_id, tag_label, tag_name, display_order) VALUES ($1, $2, $3, $4) RETURNING *',
+      [userId, tag_label, tag_name.trim(), display_order]
+    );
+
+    res.status(201).json({ tag: result.rows[0] });
+  } catch (error) {
+    console.error('Expense tag creation error:', error);
+    if (error.code === '23505') { // Unique constraint violation
+      res.status(400).json({ error: 'This tag already exists' });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
+// Delete expense tag
+router.delete('/expense-tag/:tagId', async (req, res) => {
+  try {
+    const { tagId } = req.params;
+    const userId = req.user.id;
+
+    // Check ownership
+    const tagCheck = await pool.query(
+      'SELECT id FROM expense_tags WHERE id = $1 AND user_id = $2',
+      [tagId, userId]
+    );
+
+    if (tagCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+
+    await pool.query('DELETE FROM expense_tags WHERE id = $1', [tagId]);
+
+    res.json({ message: 'Tag deleted successfully' });
+  } catch (error) {
+    console.error('Expense tag deletion error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

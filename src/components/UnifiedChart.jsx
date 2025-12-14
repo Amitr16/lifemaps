@@ -135,8 +135,7 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
     try {
       const age = parseInt(lifeSheet.age) || 30;
       const currentYear = new Date().getFullYear();
-      const lifespan = parseInt(lifeSheet.lifespanYears) || 85;
-      const maxAge = Math.min(age + 50, lifespan); // Show up to 50 years or lifespan
+      const maxAge = 80; // Project until age 80
 
       const data = [];
 

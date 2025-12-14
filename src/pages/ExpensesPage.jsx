@@ -12,7 +12,7 @@ import { Settings2 } from 'lucide-react';
 
 export default function ExpensesPage() {
   const { user } = useAuth();
-  const { setDetailExpenses, setSourcePreference } = useLifeSheetStore();
+  const { setDetailExpenses, setSourcePreference, setExpenses } = useLifeSheetStore();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingRows, setSavingRows] = useState(new Set());
@@ -107,6 +107,7 @@ export default function ExpensesPage() {
           payment_from: expense.payment_from || '', // Payment From
           expiry: expense.expiry ? (typeof expense.expiry === 'string' ? parseInt(expense.expiry.split('-')[0]) : expense.expiry.getFullYear()) : '', // Expiry year (like loan expiry)
           source: expense.source,
+          loan_id: expense.loan_id || null, // Link to loan if this is a loan EMI expense
           user_id: expense.user_id,
           created_at: expense.created_at,
           updated_at: expense.updated_at
@@ -114,6 +115,9 @@ export default function ExpensesPage() {
       });
       
       setRows(mappedExpenses);
+      
+      // Update store with expenses array (for ExpensesChart to read)
+      setExpenses(mappedExpenses);
       
       // Dispatch event for live chart updates (following WorkAssetsPage pattern)
       dispatchExpensesEvent(mappedExpenses);
@@ -152,6 +156,20 @@ export default function ExpensesPage() {
     
     if (row.id && !row.id.toString().startsWith('temp_')) {
       try {
+        // Check if this expense is linked to a loan (has loan_id)
+        if (row.loan_id) {
+          console.log('🗑️ Deleting expense with loan_id, will also delete associated loan:', row.loan_id);
+          try {
+            // Delete the associated loan first
+            await ApiService.deleteFinancialLoan(row.loan_id);
+            console.log('✅ Deleted associated loan:', row.loan_id);
+          } catch (loanError) {
+            console.error('Error deleting associated loan:', loanError);
+            // Continue with expense deletion even if loan deletion fails
+          }
+        }
+        
+        // Delete the expense
         await ApiService.deleteFinancialExpense(row.id);
       } catch (error) {
         console.error('Error deleting expense:', error);
@@ -159,6 +177,9 @@ export default function ExpensesPage() {
     }
     
     setRows(updatedRows);
+    
+    // Update store with expenses array
+    setExpenses(updatedRows);
     
     // Dispatch event for live chart updates (following WorkAssetsPage pattern)
     dispatchExpensesEvent(updatedRows);
@@ -379,6 +400,9 @@ export default function ExpensesPage() {
           
           updatedRows[rowIndex].annual_budget = annualBudget;
         }
+        
+        // Update store with expenses array
+        setExpenses(updatedRows);
         
         // Dispatch event for live chart updates (use updatedRows, not prevRows)
         dispatchExpensesEvent(updatedRows);

@@ -5,10 +5,12 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '../contexts/AuthContext';
-import { calculateGoalsProgress, calculateGoalsFundingNeed } from '../lib/chartCalculations';
+import { useLifeSheetStore } from '../store/enhanced-store';
+import { calculateGoalsProgress, calculateGoalsFundingNeed, calculateProjectionYears } from '../lib/chartCalculations';
 
 export default function GoalsChart({ goals = [], assets = [] }) {
   const { user, isAuthenticated } = useAuth();
+  const { lifeSheet } = useLifeSheetStore();
   const [progressData, setProgressData] = useState([]);
   const [fundingData, setFundingData] = useState([]);
   const [chartType, setChartType] = useState('progress'); // 'progress' or 'funding'
@@ -24,6 +26,8 @@ export default function GoalsChart({ goals = [], assets = [] }) {
 
     try {
       const currentYear = new Date().getFullYear();
+      const currentAge = parseInt(lifeSheet?.age) || 30;
+      const projectionYears = calculateProjectionYears(currentAge, 80);
       
       // Calculate progress data for donut charts
       const progress = calculateGoalsProgress(goals, assets, currentYear);
@@ -31,13 +35,13 @@ export default function GoalsChart({ goals = [], assets = [] }) {
       setProgressData(progress);
 
       // Calculate funding need data for area chart
-      const funding = calculateGoalsFundingNeed(goals, assets, currentYear, 20);
+      const funding = calculateGoalsFundingNeed(goals, assets, currentYear, projectionYears);
       console.log('🎯 GoalsChart funding data:', funding);
       setFundingData(funding);
     } catch (error) {
       console.error('Error calculating goals chart data:', error);
     }
-  }, [isAuthenticated, user, goals, assets]);
+  }, [isAuthenticated, user, goals, assets, lifeSheet?.age]);
 
   useEffect(() => {
     calculateData();

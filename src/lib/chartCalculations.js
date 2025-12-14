@@ -3,6 +3,19 @@
  * Event-driven calculations that integrate with the existing store system
  */
 
+/**
+ * Calculate projection years based on user age (project until age 80)
+ * @param {number} currentAge - Current age of the user
+ * @param {number} targetAge - Target age to project until (default 80)
+ * @returns {number} Number of years to project
+ */
+export const calculateProjectionYears = (currentAge, targetAge = 80) => {
+  const age = parseInt(currentAge) || 30;
+  const target = parseInt(targetAge) || 80;
+  const years = Math.max(0, target - age);
+  return years;
+};
+
 // Import SIP projection function from goalCalculations
 const calculateSIPProjection = ({ initial, sipAmount, sipFrequency, annualRate, years, sipExpiryDate }) => {
   if (sipAmount <= 0 || !sipFrequency) {
@@ -283,8 +296,8 @@ export const calculateGoalsFundingNeed = (goals, assets, currentYear = new Date(
  * @param {number} currentYear - Current year
  * @returns {Array} Annual EMI outflow data
  */
-export const calculateAnnualLoanOutflow = (loans, currentYear = new Date().getFullYear()) => {
-  console.log('🏦 calculateAnnualLoanOutflow called with:', { loans: loans.length, currentYear });
+export const calculateAnnualLoanOutflow = (loans, currentYear = new Date().getFullYear(), projectionYears = null) => {
+  console.log('🏦 calculateAnnualLoanOutflow called with:', { loans: loans.length, currentYear, projectionYears });
   
   if (!loans.length) return [];
   
@@ -292,7 +305,7 @@ export const calculateAnnualLoanOutflow = (loans, currentYear = new Date().getFu
   console.log('🏦 Sample loan data:', loans[0]);
   
   // Find the latest loan expiry year
-  const latestExpiryYear = Math.max(...loans.map(loan => {
+  const latestLoanExpiryYear = Math.max(...loans.map(loan => {
     // Try multiple possible field names for expiry year
     const expiryYear = parseInt(
       loan.loanExpiry ||
@@ -316,12 +329,17 @@ export const calculateAnnualLoanOutflow = (loans, currentYear = new Date().getFu
     return expiryYear;
   }));
   
-  console.log('🏦 Latest expiry year:', latestExpiryYear);
+  // Use projection horizon if provided, otherwise use latest loan expiry
+  const endYear = projectionYears 
+    ? Math.min(latestLoanExpiryYear, currentYear + projectionYears)
+    : latestLoanExpiryYear;
+  
+  console.log('🏦 End year:', endYear, 'latestLoanExpiryYear:', latestLoanExpiryYear, 'projectionYears:', projectionYears);
   
   const years = [];
   
-  // Generate year-by-year data from current year to latest expiry
-  for (let year = currentYear; year <= latestExpiryYear; year++) {
+  // Generate year-by-year data from current year to end year
+  for (let year = currentYear; year <= endYear; year++) {
     const yearData = { year };
     let totalOutflow = 0;
     
@@ -548,70 +566,97 @@ const toAnnual = (amount, frequency) => {
   switch (freq) {
     case 'monthly': return amount * 12;
     case 'quarterly': return amount * 4;
-    case 'annually': return amount;
+    case 'annually': 
+    case 'yearly': return amount;
     case 'weekly': return amount * 52;
+    case 'fortnightly': return amount * 26;
+    case 'semi-annually': return amount * 2;
     case 'daily': return amount * 365;
     default: return amount * 12; // Default to monthly
   }
 };
 
 /**
- * Calculate expense projections by category over time
+ * Calculate cumulative annual expenses over time
+ * - Non-loan expenses grow by inflation rate
+ * - Loan expenses stay constant
+ * - Expenses with expiry stop after expiry date
  * @param {Array} expenses - Array of expense objects
  * @param {number} currentYear - Current year
  * @param {number} projectionYears - Years to project
- * @returns {Array} Annual expense projections by category
+ * @returns {Array} Cumulative annual expense data
  */
 export const calculateExpenseProjections = (expenses, currentYear = new Date().getFullYear(), projectionYears = 10) => {
-  const categories = {};
-  
-  // Group expenses by category
-  expenses.forEach(expense => {
-    const category = expense.category || 'Other';
+  // Process each expense individually
+  const expenseList = expenses.map(expense => {
     const amount = parseFloat(expense.amount) || 0;
     const frequency = expense.frequency || 'Monthly';
-    // Handle inflation rate - if it's already a decimal (0.06), use as is; if it's a percentage (6), convert to decimal
-    let inflation = parseFloat(expense.inflation || expense.personal_inflation) || 0.06;
-    const originalInflation = inflation;
-    if (inflation > 1) {
-      inflation = inflation / 100; // Convert percentage to decimal
-    }
-    
-    console.log(`💰 Expense ${expense.category} inflation:`, {
-      original: originalInflation,
-      processed: inflation,
-      field: expense.inflation || expense.personal_inflation
-    });
-    
-    if (!categories[category]) {
-      categories[category] = {
-        annualBase: 0,
-        inflation: 0,
-        expenses: []
-      };
-    }
-    
     const annualAmount = toAnnual(amount, frequency);
-    categories[category].annualBase += annualAmount;
-    categories[category].inflation = Math.max(categories[category].inflation, inflation);
-    categories[category].expenses.push(expense);
+    
+    // Check if it's a loan expense (by subcategory or category)
+    const subcategory = (expense.subcategory || '').toLowerCase();
+    const category = (expense.category || '').toLowerCase();
+    const isLoan = subcategory.includes('loan') || subcategory.includes('emi') || 
+                   category.includes('loan') || category.includes('emi');
+    
+    // Get inflation rate (only for non-loan expenses)
+    let inflation = 0.06; // Default 6%
+    if (!isLoan) {
+      inflation = parseFloat(expense.inflation || expense.personal_inflation) || 0.06;
+      if (inflation > 1) {
+        inflation = inflation / 100; // Convert percentage to decimal
+      }
+    }
+    
+    // Get expiry year if present
+    let expiryYear = null;
+    if (expense.expiry) {
+      if (typeof expense.expiry === 'string' && expense.expiry.includes('-')) {
+        // Date format: YYYY-MM-DD
+        expiryYear = parseInt(expense.expiry.split('-')[0]);
+      } else {
+        // Just a year number
+        expiryYear = parseInt(expense.expiry);
+      }
+    }
+    
+    return {
+      annualAmount,
+      isLoan,
+      inflation,
+      expiryYear
+    };
   });
   
-  // Generate year-by-year projections
+  // Generate year-by-year annual expense projections (not cumulative)
   const years = [];
+  
   for (let year = currentYear; year <= currentYear + projectionYears; year++) {
-    const yearData = { year };
-    let total = 0;
+    let yearTotal = 0;
+    const yearIndex = year - currentYear;
     
-    Object.entries(categories).forEach(([category, data]) => {
-      const yearIndex = year - currentYear;
-      const projectedAmount = data.annualBase * Math.pow(1 + data.inflation, yearIndex);
-      yearData[category] = projectedAmount;
-      total += projectedAmount;
+    expenseList.forEach(expense => {
+      // Skip if expired
+      if (expense.expiryYear && year > expense.expiryYear) {
+        return;
+      }
+      
+      let yearAmount;
+      if (expense.isLoan) {
+        // Loan expenses stay constant
+        yearAmount = expense.annualAmount;
+      } else {
+        // Non-loan expenses grow by inflation
+        yearAmount = expense.annualAmount * Math.pow(1 + expense.inflation, yearIndex);
+      }
+      
+      yearTotal += yearAmount;
     });
     
-    yearData.total = total;
-    years.push(yearData);
+    years.push({
+      year,
+      total: yearTotal
+    });
   }
   
   return years;

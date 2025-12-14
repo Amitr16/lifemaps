@@ -340,14 +340,15 @@ export const useLifeSheetStore = create(
         // Generate chart data (match Life Sheet exactly)
         const chartData = []
         const currentAge = parseInt(lifeSheet.age || 30)
-        const lifespan = lifeSheet.lifespanYears || 85
+        const targetAge = 80 // Project until age 80
+        const projectionYears = Math.max(0, targetAge - currentAge)
 
         // Life Sheet treats expense amounts and EMIs as annual *as-entered*
         const simpleAnnualExpense = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0)
         const simpleTotalEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0), 0)
 
         let cumulativeEarnings = 0
-        for (let year = 0; year <= (lifespan - currentAge); year++) {
+        for (let year = 0; year <= projectionYears; year++) {
           if (year < workTenure) {
             cumulativeEarnings += currentIncome
           }

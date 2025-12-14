@@ -33,7 +33,6 @@ export function computeTotals({assets=[], expenses=[], goals=[], loans=[], formD
 
 export function buildChartSeries({formData={}, totals={}, years=40, loans=[], expenses=[], goals=[]}){
   const age = parseInt(formData.age || 0);
-  const lifespan = parseInt(formData.lifespanYears || 85);
   const income = parseFloat(formData.currentAnnualGrossIncome || 0);
   const workTenure = parseInt(formData.workTenureYears || 0);
   const infl = parseFloat(formData.incomeGrowthRate || 0.06); // assume as inflation
@@ -41,8 +40,10 @@ export function buildChartSeries({formData={}, totals={}, years=40, loans=[], ex
 
   let assets = totals.totalExistingAssets || 0;
   let chart = [];
-  const endYear = Math.min(85, lifespan);
-  const N = Math.max(1, endYear);
+  // Project until age 80
+  const targetAge = 80;
+  const projectionYears = Math.max(0, targetAge - age);
+  const N = Math.max(1, projectionYears);
 
   for (let i=0;i<N;i++){
     const year = (new Date().getFullYear()) + i;
