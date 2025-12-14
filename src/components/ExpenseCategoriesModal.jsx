@@ -103,7 +103,7 @@ export default function ExpenseCategoriesModal({ userId, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="!max-w-[95vw] sm:!max-w-[90vw] md:!max-w-[80vw] lg:!max-w-[75vw] w-full max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Expense Categories & Subcategories</DialogTitle>
           <DialogDescription>

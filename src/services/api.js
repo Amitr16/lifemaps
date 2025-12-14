@@ -422,6 +422,24 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // Expense Tags APIs
+  async getExpenseTags(userId) {
+    return this.request(`/financial/expense-tags/${userId}`);
+  }
+
+  async createExpenseTag(tagData) {
+    return this.request('/financial/expense-tag', {
+      method: 'POST',
+      body: tagData,
+    });
+  }
+
+  async deleteExpenseTag(tagId) {
+    return this.request(`/financial/expense-tag/${tagId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export default new ApiService();
