@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import ExpensesChart from '@/components/ExpensesChart.jsx';
 import ExpenseCategoriesModal from '@/components/ExpenseCategoriesModal.jsx';
+import ExpenseTagSelector from '@/components/ExpenseTagSelector.jsx';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLifeSheetStore } from '../store/enhanced-store';
 import ApiService from '@/services/api';
@@ -104,6 +105,7 @@ export default function ExpensesPage() {
           tag_for: expense.tag_for || '', // For tag
           lifestyle_level: expense.lifestyle_level || '', // Lifestyle level
           payment_from: expense.payment_from || '', // Payment From
+          expiry: expense.expiry ? (typeof expense.expiry === 'string' ? parseInt(expense.expiry.split('-')[0]) : expense.expiry.getFullYear()) : '', // Expiry year (like loan expiry)
           source: expense.source,
           user_id: expense.user_id,
           created_at: expense.created_at,
@@ -137,6 +139,7 @@ export default function ExpensesPage() {
       tag_for: '', // For tag
       lifestyle_level: '', // Lifestyle level
       payment_from: '', // Payment From
+      expiry: '', // Expiry date
       source: ''
     };
     setRows([...rows, newRow]);
@@ -162,32 +165,42 @@ export default function ExpensesPage() {
   };
 
   // Save row to database (used after classification and on blur)
-  const saveRowToDb = async (rowIndex) => {
+  const saveRowToDb = async (rowIndex, overrideTags = null) => {
     if (savingRows.has(rowIndex)) {
       return;
     }
     
-    setRows(prevRows => {
-      const row = prevRows[rowIndex];
-      if (!row) return prevRows;
-      
-      if (row.id && !row.id.toString().startsWith('temp_')) {
-        // Update existing row
-        if (row.description && row.amount) {
-          setSavingRows(prev => new Set(prev).add(rowIndex));
-          
-          const updatePayload = {
-            description: row.description,
-            amount: parseFloat(row.amount) || 0,
-            frequency: row.frequency || 'Monthly',
-          };
-          
-          if (row.category && row.category.trim()) {
-            updatePayload.category = row.category.trim();
-          }
-          if (row.subcategory && row.subcategory.trim()) {
-            updatePayload.subcategory = row.subcategory.trim();
-          }
+    // Get current row data from state
+    const row = rows[rowIndex];
+    if (!row) return;
+    
+    if (row.id && !row.id.toString().startsWith('temp_')) {
+      // Update existing row
+      if (row.description && row.amount) {
+        setSavingRows(prev => new Set(prev).add(rowIndex));
+        
+        const updatePayload = {
+          description: row.description,
+          amount: parseFloat(row.amount) || 0,
+          frequency: row.frequency || 'Monthly',
+        };
+        
+        if (row.category && row.category.trim()) {
+          updatePayload.category = row.category.trim();
+        }
+        if (row.subcategory && row.subcategory.trim()) {
+          updatePayload.subcategory = row.subcategory.trim();
+        }
+        
+        // Use override tags if provided, otherwise use row values
+        if (overrideTags) {
+          // Always include tag fields when overrideTags is provided (even if empty to clear them)
+          // Send null for empty strings so backend can clear the field
+          updatePayload.tag_for = overrideTags.tag_for && overrideTags.tag_for.trim() ? overrideTags.tag_for.trim() : null;
+          updatePayload.lifestyle_level = overrideTags.lifestyle_level && overrideTags.lifestyle_level.trim() ? overrideTags.lifestyle_level.trim() : null;
+          updatePayload.payment_from = overrideTags.payment_from && overrideTags.payment_from.trim() ? overrideTags.payment_from.trim() : null;
+          console.log('💾 Saving with override tags:', updatePayload);
+        } else {
           if (row.tag_for && row.tag_for.trim()) {
             updatePayload.tag_for = row.tag_for.trim();
           }
@@ -197,21 +210,36 @@ export default function ExpensesPage() {
           if (row.payment_from && row.payment_from.trim()) {
             updatePayload.payment_from = row.payment_from.trim();
           }
-          if (row.source && row.source.trim()) {
-            updatePayload.source = row.source.trim();
-          }
-          
-          ApiService.updateFinancialExpense(row.id, updatePayload).finally(() => {
-            setSavingRows(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(rowIndex);
-              return newSet;
-            });
-          }).catch(error => console.error('Error updating expense:', error));
         }
-      } else if (row.description && row.amount && row.id.toString().startsWith('temp_')) {
-        // Create new row
-        setSavingRows(prev => new Set(prev).add(rowIndex));
+        if (row.expiry) {
+          // Convert year to date format (YYYY-12-31) like loans
+          const expiryYear = typeof row.expiry === 'number' ? row.expiry : parseInt(row.expiry);
+          if (!isNaN(expiryYear)) {
+            updatePayload.expiry = `${expiryYear}-12-31`;
+          }
+        }
+        if (row.source && row.source.trim()) {
+          updatePayload.source = row.source.trim();
+        }
+        
+        try {
+          const response = await ApiService.updateFinancialExpense(row.id, updatePayload);
+          console.log('✅ Expense updated successfully:', response);
+        } catch (error) {
+          console.error('❌ Error updating expense:', error);
+        } finally {
+          setSavingRows(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(rowIndex);
+            return newSet;
+          });
+        }
+      }
+    }
+    
+    if (row.description && row.amount && row.id && row.id.toString().startsWith('temp_')) {
+      // Create new row
+      setSavingRows(prev => new Set(prev).add(rowIndex));
         
         const createPayload = {
           description: row.description,
@@ -226,14 +254,30 @@ export default function ExpensesPage() {
         if (row.subcategory && row.subcategory.trim()) {
           createPayload.subcategory = row.subcategory.trim();
         }
-        if (row.tag_for && row.tag_for.trim()) {
-          createPayload.tag_for = row.tag_for.trim();
+        
+        // Use override tags if provided, otherwise use row values
+        if (overrideTags) {
+          // Always include tag fields when overrideTags is provided (even if empty)
+          createPayload.tag_for = overrideTags.tag_for ? overrideTags.tag_for.trim() : '';
+          createPayload.lifestyle_level = overrideTags.lifestyle_level ? overrideTags.lifestyle_level.trim() : '';
+          createPayload.payment_from = overrideTags.payment_from ? overrideTags.payment_from.trim() : '';
+        } else {
+          if (row.tag_for && row.tag_for.trim()) {
+            createPayload.tag_for = row.tag_for.trim();
+          }
+          if (row.lifestyle_level && row.lifestyle_level.trim()) {
+            createPayload.lifestyle_level = row.lifestyle_level.trim();
+          }
+          if (row.payment_from && row.payment_from.trim()) {
+            createPayload.payment_from = row.payment_from.trim();
+          }
         }
-        if (row.lifestyle_level && row.lifestyle_level.trim()) {
-          createPayload.lifestyle_level = row.lifestyle_level.trim();
-        }
-        if (row.payment_from && row.payment_from.trim()) {
-          createPayload.payment_from = row.payment_from.trim();
+        if (row.expiry) {
+          // Convert year to date format (YYYY-12-31) like loans
+          const expiryYear = typeof row.expiry === 'number' ? row.expiry : parseInt(row.expiry);
+          if (!isNaN(expiryYear)) {
+            createPayload.expiry = `${expiryYear}-12-31`;
+          }
         }
         if (row.source && row.source.trim()) {
           createPayload.source = row.source.trim();
@@ -255,10 +299,7 @@ export default function ExpensesPage() {
             return newSet;
           });
         }).catch(error => console.error('Error creating expense:', error));
-      }
-      
-      return prevRows;
-    });
+    }
   };
 
   // Handle LLM classification on description blur
@@ -429,9 +470,126 @@ export default function ExpensesPage() {
         );
       }
     },
-    { field: 'tag_for', headerName: 'For' },
-    { field: 'lifestyle_level', headerName: 'Lifestyle Level' },
-    { field: 'payment_from', headerName: 'Payment From' }
+    { 
+      field: 'tags', 
+      headerName: 'Tags',
+      render: (row, onChange) => {
+        const rowIndex = rows.findIndex(r => r.id === row.id);
+        const tagValues = {
+          'For': row.tag_for || '',
+          'Lifestyle Level': row.lifestyle_level || '',
+          'Payment From': row.payment_from || ''
+        };
+        
+        return (
+          <div className="min-w-[400px]">
+            <ExpenseTagSelector
+              userId={user?.id}
+              values={tagValues}
+              onChange={(newTagValues) => {
+                // Update each field separately using handleCellChange
+                if (rowIndex >= 0) {
+                  const newTagFor = newTagValues['For'] || '';
+                  const newLifestyleLevel = newTagValues['Lifestyle Level'] || '';
+                  const newPaymentFrom = newTagValues['Payment From'] || '';
+                  
+                  // Update state immediately
+                  if (row.tag_for !== newTagFor) {
+                    handleCellChange(rowIndex, 'tag_for', newTagFor);
+                  }
+                  if (row.lifestyle_level !== newLifestyleLevel) {
+                    handleCellChange(rowIndex, 'lifestyle_level', newLifestyleLevel);
+                  }
+                  if (row.payment_from !== newPaymentFrom) {
+                    handleCellChange(rowIndex, 'payment_from', newPaymentFrom);
+                  }
+                  
+                  // Also update the row object for EditableGrid
+                  onChange({
+                    ...row,
+                    tag_for: newTagFor,
+                    lifestyle_level: newLifestyleLevel,
+                    payment_from: newPaymentFrom
+                  });
+                }
+              }}
+              onBlur={(currentTagValues) => {
+                // Clear any pending debounced saves and save immediately with current tag values
+                if (rowIndex >= 0) {
+                  console.log('💾 Tag blur - saving tags:', {
+                    rowIndex,
+                    rowId: row.id,
+                    currentTagValues,
+                    tag_for: currentTagValues['For'] || '',
+                    lifestyle_level: currentTagValues['Lifestyle Level'] || '',
+                    payment_from: currentTagValues['Payment From'] || ''
+                  });
+                  
+                  const timeoutKey = `expense_row_${rowIndex}`;
+                  clearTimeout(window[timeoutKey]);
+                  
+                  // Update the row state with current tag values
+                  setRows(prevRows => {
+                    const updatedRows = [...prevRows];
+                    if (updatedRows[rowIndex]) {
+                      updatedRows[rowIndex] = {
+                        ...updatedRows[rowIndex],
+                        tag_for: currentTagValues['For'] || '',
+                        lifestyle_level: currentTagValues['Lifestyle Level'] || '',
+                        payment_from: currentTagValues['Payment From'] || ''
+                      };
+                    }
+                    return updatedRows;
+                  });
+                  
+                  // Save immediately with override tags to ensure latest values are saved
+                  saveRowToDb(rowIndex, {
+                    tag_for: currentTagValues['For'] || '',
+                    lifestyle_level: currentTagValues['Lifestyle Level'] || '',
+                    payment_from: currentTagValues['Payment From'] || ''
+                  });
+                }
+              }}
+            />
+          </div>
+        );
+      }
+    },
+    { 
+      field: 'expiry', 
+      headerName: 'Expiry',
+      type: 'number',
+      render: (row, onChange) => {
+        const rowIndex = rows.findIndex(r => r.id === row.id);
+        return (
+          <input
+            type="number"
+            className="w-full border rounded px-2 py-1"
+            placeholder="Year"
+            min={new Date().getFullYear()}
+            max={new Date().getFullYear() + 100}
+            value={row.expiry || ''}
+            onChange={e => {
+              const newValue = e.target.value ? parseInt(e.target.value) : '';
+              onChange(newValue);
+              // Update row state immediately
+              if (rowIndex >= 0) {
+                const updatedRows = [...rows];
+                updatedRows[rowIndex] = { ...updatedRows[rowIndex], expiry: newValue };
+                setRows(updatedRows);
+              }
+            }}
+            onBlur={() => {
+              // Trigger auto-save on blur - convert year to date format (YYYY-12-31)
+              if (rowIndex >= 0 && row.expiry) {
+                const expiryDate = `${parseInt(row.expiry)}-12-31`;
+                handleCellChange(rowIndex, 'expiry', expiryDate);
+              }
+            }}
+          />
+        );
+      }
+    }
   ];
 
   if (loading) {
