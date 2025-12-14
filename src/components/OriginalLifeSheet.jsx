@@ -36,8 +36,11 @@ export default function OriginalLifeSheet() {
     
     // Calculation assumptions
     lifespanYears: 85,
-    incomeGrowthRate: 0.06,  // 6% inflation
-    assetGrowthRate: 0.06    // 6% inflation
+    incomeGrowthRate: 0.06,  // Income growth rate (editable)
+    inflationRate: 0.06,     // Inflation rate for discounting
+    assetEquitySplit: 0.60,  // 60% equity, 40% debt
+    assetEquityGrowthRate: 0.15,  // 15% equity growth
+    assetDebtGrowthRate: 0.07    // 7% debt growth
   })
   
   // Dynamic goals and expenses
@@ -62,6 +65,7 @@ export default function OriginalLifeSheet() {
     }
     
     // Map form fields to store fields and update with user origin
+    // Note: inflationRate, assetEquitySplit, assetEquityGrowthRate, assetDebtGrowthRate are frontend-only
     const storeFieldMap = {
       'currentAnnualGrossIncome': 'income0',
       'totalAssetGrossMarketValue': 'initialAssets', 
@@ -81,6 +85,18 @@ export default function OriginalLifeSheet() {
           ? parseFloat(value) || 0
           : parseFloat(value) || 0
       }, { origin: 'user' })
+    }
+    
+    // Save Quick Calculator assumptions to localStorage (frontend-only, not in DB)
+    if (field === 'inflationRate' || field === 'assetEquitySplit' || 
+        field === 'assetEquityGrowthRate' || field === 'assetDebtGrowthRate') {
+      try {
+        const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+        quickCalcAssumptions[field] = value;
+        localStorage.setItem('quickCalcAssumptions', JSON.stringify(quickCalcAssumptions));
+      } catch (e) {
+        console.warn('Failed to save Quick Calculator assumptions to localStorage:', e);
+      }
     }
   }
 
@@ -151,18 +167,220 @@ export default function OriginalLifeSheet() {
   const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
   const totalGoals = goals.reduce((sum, goal) => sum + (parseFloat(goal.amount) || 0), 0);
   
-  const calculations = {
-    totalExistingAssets: parseFloat(formData.totalAssetGrossMarketValue) || 0,
-    totalExistingLiabilities: totalLoans,
-    totalHumanCapital: (parseFloat(formData.currentAnnualGrossIncome) || 0) * (parseInt(formData.workTenureYears) || 0),
-    totalFutureExpenses: totalExpenses,
-    totalFinancialGoals: totalGoals,
-    surplusDeficit: (parseFloat(formData.totalAssetGrossMarketValue) || 0) + 
-                   ((parseFloat(formData.currentAnnualGrossIncome) || 0) * (parseInt(formData.workTenureYears) || 0)) - 
-                   totalLoans - 
-                   totalExpenses - 
-                   totalGoals
-  }
+  // Calculate values (Quick Calculator or Detailed based on source preferences)
+  const calculateQuickCalculatorValues = () => {
+    const { detail, sourcePreferences } = useLifeSheetStore.getState();
+    const useDetailedAssets = sourcePreferences?.assets === 1 && detail?.assets?.portfolioSeries;
+    const useDetailedIncome = sourcePreferences?.income === 1 && detail?.workIncome?.series;
+    const useDetailedExpenses = sourcePreferences?.expenses === 1 && detail?.expenses?.series;
+    
+    // If using detailed calculations, use them with inflation discounting
+    if (useDetailedAssets || useDetailedIncome || useDetailedExpenses) {
+      return calculateDetailedValues();
+    }
+    
+    // Otherwise use Quick Calculator logic
+    const currentIncome = parseFloat(formData.currentAnnualGrossIncome) || 0;
+    const workTenure = parseInt(formData.workTenureYears) || 0;
+    const incomeGrowth = (formData.incomeGrowthRate !== undefined && formData.incomeGrowthRate !== null && formData.incomeGrowthRate !== '') 
+      ? parseFloat(formData.incomeGrowthRate) : 0.06;
+    const inflation = (formData.inflationRate !== undefined && formData.inflationRate !== null && formData.inflationRate !== '') 
+      ? parseFloat(formData.inflationRate) : 0.06;
+    
+    // Total Human Capital: Project income with growth rate, discount by inflation
+    let totalHumanCapital = 0;
+    for (let year = 0; year < workTenure; year++) {
+      const projectedIncome = currentIncome * Math.pow(1 + incomeGrowth, year);
+      const discountedIncome = projectedIncome / Math.pow(1 + inflation, year);
+      totalHumanCapital += discountedIncome;
+    }
+    
+    // Total Assets: 60:40 split, project with growth rates, discount by inflation
+    const totalAssets = parseFloat(formData.totalAssetGrossMarketValue) || 0;
+    const equitySplit = (formData.assetEquitySplit !== undefined && formData.assetEquitySplit !== null && formData.assetEquitySplit !== '') 
+      ? parseFloat(formData.assetEquitySplit) : 0.60;
+    const equityPortion = totalAssets * equitySplit;
+    const debtPortion = totalAssets * (1 - equitySplit);
+    const equityGrowth = (formData.assetEquityGrowthRate !== undefined && formData.assetEquityGrowthRate !== null && formData.assetEquityGrowthRate !== '') 
+      ? parseFloat(formData.assetEquityGrowthRate) : 0.15;
+    const debtGrowth = (formData.assetDebtGrowthRate !== undefined && formData.assetDebtGrowthRate !== null && formData.assetDebtGrowthRate !== '') 
+      ? parseFloat(formData.assetDebtGrowthRate) : 0.07;
+    
+    // Project assets year by year, discounting each year's value
+    // For table: show present value of assets at end of work tenure
+    let projectedEquity = equityPortion;
+    let projectedDebt = debtPortion;
+    for (let year = 0; year < workTenure; year++) {
+      projectedEquity *= (1 + equityGrowth);
+      projectedDebt *= (1 + debtGrowth);
+      // Discount each year's growth
+      projectedEquity /= (1 + inflation);
+      projectedDebt /= (1 + inflation);
+    }
+    const totalProjectedAssets = projectedEquity + projectedDebt;
+    
+    // Financial Goals: Discount by inflation (no projection)
+    const discountedGoals = totalGoals / (1 + inflation);
+    
+    // Expenses: Project by inflation, discount by inflation
+    const remainingLife = Math.max(0, (parseInt(formData.lifespanYears) || 85) - (parseInt(formData.age) || 0));
+    let totalProjectedExpenses = 0;
+    for (let year = 0; year < remainingLife; year++) {
+      const projectedExpense = totalExpenses * Math.pow(1 + inflation, year);
+      const discountedExpense = projectedExpense / Math.pow(1 + inflation, year);
+      totalProjectedExpenses += discountedExpense; // Net: just sum of base expenses
+    }
+    
+    // EMIs: Discount by inflation (no projection) - include in expenses to avoid double counting
+    const totalEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
+    const discountedEmi = totalEmi / (1 + inflation); // Discount current year EMI
+    
+    // Total Future Expenses includes both regular expenses and EMIs (discounted)
+    const totalFutureExpensesWithEmi = totalProjectedExpenses + discountedEmi;
+    
+    return {
+      totalExistingAssets: totalProjectedAssets,
+      totalExistingLiabilities: totalLoans,
+      totalHumanCapital,
+      totalFutureExpenses: totalFutureExpensesWithEmi,
+      totalFinancialGoals: discountedGoals,
+      discountedEmi,
+      surplusDeficit: totalProjectedAssets + totalHumanCapital - totalLoans - totalFutureExpensesWithEmi - discountedGoals
+    };
+  };
+  
+  // Calculate using detailed data with inflation discounting
+  const calculateDetailedValues = () => {
+    const { detail, sourcePreferences, main } = useLifeSheetStore.getState();
+    const inflation = (formData.inflationRate !== undefined && formData.inflationRate !== null && formData.inflationRate !== '') 
+      ? parseFloat(formData.inflationRate) : 0.06;
+    
+    const currentYear = new Date().getFullYear();
+    const age = parseInt(formData.age || 30);
+    const targetAge = 80;
+    const projectionYears = Math.max(0, targetAge - age);
+    const workTenure = parseInt(formData.workTenureYears) || 0;
+    
+    // Assets: Use detailed if available, otherwise quick calculator
+    let totalProjectedAssets = 0;
+    if (sourcePreferences?.assets === 1 && detail?.assets?.portfolioSeries) {
+      // Use detailed assets: portfolioSeries contains NOMINAL (projected) values
+      // portfolioSeries[currentYear] = starting assets (nominal)
+      // portfolioSeries[currentYear + workTenure] = assets at end of work tenure (nominal, projected)
+      // For table: show present value of assets at end of work tenure
+      // If growth > inflation, this should be > starting value
+      const startingAssetsNominal = detail.assets.portfolioSeries[currentYear] || parseFloat(formData.totalAssetGrossMarketValue) || 0;
+      const finalYear = currentYear + workTenure;
+      const assetsNominal = detail.assets.portfolioSeries[finalYear] || startingAssetsNominal;
+      
+      // Discount the nominal value at end of work tenure back to present value
+      // Formula: PV = FV / (1 + inflation)^workTenure
+      // If assets grow faster than inflation, PV will be > starting value
+      // Example: 10L grows at 11.8% for 10 years = 10L * 1.118^10 = 30.5L (nominal)
+      // Discount at 6%: 30.5L / 1.06^10 = 17.0L (present value) > 10L ✓
+      totalProjectedAssets = assetsNominal / Math.pow(1 + inflation, workTenure);
+      
+      // Debug: Verify calculation
+      if (assetsNominal > 0 && startingAssetsNominal > 0) {
+        const impliedGrowthRate = Math.pow(assetsNominal / startingAssetsNominal, 1 / workTenure) - 1;
+        const realGrowthRate = impliedGrowthRate - inflation;
+        console.log('📊 Detailed Assets Calculation:', {
+          startingAssetsNominal,
+          finalYear,
+          assetsNominal,
+          impliedGrowthRate: (impliedGrowthRate * 100).toFixed(2) + '%',
+          inflation: (inflation * 100).toFixed(2) + '%',
+          realGrowthRate: (realGrowthRate * 100).toFixed(2) + '%',
+          workTenure,
+          totalProjectedAssets,
+          shouldBeGreater: totalProjectedAssets > startingAssetsNominal ? 'YES ✓' : 'NO ✗ (growth <= inflation)'
+        });
+      }
+    } else {
+      // Quick calculator assets (already calculated above)
+      const totalAssets = parseFloat(formData.totalAssetGrossMarketValue) || 0;
+      const equitySplit = (formData.assetEquitySplit !== undefined && formData.assetEquitySplit !== null && formData.assetEquitySplit !== '') 
+        ? parseFloat(formData.assetEquitySplit) : 0.60;
+      const equityPortion = totalAssets * equitySplit;
+      const debtPortion = totalAssets * (1 - equitySplit);
+      const equityGrowth = (formData.assetEquityGrowthRate !== undefined && formData.assetEquityGrowthRate !== null && formData.assetEquityGrowthRate !== '') 
+        ? parseFloat(formData.assetEquityGrowthRate) : 0.15;
+      const debtGrowth = (formData.assetDebtGrowthRate !== undefined && formData.assetDebtGrowthRate !== null && formData.assetDebtGrowthRate !== '') 
+        ? parseFloat(formData.assetDebtGrowthRate) : 0.07;
+      
+      let projectedEquity = equityPortion;
+      let projectedDebt = debtPortion;
+      for (let year = 0; year < workTenure; year++) {
+        projectedEquity *= (1 + equityGrowth);
+        projectedDebt *= (1 + debtGrowth);
+        projectedEquity /= (1 + inflation);
+        projectedDebt /= (1 + inflation);
+      }
+      totalProjectedAssets = projectedEquity + projectedDebt;
+    }
+    
+    // Human Capital: Use detailed if available
+    let totalHumanCapital = 0;
+    if (sourcePreferences?.income === 1 && detail?.workIncome?.series) {
+      // Sum detailed income over work tenure, discount by inflation
+      for (let yearOffset = 0; yearOffset < workTenure; yearOffset++) {
+        const year = currentYear + yearOffset;
+        const incomeUnadjusted = detail.workIncome.series[year] || 0;
+        const discountedIncome = incomeUnadjusted / Math.pow(1 + inflation, yearOffset);
+        totalHumanCapital += discountedIncome;
+      }
+    } else {
+      // Quick calculator human capital
+      const currentIncome = parseFloat(formData.currentAnnualGrossIncome) || 0;
+      const incomeGrowth = (formData.incomeGrowthRate !== undefined && formData.incomeGrowthRate !== null && formData.incomeGrowthRate !== '') 
+        ? parseFloat(formData.incomeGrowthRate) : 0.06;
+      for (let year = 0; year < workTenure; year++) {
+        const projectedIncome = currentIncome * Math.pow(1 + incomeGrowth, year);
+        const discountedIncome = projectedIncome / Math.pow(1 + inflation, year);
+        totalHumanCapital += discountedIncome;
+      }
+    }
+    
+    // Expenses: Use detailed if available (already includes EMIs)
+    const remainingLife = Math.max(0, (parseInt(formData.lifespanYears) || 85) - age);
+    let totalFutureExpenses = 0;
+    if (sourcePreferences?.expenses === 1 && detail?.expenses?.series) {
+      // Detailed expenses are stored as NOMINAL (projected forward with personal_inflation)
+      // We discount them once to convert to PRESENT VALUE (real terms)
+      // Note: Detailed expenses already include EMIs, so don't add EMIs from loans
+      for (let yearOffset = 0; yearOffset < remainingLife; yearOffset++) {
+        const year = currentYear + yearOffset;
+        const expensesNominal = detail.expenses.series[year] || 0; // Nominal value at year t
+        const expensesPresentValue = expensesNominal / Math.pow(1 + inflation, yearOffset); // Discount to present
+        totalFutureExpenses += expensesPresentValue;
+      }
+    } else {
+      // Quick calculator expenses + EMIs
+      let totalProjectedExpenses = 0;
+      for (let year = 0; year < remainingLife; year++) {
+        const projectedExpense = totalExpenses * Math.pow(1 + inflation, year);
+        const discountedExpense = projectedExpense / Math.pow(1 + inflation, year);
+        totalProjectedExpenses += discountedExpense;
+      }
+      const totalEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
+      const discountedEmi = totalEmi / (1 + inflation);
+      totalFutureExpenses = totalProjectedExpenses + discountedEmi;
+    }
+    
+    // Financial Goals: Discount by inflation (no projection)
+    const discountedGoals = totalGoals / (1 + inflation);
+    
+    return {
+      totalExistingAssets: totalProjectedAssets,
+      totalExistingLiabilities: totalLoans,
+      totalHumanCapital,
+      totalFutureExpenses,
+      totalFinancialGoals: discountedGoals,
+      surplusDeficit: totalProjectedAssets + totalHumanCapital - totalLoans - totalFutureExpenses - discountedGoals
+    };
+  };
+  
+  const calculations = calculateQuickCalculatorValues();
 
   // Debug: Log calculations and chartData
   React.useEffect(() => {
@@ -172,6 +390,24 @@ export default function OriginalLifeSheet() {
     console.log('🔄 OriginalLifeSheet: chartData sample:', chartData?.slice(0, 3));
     console.log('🔄 OriginalLifeSheet: Full chartData:', chartData);
   }, [calculations, chartData]);
+
+  // Load Quick Calculator assumptions from localStorage on mount
+  useEffect(() => {
+    try {
+      const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+      if (Object.keys(quickCalcAssumptions).length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          inflationRate: quickCalcAssumptions.inflationRate !== undefined ? quickCalcAssumptions.inflationRate : prev.inflationRate,
+          assetEquitySplit: quickCalcAssumptions.assetEquitySplit !== undefined ? quickCalcAssumptions.assetEquitySplit : prev.assetEquitySplit,
+          assetEquityGrowthRate: quickCalcAssumptions.assetEquityGrowthRate !== undefined ? quickCalcAssumptions.assetEquityGrowthRate : prev.assetEquityGrowthRate,
+          assetDebtGrowthRate: quickCalcAssumptions.assetDebtGrowthRate !== undefined ? quickCalcAssumptions.assetDebtGrowthRate : prev.assetDebtGrowthRate
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to load Quick Calculator assumptions from localStorage:', e);
+    }
+  }, []);
 
   // Load user's financial data when authenticated
   useEffect(() => {
@@ -302,7 +538,11 @@ export default function OriginalLifeSheet() {
         totalLoanOutstandingValue: formData.totalLoanOutstandingValue,
         lifespanYears: formData.lifespanYears,
         incomeGrowthRate: formData.incomeGrowthRate,
-        assetGrowthRate: formData.assetGrowthRate
+        assetGrowthRate: formData.assetGrowthRate,
+        inflationRate: formData.inflationRate,
+        assetEquitySplit: formData.assetEquitySplit,
+        assetEquityGrowthRate: formData.assetEquityGrowthRate,
+        assetDebtGrowthRate: formData.assetDebtGrowthRate
       })
     }
   }, [formData, expenses, loans, isAuthenticated, user, hydrateMainInputs, updateLifeSheet])
@@ -377,7 +617,9 @@ export default function OriginalLifeSheet() {
       const response = await ApiService.getFinancialProfile(user.id)
       if (response && response.profile) {
         const profile = response.profile
-        setFormData({
+        // Load from database, but preserve Quick Calculator assumptions from localStorage
+        const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+        setFormData(prev => ({
           age: profile.age || '',
           currentAnnualGrossIncome: profile.current_annual_gross_income || '',
           workTenureYears: profile.work_tenure_years || '',
@@ -386,8 +628,13 @@ export default function OriginalLifeSheet() {
           loanTenureYears: profile.loan_tenure_years || '',
           lifespanYears: profile.lifespan_years || 85,
           incomeGrowthRate: profile.income_growth_rate || 0.06,
-          assetGrowthRate: profile.asset_growth_rate || 0.06
-        })
+          assetGrowthRate: profile.asset_growth_rate || 0.06,
+          // Quick Calculator assumptions (frontend-only, not in DB)
+          inflationRate: quickCalcAssumptions.inflationRate !== undefined ? quickCalcAssumptions.inflationRate : (prev.inflationRate || 0.06),
+          assetEquitySplit: quickCalcAssumptions.assetEquitySplit !== undefined ? quickCalcAssumptions.assetEquitySplit : (prev.assetEquitySplit || 0.60),
+          assetEquityGrowthRate: quickCalcAssumptions.assetEquityGrowthRate !== undefined ? quickCalcAssumptions.assetEquityGrowthRate : (prev.assetEquityGrowthRate || 0.15),
+          assetDebtGrowthRate: quickCalcAssumptions.assetDebtGrowthRate !== undefined ? quickCalcAssumptions.assetDebtGrowthRate : (prev.assetDebtGrowthRate || 0.07)
+        }))
         // Goals and expenses are now fetched separately
         setFinancialProfile(profile)
       } else {
@@ -419,7 +666,11 @@ export default function OriginalLifeSheet() {
         loanTenureYears: '',
         lifespanYears: 85,
         incomeGrowthRate: 0.06,
-        assetGrowthRate: 0.06
+        assetGrowthRate: 0.06,
+        inflationRate: 0.06,
+        assetEquitySplit: 0.60,
+        assetEquityGrowthRate: 0.15,
+        assetDebtGrowthRate: 0.07
       })
       setGoals([])
       setExpenses([])
@@ -445,6 +696,7 @@ export default function OriginalLifeSheet() {
       setSaving(true)
       
       // Map field name to backend field name
+      // Note: inflationRate, assetEquitySplit, assetEquityGrowthRate, assetDebtGrowthRate are frontend-only
       const fieldMapping = {
         age: 'age',
         currentAnnualGrossIncome: 'current_annual_gross_income',
@@ -457,7 +709,10 @@ export default function OriginalLifeSheet() {
       }
       
       const backendField = fieldMapping[fieldName]
-      if (!backendField) return
+      if (!backendField) {
+        // Frontend-only fields (Quick Calculator assumptions) - don't save to DB
+        return
+      }
       
       // Convert value to appropriate type
       let convertedValue = value
@@ -555,7 +810,11 @@ export default function OriginalLifeSheet() {
         loanTenureYears: '',
         lifespanYears: 85,
         incomeGrowthRate: 0.06,
-        assetGrowthRate: 0.06
+        assetGrowthRate: 0.06,
+        inflationRate: 0.06,
+        assetEquitySplit: 0.60,
+        assetEquityGrowthRate: 0.15,
+        assetDebtGrowthRate: 0.07
       })
       setGoals([])
       setExpenses([])
@@ -1287,6 +1546,140 @@ export default function OriginalLifeSheet() {
                     <Plus className="w-4 h-4 mr-2" />
                     Add Expense
                   </Button>
+                </div>
+                
+                {/* Growth Rate Assumptions */}
+                <div className="border border-blue-300 rounded-lg p-3 bg-blue-50/30 mt-4">
+                  <Label className="text-sm font-medium text-gray-700 mb-3 block">Growth Rate Assumptions</Label>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="incomeGrowthRate" className="text-xs text-gray-600">Income Growth Rate (%)</Label>
+                      <Input
+                        id="incomeGrowthRate"
+                        type="number"
+                        step="0.01"
+                        placeholder="6.0"
+                        value={formData.incomeGrowthRate !== undefined && formData.incomeGrowthRate !== null 
+                          ? parseFloat((parseFloat(formData.incomeGrowthRate) * 100).toFixed(2)) 
+                          : ''}
+                        onChange={(e) => {
+                          const inputVal = e.target.value;
+                          if (inputVal === '' || inputVal === '-') {
+                            handleUserInputChange('incomeGrowthRate', '');
+                            return;
+                          }
+                          const val = parseFloat(inputVal);
+                          if (!isNaN(val)) {
+                            handleUserInputChange('incomeGrowthRate', val / 100);
+                          }
+                        }}
+                        className="mt-1 text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="inflationRate" className="text-xs text-gray-600">Inflation Rate (%)</Label>
+                      <Input
+                        id="inflationRate"
+                        type="number"
+                        step="0.01"
+                        placeholder="6.0"
+                        value={formData.inflationRate !== undefined && formData.inflationRate !== null 
+                          ? parseFloat((parseFloat(formData.inflationRate) * 100).toFixed(2)) 
+                          : ''}
+                        onChange={(e) => {
+                          const inputVal = e.target.value;
+                          if (inputVal === '' || inputVal === '-') {
+                            handleUserInputChange('inflationRate', '');
+                            return;
+                          }
+                          const val = parseFloat(inputVal);
+                          if (!isNaN(val)) {
+                            handleUserInputChange('inflationRate', val / 100);
+                          }
+                        }}
+                        className="mt-1 text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="assetEquitySplit" className="text-xs text-gray-600">Asset Equity Split (%)</Label>
+                      <Input
+                        id="assetEquitySplit"
+                        type="number"
+                        step="0.01"
+                        placeholder="60.0"
+                        value={formData.assetEquitySplit !== undefined && formData.assetEquitySplit !== null 
+                          ? parseFloat((parseFloat(formData.assetEquitySplit) * 100).toFixed(2)) 
+                          : ''}
+                        onChange={(e) => {
+                          const inputVal = e.target.value;
+                          if (inputVal === '' || inputVal === '-') {
+                            handleUserInputChange('assetEquitySplit', '');
+                            return;
+                          }
+                          const val = parseFloat(inputVal);
+                          if (!isNaN(val)) {
+                            handleUserInputChange('assetEquitySplit', val / 100);
+                          }
+                        }}
+                        className="mt-1 text-sm"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="assetEquityGrowthRate" className="text-xs text-gray-600">Equity Growth (%)</Label>
+                        <Input
+                          id="assetEquityGrowthRate"
+                          type="number"
+                          step="0.01"
+                          placeholder="15.0"
+                          value={formData.assetEquityGrowthRate !== undefined && formData.assetEquityGrowthRate !== null 
+                            ? parseFloat((parseFloat(formData.assetEquityGrowthRate) * 100).toFixed(2)) 
+                            : ''}
+                          onChange={(e) => {
+                            const inputVal = e.target.value;
+                            if (inputVal === '' || inputVal === '-') {
+                              handleUserInputChange('assetEquityGrowthRate', '');
+                              return;
+                            }
+                            const val = parseFloat(inputVal);
+                            if (!isNaN(val)) {
+                              handleUserInputChange('assetEquityGrowthRate', val / 100);
+                            }
+                          }}
+                          className="mt-1 text-sm"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="assetDebtGrowthRate" className="text-xs text-gray-600">Debt Growth (%)</Label>
+                        <Input
+                          id="assetDebtGrowthRate"
+                          type="number"
+                          step="0.01"
+                          placeholder="7.0"
+                          value={formData.assetDebtGrowthRate !== undefined && formData.assetDebtGrowthRate !== null 
+                            ? parseFloat((parseFloat(formData.assetDebtGrowthRate) * 100).toFixed(2)) 
+                            : ''}
+                          onChange={(e) => {
+                            const inputVal = e.target.value;
+                            if (inputVal === '' || inputVal === '-') {
+                              handleUserInputChange('assetDebtGrowthRate', '');
+                              return;
+                            }
+                            const val = parseFloat(inputVal);
+                            if (!isNaN(val)) {
+                              handleUserInputChange('assetDebtGrowthRate', val / 100);
+                            }
+                          }}
+                          className="mt-1 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

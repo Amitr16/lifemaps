@@ -2056,8 +2056,53 @@ router.post('/insurance', [
 
     const result = await pool.query(
       'INSERT INTO financial_insurance (user_id, profile_id, policy_type, cover, premium, frequency, provider, policy_number, start_date, end_date, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-      [req.user.id, profileId, policy_type, cover, premium, frequency, provider, policy_number, start_date, end_date, notes]
+      [req.user.id, profileId, policy_type, cover, premium, frequency, provider, policy_number, null, end_date, notes]
     );
+
+    const insuranceId = result.rows[0].id;
+
+    // Create expense entry for premium (similar to loan EMI)
+    if (premium && premium > 0) {
+      try {
+        // Convert premium to monthly if needed
+        let monthlyPremium = premium;
+        if (frequency === 'Yearly') monthlyPremium = premium / 12;
+        else if (frequency === 'Quarterly') monthlyPremium = premium / 3;
+
+        // Check if expense already exists for this insurance
+        const existingExpense = await pool.query(
+          'SELECT id FROM financial_expense WHERE insurance_id = $1',
+          [insuranceId]
+        );
+
+        if (existingExpense.rows.length === 0) {
+          // Create new expense
+          await pool.query(
+            `INSERT INTO financial_expense 
+             (user_id, profile_id, insurance_id, description, amount, frequency, expiry, category, subcategory) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              req.user.id,
+              profileId,
+              insuranceId,
+              `Insurance Premium - ${policy_type || 'Insurance'}`,
+              monthlyPremium,
+              'Monthly',
+              end_date || null,
+              'Insurance',
+              'Premium'
+            ]
+          );
+          console.log(`✅ Created expense for insurance ${insuranceId}: ${monthlyPremium}/month`);
+        } else {
+          console.log(`⚠️ Could not create expense for insurance ${insuranceId}: profileId is null`);
+        }
+      } catch (expenseError) {
+        console.error(`❌ Error creating expense for insurance ${insuranceId}:`, expenseError);
+        console.error('Error details:', expenseError.message, expenseError.stack);
+        // Don't fail insurance creation if expense creation fails
+      }
+    }
 
     res.status(201).json({ insurance: result.rows[0] });
   } catch (error) {
@@ -2135,7 +2180,83 @@ router.put('/insurance/:insuranceId', [
     values.push(insuranceId);
 
     const result = await pool.query(query, values);
-    res.json({ insurance: result.rows[0] });
+    const updatedInsurance = result.rows[0];
+
+    // Update or create expense entry for premium (similar to loan EMI)
+    try {
+      const premium = req.body.premium;
+      const frequency = req.body.frequency || updatedInsurance.frequency;
+      const end_date = req.body.end_date !== undefined ? req.body.end_date : updatedInsurance.end_date;
+      const policy_type = req.body.policy_type || updatedInsurance.policy_type;
+
+      if (premium !== undefined && premium > 0) {
+        // Convert premium to monthly if needed
+        let monthlyPremium = premium;
+        if (frequency === 'Yearly') monthlyPremium = premium / 12;
+        else if (frequency === 'Quarterly') monthlyPremium = premium / 3;
+
+        // Check if expense exists for this insurance
+        const existingExpense = await pool.query(
+          'SELECT id FROM financial_expense WHERE insurance_id = $1',
+          [insuranceId]
+        );
+
+        if (existingExpense.rows.length > 0) {
+          // Update existing expense
+          await pool.query(
+            `UPDATE financial_expense 
+             SET amount = $1, expiry = $2, description = $3, updated_at = NOW() 
+             WHERE insurance_id = $4`,
+            [
+              monthlyPremium,
+              end_date || null,
+              `Insurance Premium - ${policy_type || 'Insurance'}`,
+              insuranceId
+            ]
+          );
+          console.log(`✅ Updated expense for insurance ${insuranceId}`);
+        } else {
+          // Create new expense
+          const profileResult = await pool.query(
+            'SELECT id FROM financial_profile WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+            [req.user.id]
+          );
+          const profileId = profileResult.rows.length > 0 ? profileResult.rows[0].id : null;
+
+          if (profileId) {
+            await pool.query(
+              `INSERT INTO financial_expense 
+               (user_id, profile_id, insurance_id, description, amount, frequency, expiry, category, subcategory) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+              [
+                req.user.id,
+                profileId,
+                insuranceId,
+                `Insurance Premium - ${policy_type || 'Insurance'}`,
+                monthlyPremium,
+                'Monthly',
+                end_date || null,
+                'Insurance',
+                'Premium'
+              ]
+            );
+            console.log(`✅ Created expense for insurance ${insuranceId}: ${monthlyPremium}/month`);
+          } else {
+            console.log(`⚠️ Could not create expense for insurance ${insuranceId}: profileId is null`);
+          }
+        }
+      } else if (premium === 0 || premium === null) {
+        // If premium is removed, delete the expense
+        const deleteResult = await pool.query('DELETE FROM financial_expense WHERE insurance_id = $1', [insuranceId]);
+        console.log(`✅ Deleted ${deleteResult.rowCount} expense(s) for insurance ${insuranceId} (premium removed)`);
+      }
+    } catch (expenseError) {
+      console.error(`❌ Error handling expense for insurance ${insuranceId} update:`, expenseError);
+      console.error('Error details:', expenseError.message, expenseError.stack);
+      // Don't fail the insurance update if expense handling fails
+    }
+
+    res.json({ insurance: updatedInsurance });
   } catch (error) {
     console.error('Insurance update error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -2158,6 +2279,15 @@ router.delete('/insurance/:insuranceId', async (req, res) => {
 
     if (insuranceCheck.rows[0].user_id !== req.user.id) {
       return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Delete associated expense (if exists)
+    try {
+      const expenseDeleteResult = await pool.query('DELETE FROM financial_expense WHERE insurance_id = $1', [insuranceId]);
+      console.log(`✅ Deleted ${expenseDeleteResult.rowCount} expense(s) for insurance ${insuranceId}`);
+    } catch (expenseError) {
+      console.error('Error deleting expense for insurance:', expenseError);
+      // Continue with insurance deletion even if expense deletion fails
     }
 
     await pool.query('DELETE FROM financial_insurance WHERE id = $1', [insuranceId]);
@@ -2325,7 +2455,11 @@ router.get('/expense-tags/:userId', async (req, res) => {
     res.json({ tags: groupedTags });
   } catch (error) {
     console.error('Expense tags fetch error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (error.code === '42P01') { // Table does not exist
+      res.status(500).json({ error: 'Expense tags table does not exist. Please run migration script.' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
   }
 });
 
@@ -2364,8 +2498,10 @@ router.post('/expense-tag', [
     console.error('Expense tag creation error:', error);
     if (error.code === '23505') { // Unique constraint violation
       res.status(400).json({ error: 'This tag already exists' });
+    } else if (error.code === '42P01') { // Table does not exist
+      res.status(500).json({ error: 'Expense tags table does not exist. Please run migration script.' });
     } else {
-      res.status(500).json({ error: 'Internal server error' });
+      res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   }
 });
@@ -2391,7 +2527,11 @@ router.delete('/expense-tag/:tagId', async (req, res) => {
     res.json({ message: 'Tag deleted successfully' });
   } catch (error) {
     console.error('Expense tag deletion error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (error.code === '42P01') { // Table does not exist
+      res.status(500).json({ error: 'Expense tags table does not exist. Please run migration script.' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
   }
 });
 

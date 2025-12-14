@@ -572,13 +572,16 @@ export const useLifeSheetStore = create(
         return { portfolio, income, expenses, emi };
       },
 
-      // Net Worth Simulation
+      // Net Worth Simulation with Inflation Discounting
       simulate: () => {
-        const { main } = get();
+        const { main, sourcePreferences } = get();
         console.log('🔄 Store: simulate called with main:', main);
         
         const { portfolio, income, expenses, emi } = get().buildInputs();
         console.log('🔄 Store: buildInputs result:', { portfolio, income, expenses, emi });
+
+        // Get inflation rate for discounting
+        const inflation = parseFloat(main.i_expenses || 0.06);
 
         // Generate years array directly
         const yearsArray = [];
@@ -588,33 +591,60 @@ export const useLifeSheetStore = create(
         console.log('🔄 Store: Using years array:', yearsArray);
 
         const out = [];
-        let cash = 0;
+        let cumulativeCashflowUnadjusted = 0; // Track cumulative income - expenses - EMIs
 
-        for (const y of yearsArray) {
-          // Get values for this year
-          const port = portfolio[y] ?? 0;
-          const inc = income[y] ?? 0;
-          const exp = expenses[y] ?? 0;
-          const emiAmount = emi[y] ?? 0;
+        for (let i = 0; i < yearsArray.length; i++) {
+          const y = yearsArray[i];
+          const yearOffset = i;
           
-          // Update cash flow: income - expenses - EMIs
-          cash += inc - exp - emiAmount;
+          // Get unadjusted values for this year (already projected forward - NOMINAL values)
+          // These are the future nominal values at year t
+          const portUnadjusted = portfolio[y] ?? 0;
+          const incUnadjusted = income[y] ?? 0;
+          const expUnadjusted = expenses[y] ?? 0;
           
-          // Net worth = Portfolio + Cash
-          const nw = port + cash;
+          // When using detailed expenses, they already include EMIs, so don't add EMIs from loans
+          const useDetailedExpenses = sourcePreferences?.expenses === 1;
+          const emiAmountUnadjusted = useDetailedExpenses ? 0 : (emi[y] ?? 0);
+          
+          // Total expenses (expenses + EMIs, but EMIs are 0 if using detailed expenses)
+          const totalExpensesUnadjusted = expUnadjusted + emiAmountUnadjusted;
+          
+          // Update cumulative cashflow: income - expenses - EMIs (all in nominal terms)
+          cumulativeCashflowUnadjusted += incUnadjusted - totalExpensesUnadjusted;
+          
+          // Net Worth at year t (unadjusted/nominal) = Portfolio_t + Cumulative Cashflow
+          // Portfolio_t already includes asset growth (from detailed or quick calculator)
+          // NOTE: Financial Goals are NOT included in net worth calculation
+          // Goals are only shown in the Life Sheet table (discounted), not in the chart
+          const nwUnadjusted = portUnadjusted + cumulativeCashflowUnadjusted;
+          
+          // Step 2: Discount back to today using inflation to get PRESENT VALUE (real terms)
+          // This is a SINGLE discounting step - the values from buildInputs() are already projected (nominal)
+          // We discount them once to convert to present value
+          const discountFactor = Math.pow(1 + inflation, yearOffset);
+          const portAdjusted = portUnadjusted / discountFactor;
+          const incAdjusted = incUnadjusted / discountFactor;
+          const expAdjusted = expUnadjusted / discountFactor;
+          const emiAdjusted = emiAmountUnadjusted / discountFactor;
+          const nwAdjusted = nwUnadjusted / discountFactor;
+          const cashflowAdjusted = (incUnadjusted - totalExpensesUnadjusted) / discountFactor;
 
           out.push({
-            year: y,
-            portfolio: Math.round(port),
-            income: Math.round(inc),
-            expenses: Math.round(exp),
-            emi: Math.round(emiAmount),
-            cash: Math.round(cash),
-            netWorth: Math.round(nw),
+            year: String(y),
+            portfolio: Math.round(portAdjusted),
+            income: Math.round(incAdjusted),
+            expenses: Math.round(expAdjusted),
+            emi: Math.round(emiAdjusted),
+            cash: Math.round(cumulativeCashflowUnadjusted / discountFactor), // Cumulative cashflow discounted
+            netWorth: Math.round(nwAdjusted),
+            assets: Math.round(portAdjusted),
+            liabilities: 0, // Will be set separately
+            cashflow: Math.round(cashflowAdjusted),
           });
         }
         
-        console.log('🔄 Store: simulate result:', out);
+        console.log('🔄 Store: simulate result (with inflation discounting):', out);
         return out;
       },
 

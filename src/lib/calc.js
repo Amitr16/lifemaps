@@ -35,10 +35,30 @@ export function buildChartSeries({formData={}, totals={}, years=40, loans=[], ex
   const age = parseInt(formData.age || 0);
   const income = parseFloat(formData.currentAnnualGrossIncome || 0);
   const workTenure = parseInt(formData.workTenureYears || 0);
-  const infl = parseFloat(formData.incomeGrowthRate || 0.06); // assume as inflation
-  const assetYield = infl; // portfolio earnings = inflation for real-terms view
+  const incomeGrowth = parseFloat(formData.incomeGrowthRate || 0.06);
+  const inflation = parseFloat(formData.inflationRate || 0.06);
+  
+  // Asset assumptions
+  const assetEquitySplit = parseFloat(formData.assetEquitySplit || 0.60);
+  const equityGrowth = parseFloat(formData.assetEquityGrowthRate || 0.15);
+  const debtGrowth = parseFloat(formData.assetDebtGrowthRate || 0.07);
+  
+  // Calculate weighted average asset growth rate
+  const assetGrowth = (assetEquitySplit * equityGrowth) + ((1 - assetEquitySplit) * debtGrowth);
 
-  let assets = totals.totalExistingAssets || 0;
+  // Start with current net worth (Assets - Liabilities, unadjusted for inflation)
+  const initialLiabilities = totals.totalExistingLiabilities || 0;
+  let netWorthUnadjusted = (totals.totalExistingAssets || 0) - initialLiabilities;
+  
+  // Base annual expenses (sum of all expenses)
+  const baseAnnualExpenses = expenses.reduce((s,e)=>{
+    const amt = parseFloat(e.amount||0);
+    return s + amt;
+  }, 0);
+  
+  // Base annual EMI (sum of all loan EMIs, annualized)
+  const baseAnnualEMI = loans.reduce((s,l)=> s + (parseFloat(l.emiAmount || l.emi || 0) * 12), 0);
+  
   let chart = [];
   // Project until age 80
   const targetAge = 80;
@@ -47,32 +67,44 @@ export function buildChartSeries({formData={}, totals={}, years=40, loans=[], ex
 
   for (let i=0;i<N;i++){
     const year = (new Date().getFullYear()) + i;
-    const activeEarnings = (i < workTenure) ? income * Math.pow(1+infl, i) : 0;
+    
+    // Step 1: Calculate unadjusted values (projected forward with growth rates)
+    
+    // Income at year t: Income at beginning projected by growth rate
+    const incomeUnadjusted = (i < workTenure) 
+      ? income * Math.pow(1 + incomeGrowth, i)
+      : 0;
+    
+    // Expenses at year t: Expenses at beginning projected by inflation
+    // Include EMIs as part of expenses to avoid double counting (detailed expenses already include EMIs)
+    const expensesUnadjusted = baseAnnualExpenses * Math.pow(1 + inflation, i);
+    const emiUnadjusted = baseAnnualEMI; // Same for all years (no projection)
+    const totalExpensesUnadjusted = expensesUnadjusted + emiUnadjusted; // Combine expenses and EMIs
+    
+    // Net Worth at year t (unadjusted): 
+    // Net Worth_t-1 (unadjusted) × (1 + Asset Growth) + Income_t - (Expenses_t + EMI_t)
+    // NOTE: Financial Goals are NOT included in net worth calculation
+    // Goals are only shown in the Life Sheet table (discounted), not in the chart
+    netWorthUnadjusted = netWorthUnadjusted * (1 + assetGrowth) + incomeUnadjusted - totalExpensesUnadjusted;
+    
+    // Step 2: Discount back to today using inflation
+    // Net Worth_t (adjusted for inflation) = Net Worth_t (unadjusted) / (1 + inflation)^t
+    const discountFactor = Math.pow(1 + inflation, i);
+    const netWorthAdjusted = netWorthUnadjusted / discountFactor;
+    const incomeAdjusted = incomeUnadjusted / discountFactor;
+    const expensesAdjusted = totalExpensesUnadjusted / discountFactor; // Combined expenses + EMIs, discounted
 
-    // Annualized expenses baseline
-    const annualExpenses = expenses.reduce((s,e)=>{
-      const amt = parseFloat(e.amount||0);
-      // naive: assume entered as annual
-      return s + amt;
-    }, 0);
-
-    // EMIs
-    const EMI = loans.reduce((s,l)=> s + parseFloat(l.emiAmount || 0), 0);
-
-    const portfolioEarnings = assets * assetYield;
-
-    const closingNW = assets + activeEarnings - annualExpenses + portfolioEarnings - EMI;
+    // Calculate assets (net worth minus liabilities, but we'll use net worth as assets for simplicity)
+    // In reality, assets would be net worth + liabilities, but for chart purposes, net worth is what matters
+    const assetsAdjusted = netWorthAdjusted;
 
     chart.push({
       year: String(year),
-      netWorth: closingNW,
-      assets: assets,
+      netWorth: netWorthAdjusted,
+      assets: assetsAdjusted,
       liabilities: totals.totalExistingLiabilities || 0,
-      cashflow: activeEarnings - annualExpenses - EMI,
+      cashflow: incomeAdjusted - expensesAdjusted, // Expenses already include EMIs
     });
-
-    // roll assets to next year (simplified real-terms roll)
-    assets = closingNW;
   }
   return chart;
 }

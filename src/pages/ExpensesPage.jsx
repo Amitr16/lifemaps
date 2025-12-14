@@ -108,6 +108,7 @@ export default function ExpensesPage() {
           expiry: expense.expiry ? (typeof expense.expiry === 'string' ? parseInt(expense.expiry.split('-')[0]) : expense.expiry.getFullYear()) : '', // Expiry year (like loan expiry)
           source: expense.source,
           loan_id: expense.loan_id || null, // Link to loan if this is a loan EMI expense
+          insurance_id: expense.insurance_id || null, // Link to insurance if this is an insurance premium expense
           user_id: expense.user_id,
           created_at: expense.created_at,
           updated_at: expense.updated_at
@@ -166,6 +167,19 @@ export default function ExpensesPage() {
           } catch (loanError) {
             console.error('Error deleting associated loan:', loanError);
             // Continue with expense deletion even if loan deletion fails
+          }
+        }
+        
+        // Check if this expense is linked to insurance (has insurance_id)
+        if (row.insurance_id) {
+          console.log('🗑️ Deleting expense with insurance_id, will also delete associated insurance:', row.insurance_id);
+          try {
+            // Delete the associated insurance
+            await ApiService.deleteFinancialInsurance(row.insurance_id);
+            console.log('✅ Deleted associated insurance:', row.insurance_id);
+          } catch (insuranceError) {
+            console.error('Error deleting associated insurance:', insuranceError);
+            // Continue with expense deletion even if insurance deletion fails
           }
         }
         
