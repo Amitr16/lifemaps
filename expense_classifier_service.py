@@ -7,7 +7,7 @@ Run this as a separate service or integrate into backend
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-import psycopg2
+from psycopg import connect
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -28,12 +28,12 @@ else:
 def get_db_connection():
     """Get database connection"""
     if os.getenv('DATABASE_URL'):
-        return psycopg2.connect(os.getenv('DATABASE_URL'))
+        return connect(os.getenv('DATABASE_URL'))
     else:
-        return psycopg2.connect(
+        return connect(
             host=os.getenv('DB_HOST', 'localhost'),
             port=os.getenv('DB_PORT', '5432'),
-            database=os.getenv('DB_NAME', 'life_sheet'),
+            dbname=os.getenv('DB_NAME', 'life_sheet'),
             user=os.getenv('DB_USER', 'postgres'),
             password=os.getenv('DB_PASSWORD', 'password')
         )
@@ -43,32 +43,34 @@ def get_expense_categories(user_id=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    if user_id:
-        cursor.execute("""
-            SELECT category, subcategory 
-            FROM expense_categories 
-            WHERE user_id = 0 OR user_id = %s
-            ORDER BY user_id DESC, display_order, category, subcategory
-        """, (user_id,))
-    else:
-        cursor.execute("""
-            SELECT category, subcategory 
-            FROM expense_categories 
-            WHERE user_id = 0
-            ORDER BY display_order, category, subcategory
-        """)
-    
-    categories = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    
-    category_map = {}
-    for cat, subcat in categories:
-        if cat not in category_map:
-            category_map[cat] = []
-        category_map[cat].append(subcat)
-    
-    return category_map
+    try:
+        if user_id:
+            cursor.execute("""
+                SELECT category, subcategory 
+                FROM expense_categories 
+                WHERE user_id = 0 OR user_id = %s
+                ORDER BY user_id DESC, display_order, category, subcategory
+            """, (user_id,))
+        else:
+            cursor.execute("""
+                SELECT category, subcategory 
+                FROM expense_categories 
+                WHERE user_id = 0
+                ORDER BY display_order, category, subcategory
+            """)
+        
+        categories = cursor.fetchall()
+        
+        category_map = {}
+        for cat, subcat in categories:
+            if cat not in category_map:
+                category_map[cat] = []
+            category_map[cat].append(subcat)
+        
+        return category_map
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/classify', methods=['POST'])
 def classify_expense():
