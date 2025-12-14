@@ -40,37 +40,41 @@ def get_db_connection():
 
 def get_expense_categories(user_id=None):
     """Get all expense categories (global + user-specific)"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        if user_id:
-            cursor.execute("""
-                SELECT category, subcategory 
-                FROM expense_categories 
-                WHERE user_id = 0 OR user_id = %s
-                ORDER BY user_id DESC, display_order, category, subcategory
-            """, (user_id,))
-        else:
-            cursor.execute("""
-                SELECT category, subcategory 
-                FROM expense_categories 
-                WHERE user_id = 0
-                ORDER BY display_order, category, subcategory
-            """)
-        
-        categories = cursor.fetchall()
-        
-        category_map = {}
-        for cat, subcat in categories:
-            if cat not in category_map:
-                category_map[cat] = []
-            category_map[cat].append(subcat)
-        
-        return category_map
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            if user_id:
+                cursor.execute("""
+                    SELECT category, subcategory 
+                    FROM expense_categories 
+                    WHERE user_id = 0 OR user_id = %s
+                    ORDER BY user_id DESC, display_order, category, subcategory
+                """, (user_id,))
+            else:
+                cursor.execute("""
+                    SELECT category, subcategory 
+                    FROM expense_categories 
+                    WHERE user_id = 0
+                    ORDER BY display_order, category, subcategory
+                """)
+            
+            categories = cursor.fetchall()
+            
+            category_map = {}
+            for cat, subcat in categories:
+                if cat not in category_map:
+                    category_map[cat] = []
+                category_map[cat].append(subcat)
+            
+            return category_map
+    except Exception as e:
+        print(f"Error getting expense categories: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
     finally:
-        cursor.close()
-        conn.close()
+        if 'conn' in locals():
+            conn.close()
 
 @app.route('/classify', methods=['POST'])
 def classify_expense():
@@ -102,7 +106,9 @@ def classify_expense():
         if not api_key:
             return jsonify({'error': 'OPENAI_API_KEY not configured'}), 500
         
-        client = OpenAI(api_key=api_key)
+        # Initialize OpenAI client
+        # Use explicit api_key parameter to avoid any proxy/environment issues
+        client = OpenAI(api_key=api_key, timeout=30.0)
         
         # Create prompt
         prompt = f"""You are an expense classification assistant. Classify the following expense description into the most appropriate category and subcategory.
