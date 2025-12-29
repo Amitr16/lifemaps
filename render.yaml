@@ -25,10 +25,13 @@ services:
   # Frontend service
   - type: web
     name: lifemaps-frontend
-    runtime: static
+    runtime: node
+    plan: free
     buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
+    startCommand: node server.js
     envVars:
+      - key: PORT
+        value: 3000
       - key: VITE_API_URL
         value: https://lifemaps-backend.onrender.com/api
 
