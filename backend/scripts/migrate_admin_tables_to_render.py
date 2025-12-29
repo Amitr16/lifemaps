@@ -22,27 +22,41 @@ import bcrypt
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+env_path = os.path.join('backend', '.env')
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+else:
+    load_dotenv()
 
 def get_db_connection():
     """Get database connection from environment variables"""
-    db_config = {
-        'host': os.getenv('DB_HOST'),
-        'database': os.getenv('DB_NAME'),
-        'user': os.getenv('DB_USER'),
-        'password': os.getenv('DB_PASSWORD'),
-        'port': os.getenv('DB_PORT', '5432')
-    }
-    
-    print(f"🔗 Connecting to database: {db_config['database']}@{db_config['host']}")
-    
-    try:
-        conn = psycopg2.connect(**db_config)
-        print("✅ Connected to database successfully")
-        return conn
-    except Exception as e:
-        print(f"❌ Failed to connect to database: {e}")
-        sys.exit(1)
+    if os.getenv('DATABASE_URL'):
+        print(f"[INFO] Connecting to database using DATABASE_URL")
+        try:
+            conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+            print("[OK] Connected to database successfully")
+            return conn
+        except Exception as e:
+            print(f"[ERROR] Failed to connect to database: {e}")
+            sys.exit(1)
+    else:
+        db_config = {
+            'host': os.getenv('DB_HOST'),
+            'database': os.getenv('DB_NAME'),
+            'user': os.getenv('DB_USER'),
+            'password': os.getenv('DB_PASSWORD'),
+            'port': os.getenv('DB_PORT', '5432')
+        }
+        
+        print(f"[INFO] Connecting to database: {db_config['database']}@{db_config['host']}")
+        
+        try:
+            conn = psycopg2.connect(**db_config)
+            print("[OK] Connected to database successfully")
+            return conn
+        except Exception as e:
+            print(f"[ERROR] Failed to connect to database: {e}")
+            sys.exit(1)
 
 def ensure_updated_at_function(conn):
     """Ensure the update_updated_at_column function exists"""
@@ -58,9 +72,9 @@ def ensure_updated_at_function(conn):
                 $$ LANGUAGE plpgsql;
             """)
             conn.commit()
-            print("✅ Updated_at function ensured")
+            print("[OK] Updated_at function ensured")
     except Exception as e:
-        print(f"⚠️  Warning: Could not create update_updated_at_column function: {e}")
+        print(f"[WARN] Warning: Could not create update_updated_at_column function: {e}")
         conn.rollback()
 
 def create_super_admin_table(conn):
@@ -92,9 +106,9 @@ def create_super_admin_table(conn):
             """)
             
             conn.commit()
-            print("✅ Super admin table created/verified")
+            print("[OK] Super admin table created/verified")
     except Exception as e:
-        print(f"⚠️  Super admin table: {e}")
+        print(f"[WARN] Super admin table: {e}")
         conn.rollback()
 
 def create_admin_table(conn):
@@ -104,7 +118,7 @@ def create_admin_table(conn):
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS admin (
                     id SERIAL PRIMARY KEY,
-                    super_admin_id INTEGER REFERENCES super_admin(id) ON DELETE SET NULL,
+                    created_by INTEGER REFERENCES super_admin(id) ON DELETE SET NULL,
                     username VARCHAR(255) UNIQUE NOT NULL,
                     password_hash VARCHAR(255) NOT NULL,
                     name VARCHAR(255),
@@ -120,8 +134,8 @@ def create_admin_table(conn):
                 CREATE INDEX IF NOT EXISTS idx_admin_username ON admin(username)
             """)
             cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_admin_super_admin_id 
-                ON admin(super_admin_id)
+                CREATE INDEX IF NOT EXISTS idx_admin_created_by 
+                ON admin(created_by)
             """)
             
             # Create trigger
@@ -133,9 +147,9 @@ def create_admin_table(conn):
             """)
             
             conn.commit()
-            print("✅ Admin table created/verified")
+            print("[OK] Admin table created/verified")
     except Exception as e:
-        print(f"⚠️  Admin table: {e}")
+        print(f"[WARN] Admin table: {e}")
         conn.rollback()
 
 def add_admin_id_to_user_table(conn):
@@ -161,11 +175,11 @@ def add_admin_id_to_user_table(conn):
                 """)
                 
                 conn.commit()
-                print("✅ Added admin_id column to user table")
+                print("[OK] Added admin_id column to user table")
             else:
-                print("ℹ️  admin_id column already exists in user table")
+                print("[INFO] admin_id column already exists in user table")
     except Exception as e:
-        print(f"⚠️  Adding admin_id column: {e}")
+        print(f"[WARN] Adding admin_id column: {e}")
         conn.rollback()
 
 def create_super_admin_user(conn):
@@ -185,17 +199,17 @@ def create_super_admin_user(conn):
                 """, ('superadmin', password_hash))
                 
                 conn.commit()
-                print("✅ Super admin created: username=superadmin, password=superadmin123")
-                print("⚠️  IMPORTANT: Change the default password after first login!")
+                print("[OK] Super admin created: username=superadmin, password=superadmin123")
+                print("[WARN] IMPORTANT: Change the default password after first login!")
             else:
-                print("ℹ️  Super admin already exists")
+                print("[INFO] Super admin already exists")
     except Exception as e:
-        print(f"⚠️  Creating super admin: {e}")
+        print(f"[WARN] Creating super admin: {e}")
         conn.rollback()
 
 def main():
     """Main migration function"""
-    print("🚀 Starting admin tables migration to Render...")
+    print("[INFO] Starting admin tables migration to Render...")
     print("=" * 60)
     
     # Check required environment variables
@@ -203,7 +217,7 @@ def main():
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     
     if missing_vars:
-        print(f"❌ Missing required environment variables: {', '.join(missing_vars)}")
+        print(f"[ERROR] Missing required environment variables: {', '.join(missing_vars)}")
         print("\nPlease set these in your .env file or environment:")
         for var in missing_vars:
             print(f"  - {var}")
@@ -226,26 +240,26 @@ def main():
         create_super_admin_user(conn)
         
         print("=" * 60)
-        print("✅ Migration completed successfully!")
-        print("\n📋 Summary:")
-        print("  - super_admin table: ✅")
-        print("  - admin table: ✅")
-        print("  - admin_id column in user table: ✅")
-        print("  - Default super admin: ✅")
-        print("\n🔑 Default Super Admin Credentials:")
+        print("[OK] Migration completed successfully!")
+        print("\n[SUMMARY]")
+        print("  - super_admin table: OK")
+        print("  - admin table: OK")
+        print("  - admin_id column in user table: OK")
+        print("  - Default super admin: OK")
+        print("\n[CREDENTIALS] Default Super Admin Credentials:")
         print("  Username: superadmin")
         print("  Password: superadmin123")
-        print("\n⚠️  IMPORTANT: Change the default password after first login!")
+        print("\n[WARN] IMPORTANT: Change the default password after first login!")
         
     except Exception as e:
-        print(f"\n❌ Migration failed: {e}")
+        print(f"\n[ERROR] Migration failed: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
     finally:
         if conn:
             conn.close()
-            print("\n🔌 Database connection closed")
+            print("\n[INFO] Database connection closed")
 
 if __name__ == '__main__':
     main()
