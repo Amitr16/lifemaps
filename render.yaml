@@ -28,14 +28,6 @@ services:
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
-    headers:
-      - path: /*
-        name: X-Robots-Tag
-        value: noindex
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
     envVars:
       - key: VITE_API_URL
         value: https://lifemaps-backend.onrender.com/api
