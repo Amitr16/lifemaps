@@ -20,8 +20,16 @@ if (!existsSync(distPath)) {
 app.use(express.static(distPath));
 
 // Handle React Router - serve index.html for all routes
+// This must be last, after static file serving
 app.get('*', (req, res) => {
-  res.sendFile(join(distPath, 'index.html'));
+  const indexPath = join(distPath, 'index.html');
+  console.log(`[Router] Serving index.html for route: ${req.path}`);
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error(`[Router] Error serving index.html for ${req.path}:`, err);
+      res.status(500).send('Error loading page');
+    }
+  });
 });
 
 app.listen(PORT, () => {
