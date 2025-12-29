@@ -13,12 +13,12 @@ CREATE TABLE IF NOT EXISTS super_admin (
 -- Create admin table
 CREATE TABLE IF NOT EXISTS admin (
     id SERIAL PRIMARY KEY,
+    super_admin_id INTEGER REFERENCES super_admin(id) ON DELETE SET NULL,
     username VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255),
     email VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE,
-    created_by INTEGER REFERENCES super_admin(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
