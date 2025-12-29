@@ -2,15 +2,22 @@
 import React, { useEffect, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdminUser } from '../contexts/AdminUserContext';
 import { useLifeSheetStore } from '../store/enhanced-store';
 import ApiService from '../services/api';
 import UnifiedChart from '@/components/UnifiedChart.jsx';
 
 export default function WorkAssetsPage() {
   const { user, isAuthenticated } = useAuth();
+  const adminUser = useAdminUser();
   const { lifeSheet, updateWorkAssets, setDetailIncome, setSourcePreference } = useLifeSheetStore();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // Check if we're in admin mode
+  const isAdminMode = !!adminUser?.userId;
+  const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null);
+  const effectiveIsAuthenticated = isAdminMode || isAuthenticated;
   
   
 
@@ -60,7 +67,7 @@ export default function WorkAssetsPage() {
       // Update store with detailed income data
       setDetailIncome(incomeSeries);
       // Set source preference to detailed (1) when Work Assets data is calculated
-      setSourcePreference('income', 1);
+      setSourcePreference('income', 1, { isAdminMode, userId: effectiveUserId });
       console.log('🔄 Work Assets: setDetailIncome called successfully');
       console.log('🔄 Work Assets: Source preference set to detailed (1)');
       
@@ -74,15 +81,19 @@ export default function WorkAssetsPage() {
 
   // Load work assets from database
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (effectiveIsAuthenticated && effectiveUserId) {
       loadWorkAssets();
     }
-  }, [isAuthenticated, user]);
+  }, [effectiveIsAuthenticated, effectiveUserId]);
 
   const loadWorkAssets = async () => {
+    if (!effectiveUserId) return;
     try {
       setLoading(true);
-      const workAssets = await ApiService.getWorkAssets(user.id);
+      const workAssetsPromise = isAdminMode
+        ? ApiService.getWorkAssetsForUser(effectiveUserId)
+        : ApiService.getWorkAssets(effectiveUserId);
+      const workAssets = await workAssetsPromise;
       console.log('🔍 Work assets from API:', workAssets);
       setRows(workAssets);
     
@@ -114,7 +125,11 @@ export default function WorkAssetsPage() {
     const row = rows[idx];
     if (row.id && !row.id.toString().startsWith('temp_')) {
       try {
-        await ApiService.deleteWorkAsset(row.id);
+        if (isAdminMode) {
+          await ApiService.deleteWorkAssetForUser(row.id, effectiveUserId);
+        } else {
+          await ApiService.deleteWorkAsset(row.id);
+        }
         // Emit event to notify chart of work asset update
         const updatedRows = rows.filter((_, i) => i !== idx);
         window.dispatchEvent(new CustomEvent('workAssetsUpdated', { 
@@ -144,24 +159,40 @@ export default function WorkAssetsPage() {
     try {
       if (row.id && !row.id.toString().startsWith('temp_')) {
         // Update existing row
-        await ApiService.updateWorkAsset(row.id, {
-          stream: row.stream,
-          amount: parseFloat(row.amount) || 0,
-          growthRate: parseFloat(row.growthRate) || 0,
-          endAge: parseInt(row.endAge) || 65
-        });
+        const updatePromise = isAdminMode
+          ? ApiService.updateWorkAssetForUser(row.id, {
+              stream: row.stream,
+              amount: parseFloat(row.amount) || 0,
+              growthRate: parseFloat(row.growthRate) || 0,
+              endAge: parseInt(row.endAge) || 65
+            }, effectiveUserId)
+          : ApiService.updateWorkAsset(row.id, {
+              stream: row.stream,
+              amount: parseFloat(row.amount) || 0,
+              growthRate: parseFloat(row.growthRate) || 0,
+              endAge: parseInt(row.endAge) || 65
+            });
+        await updatePromise;
         // Emit event to notify chart of work asset update
         window.dispatchEvent(new CustomEvent('workAssetsUpdated', { 
           detail: { workAssets: updatedRows } 
         }));
       } else if (row.stream && row.amount) {
         // Create new row
-        const newAsset = await ApiService.createWorkAsset({
-          stream: row.stream,
-          amount: parseFloat(row.amount) || 0,
-          growthRate: parseFloat(row.growthRate) || 3,
-          endAge: parseInt(row.endAge) || 65
-        });
+        const createPromise = isAdminMode
+          ? ApiService.createWorkAssetForUser({
+              stream: row.stream,
+              amount: parseFloat(row.amount) || 0,
+              growthRate: parseFloat(row.growthRate) || 3,
+              endAge: parseInt(row.endAge) || 65
+            }, effectiveUserId)
+          : ApiService.createWorkAsset({
+              stream: row.stream,
+              amount: parseFloat(row.amount) || 0,
+              growthRate: parseFloat(row.growthRate) || 3,
+              endAge: parseInt(row.endAge) || 65
+            });
+        const newAsset = await createPromise;
         
         // Update the row with the new ID
         updatedRows[rowIndex] = { ...row, id: newAsset.id };

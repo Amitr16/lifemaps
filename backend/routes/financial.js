@@ -5,6 +5,16 @@ import { CORE_COLUMN_DEFINITIONS } from '../constants/columns.js';
 
 const router = express.Router();
 
+// Helper function to check if user has access (allows admin override)
+const checkUserAccess = (req, userId) => {
+  // Admin can access any user assigned to them (checked by adminUserContext middleware)
+  if (req.admin) {
+    return true;
+  }
+  // Regular user can only access their own data
+  return req.user && req.user.id === parseInt(userId);
+};
+
 // Source preference management
 router.get('/source-preferences', async (req, res) => {
   try {
@@ -112,7 +122,8 @@ router.get('/profile/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (req.user.id !== parseInt(userId)) {
+    // Check access (allows admin override)
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -309,7 +320,7 @@ router.get('/goal/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -539,7 +550,7 @@ router.get('/expense/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -870,7 +881,7 @@ router.get('/loan/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -1270,7 +1281,7 @@ router.get('/asset/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -1429,7 +1440,7 @@ router.get('/user-tags/:userId', async (req, res) => {
     
     console.log('🔍 Fetching tags for user:', userId, 'authenticated user:', req.user.id);
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -1617,7 +1628,7 @@ router.get('/asset-columns/:userId', async (req, res) => {
     
     console.log('🔍 Fetching columns for user:', userId, 'authenticated user:', req.user.id);
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -1880,7 +1891,7 @@ router.get('/work-assets/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
     
@@ -2115,7 +2126,7 @@ router.get('/insurance/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -2326,7 +2337,7 @@ router.get('/expense-categories/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -2427,7 +2438,7 @@ router.get('/expense-tags/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     
-    if (req.user.id !== parseInt(userId)) {
+    if (!checkUserAccess(req, userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

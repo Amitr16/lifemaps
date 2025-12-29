@@ -733,9 +733,21 @@ export const useLifeSheetStore = create(
         console.log('🔄 Store: Source preferences updated:', state.sourcePreferences);
       }, false, 'source/preferences'),
 
-      setSourcePreference: async (component, source) => {
+      setSourcePreference: async (component, source, options = {}) => {
         try {
-          await ApiService.updateSourcePreference(component, source);
+          // Check if we're in admin mode - if so, skip API call
+          const isAdminMode = options.isAdminMode || false;
+          const userId = options.userId;
+          
+          if (isAdminMode && userId) {
+            // In admin mode, use admin API
+            await ApiService.updateSourcePreferenceForUser(component, source, userId);
+          } else if (!isAdminMode) {
+            // Regular user mode
+            await ApiService.updateSourcePreference(component, source);
+          }
+          // If admin mode but no userId, just update local state (skip API)
+          
           set((state) => {
             state.sourcePreferences[component] = source;
             console.log(`🔄 Store: ${component} source set to ${source} (${source === 0 ? 'main page' : 'detailed page'})`);
@@ -743,6 +755,10 @@ export const useLifeSheetStore = create(
           get().recalculateAll();
         } catch (error) {
           console.error(`Failed to update source preference for ${component}:`, error);
+          // Still update local state even if API fails
+          set((state) => {
+            state.sourcePreferences[component] = source;
+          });
         }
       },
 

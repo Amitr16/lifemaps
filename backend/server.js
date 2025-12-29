@@ -33,7 +33,9 @@ import pool from './config/database.js';
 // Import routes
 import authRoutes from './routes/auth.js';
 import financialRoutes from './routes/financial.js';
+import adminRoutes from './routes/admin.js';
 import { authenticateToken } from './middleware/auth.js';
+import { authenticateAdmin } from './middleware/adminAuth.js';
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -181,6 +183,10 @@ app.post('/init-db', async (req, res) => {
 // API routes
 app.use('/api', authRoutes);
 app.use('/api/financial', authenticateToken, financialRoutes);
+app.use('/api/admin', adminRoutes);
+// Admin access to user financial data (requires userId parameter)
+import adminFinancialRoutes from './routes/adminFinancial.js';
+app.use('/api/admin/financial', adminFinancialRoutes);
 
 // OAuth demo endpoints (for testing)
 app.get('/api/oauth/demo/google', (req, res) => {

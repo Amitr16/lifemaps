@@ -5,6 +5,7 @@ import ExpensesChart from '@/components/ExpensesChart.jsx';
 import ExpenseCategoriesModal from '@/components/ExpenseCategoriesModal.jsx';
 import ExpenseTagSelector from '@/components/ExpenseTagSelector.jsx';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminUser } from '@/contexts/AdminUserContext';
 import { useLifeSheetStore } from '../store/enhanced-store';
 import ApiService from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,12 @@ import { Settings2 } from 'lucide-react';
 
 export default function ExpensesPage() {
   const { user } = useAuth();
+  const adminUser = useAdminUser();
+  
+  // Check if we're in admin mode
+  const isAdminMode = !!adminUser?.userId;
+  const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null);
+  const effectiveIsAuthenticated = isAdminMode || !!user;
   const { setDetailExpenses, setSourcePreference, setExpenses } = useLifeSheetStore();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +66,7 @@ export default function ExpensesPage() {
       // Update store with detailed expenses data
       setDetailExpenses(expensesSeries);
       // Set source preference to detailed (1) when Expenses data is calculated
-      setSourcePreference('expenses', 1);
+      setSourcePreference('expenses', 1, { isAdminMode, userId: effectiveUserId });
       console.log('🔄 Expenses: setDetailExpenses called successfully');
       console.log('🔄 Expenses: Source preference set to detailed (1)');
       
@@ -69,15 +76,24 @@ export default function ExpensesPage() {
   };
 
   useEffect(() => {
-    if (user?.id) {
+    if (effectiveIsAuthenticated && effectiveUserId) {
       loadExpenses();
+    } else if (!effectiveIsAuthenticated) {
+      // If not authenticated, set loading to false immediately
+      setLoading(false);
     }
-  }, [user?.id]);
+  }, [effectiveIsAuthenticated, effectiveUserId]);
 
   const loadExpenses = async () => {
+    if (!effectiveUserId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const response = await ApiService.getFinancialExpenses(user.id);
+      const response = isAdminMode
+        ? await ApiService.getFinancialExpensesForUser(effectiveUserId)
+        : await ApiService.getFinancialExpenses(effectiveUserId);
       const expenses = response.expenses || response || [];
       
       // Map database fields to frontend field names

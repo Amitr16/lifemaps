@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress.jsx'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart, Area, Legend } from 'recharts'
 import { TrendingUp, TrendingDown, Calculator, Target, DollarSign, PiggyBank, User, LogOut, Save, RefreshCw, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useAdminUser } from '../contexts/AdminUserContext'
 import { useChart } from '../contexts/ChartContext'
 import { useLifeSheetStore } from '../store/enhanced-store'
 import AuthModal from './AuthModal'
@@ -16,6 +17,12 @@ import '../styles/professional-theme.css'
 
 export default function OriginalLifeSheet() {
   const { user, logout, isAuthenticated } = useAuth()
+  const adminUser = useAdminUser()
+  
+  // Check if we're in admin mode
+  const isAdminMode = !!adminUser?.userId
+  const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null)
+  const effectiveIsAuthenticated = isAdminMode || isAuthenticated
   const { chartData } = useChart()
   const { updateLifeSheet, addGoal: addStoreGoal, updateGoal: updateStoreGoal, deleteGoal: deleteStoreGoal, addExpense: addStoreExpense, updateExpense: updateStoreExpense, deleteExpense: deleteStoreExpense, addLoan: addStoreLoan, updateLoan: updateStoreLoan, deleteLoan: deleteStoreLoan, setLoans: setStoreLoans, setExpenses: setStoreExpenses, setGoals: setStoreGoals, lifeSheet, setMainInputs, hydrateMainInputs, setSourcePreference, sourcePreferences, loadSourcePreferences } = useLifeSheetStore()
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -409,47 +416,63 @@ export default function OriginalLifeSheet() {
     }
   }, []);
 
-  // Load user's financial data when authenticated
+  // Load user's financial data when authenticated or in admin mode
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (effectiveIsAuthenticated && effectiveUserId) {
       loadFinancialData()
       
-      // Load source preferences from database
-      loadSourcePreferences()
+      // Load source preferences from database (only for regular users, not in admin mode)
+      if (!isAdminMode) {
+        loadSourcePreferences()
+      }
       
       // Load loans based on source preference
       const loadLoansBasedOnSource = async () => {
         try {
-          // Get current source preferences
-          const sourcePrefs = await ApiService.getSourcePreferences();
-          console.log('🏦 Current source preferences:', sourcePrefs);
-          
-          if (sourcePrefs.loans === 0) {
-            // Quick Calculator: Use store data, don't load from database
-            console.log('🏦 Using Quick Calculator loan data from store');
-            const { main } = useLifeSheetStore.getState();
-            console.log('🏦 Store quickEmiByYear:', main.quickEmiByYear);
-            // Don't set loans from database - use Quick Calculator data
-          } else {
-            // Detailed: Load from database
-            console.log('🏦 Using Detailed loan data from database');
-            const res = await ApiService.getFinancialLoans(user.id);
+          if (isAdminMode) {
+            // Admin mode: Always load from database
+            console.log('🏦 Admin mode: Loading loans for user', effectiveUserId);
+            const res = await ApiService.getFinancialLoansForUser(effectiveUserId);
             console.log('🏦 Loans fetch response:', res)
             const mappedLoans = (res.loans || []).map(loan => ({
               ...loan,
-              description: loan.provider || loan.lender || loan.name || '' // Map backend 'provider' to frontend 'description'
+              description: loan.provider || loan.lender || loan.name || ''
             }));
-            console.log('🏦 Mapped loans with descriptions:', mappedLoans.map(l => ({ id: l.id, description: l.description, lender: l.lender })));
             setLoans(mappedLoans);
             dispatchLoansEvent(mappedLoans);
-            
-            // Map loans for store with correct field names
             const mappedLoansForStore = mappedLoans.map(loan => ({
               ...loan,
-              principal_outstanding: loan.amount, // Map amount to principal_outstanding for store
-              lender: loan.description // Map description to lender for store
+              principal_outstanding: loan.amount,
+              lender: loan.description
             }))
-            setStoreLoans(mappedLoansForStore); // Also update store
+            setStoreLoans(mappedLoansForStore);
+          } else {
+            // Regular user mode: Check source preference
+            const sourcePrefs = await ApiService.getSourcePreferences();
+            console.log('🏦 Current source preferences:', sourcePrefs);
+            
+            if (sourcePrefs.loans === 0) {
+              console.log('🏦 Using Quick Calculator loan data from store');
+              const { main } = useLifeSheetStore.getState();
+              console.log('🏦 Store quickEmiByYear:', main.quickEmiByYear);
+            } else {
+              console.log('🏦 Using Detailed loan data from database');
+              const res = await ApiService.getFinancialLoans(effectiveUserId);
+              console.log('🏦 Loans fetch response:', res)
+              const mappedLoans = (res.loans || []).map(loan => ({
+                ...loan,
+                description: loan.provider || loan.lender || loan.name || ''
+              }));
+              console.log('🏦 Mapped loans with descriptions:', mappedLoans.map(l => ({ id: l.id, description: l.description, lender: l.lender })));
+              setLoans(mappedLoans);
+              dispatchLoansEvent(mappedLoans);
+              const mappedLoansForStore = mappedLoans.map(loan => ({
+                ...loan,
+                principal_outstanding: loan.amount,
+                lender: loan.description
+              }))
+              setStoreLoans(mappedLoansForStore);
+            }
           }
         } catch (error) {
           console.error('❌ Loans loading error:', error)
@@ -459,31 +482,39 @@ export default function OriginalLifeSheet() {
       loadLoansBasedOnSource();
       
       // Load goals
-      ApiService.getFinancialGoals(user.id).then(res => {
+      const loadGoalsPromise = isAdminMode
+        ? ApiService.getFinancialGoalsForUser(effectiveUserId)
+        : ApiService.getFinancialGoals(effectiveUserId);
+      
+      loadGoalsPromise.then(res => {
         console.log('🎯 Goals fetch response:', res)
         const mappedGoals = (res.goals || []).map(goal => ({
           ...goal,
-          amount: parseFloat(goal.target_amount) || parseFloat(goal.amount) || 0 // Map target_amount to amount for display
+          amount: parseFloat(goal.target_amount) || parseFloat(goal.amount) || 0
         }));
         setGoals(mappedGoals);
         dispatchGoalsEvent(mappedGoals);
-        setStoreGoals(mappedGoals); // Also update store
+        setStoreGoals(mappedGoals);
       }).catch(error => {
         console.error('❌ Goals fetch error:', error)
       })
       
       // Load expenses
-      ApiService.getFinancialExpenses(user.id).then(res => {
+      const loadExpensesPromise = isAdminMode
+        ? ApiService.getFinancialExpensesForUser(effectiveUserId)
+        : ApiService.getFinancialExpenses(effectiveUserId);
+      
+      loadExpensesPromise.then(res => {
         console.log('💰 Expenses fetch response:', res)
         const expensesData = res.expenses || [];
         setExpenses(expensesData);
         dispatchExpensesEvent(expensesData);
-        setStoreExpenses(expensesData); // Also update store
+        setStoreExpenses(expensesData);
       }).catch(error => {
         console.error('❌ Expenses fetch error:', error)
       })
     }
-  }, [isAuthenticated, user])
+  }, [effectiveIsAuthenticated, effectiveUserId, isAdminMode])
 
   // Update store when local data changes (ChatGPT's fix - use hydrateMainInputs for system updates)
   useEffect(() => {
@@ -545,11 +576,11 @@ export default function OriginalLifeSheet() {
         assetDebtGrowthRate: formData.assetDebtGrowthRate
       })
     }
-  }, [formData, expenses, loans, isAuthenticated, user, hydrateMainInputs, updateLifeSheet])
+  }, [formData, expenses, loans, effectiveIsAuthenticated, effectiveUserId, hydrateMainInputs, updateLifeSheet])
 
   // Update store goals when local goals change
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (effectiveIsAuthenticated && effectiveUserId) {
       // Always sync goals to store, even if empty
       goals.forEach(goal => {
         if (goal.id && !goal.isNew) {
@@ -565,11 +596,11 @@ export default function OriginalLifeSheet() {
       // Also update the entire goals array in store
       setStoreGoals(goals)
     }
-  }, [goals, isAuthenticated, user, updateStoreGoal, setStoreGoals])
+  }, [goals, effectiveIsAuthenticated, effectiveUserId, updateStoreGoal, setStoreGoals])
 
   // Update store expenses when local expenses change
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (effectiveIsAuthenticated && effectiveUserId) {
       // Always sync expenses to store, even if empty
       expenses.forEach(expense => {
         if (expense.id && !expense.isNew) {
@@ -588,7 +619,7 @@ export default function OriginalLifeSheet() {
 
   // Update store loans when local loans change
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (effectiveIsAuthenticated && effectiveUserId) {
       // Always sync loans to store, even if empty
       loans.forEach(loan => {
         if (loan.id && !loan.isNew) {
@@ -607,14 +638,17 @@ export default function OriginalLifeSheet() {
       }))
       setStoreLoans(mappedLoansForStore)
     }
-  }, [loans, isAuthenticated, user, updateStoreLoan, setStoreLoans])
+  }, [loans, effectiveIsAuthenticated, effectiveUserId, updateStoreLoan, setStoreLoans])
 
   // Calculations now come from ChartContext automatically
 
   const loadFinancialData = async () => {
+    if (!effectiveUserId) return;
     try {
       setLoading(true)
-      const response = await ApiService.getFinancialProfile(user.id)
+      const response = isAdminMode
+        ? await ApiService.getFinancialProfileForUser(effectiveUserId)
+        : await ApiService.getFinancialProfile(effectiveUserId)
       if (response && response.profile) {
         const profile = response.profile
         // Load from database, but preserve Quick Calculator assumptions from localStorage
@@ -687,8 +721,10 @@ export default function OriginalLifeSheet() {
 
   // Field-level auto-save function
   const saveField = async (fieldName, value) => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true)
+    if (!effectiveIsAuthenticated) {
+      if (!isAdminMode) {
+        setShowAuthModal(true)
+      }
       return
     }
 
@@ -730,9 +766,13 @@ export default function OriginalLifeSheet() {
       
       let profileResponse
       if (financialProfile) {
-        profileResponse = await ApiService.updateFinancialProfile(financialProfile.id, payload)
+        profileResponse = isAdminMode
+          ? await ApiService.updateFinancialProfileForUser(financialProfile.id, payload, effectiveUserId)
+          : await ApiService.updateFinancialProfile(financialProfile.id, payload)
       } else {
-        profileResponse = await ApiService.createFinancialProfile(payload)
+        profileResponse = isAdminMode
+          ? await ApiService.createFinancialProfileForUser({ ...payload, userId: effectiveUserId }, effectiveUserId)
+          : await ApiService.createFinancialProfile(payload)
       }
       
       if (profileResponse.profile) {
@@ -763,20 +803,32 @@ export default function OriginalLifeSheet() {
 
   // Save individual items (goals, expenses, loans)
   const saveItem = async (itemType, data) => {
-    if (!isAuthenticated) return
+    if (!effectiveIsAuthenticated) return
 
     try {
       setSaving(true)
       
       if (itemType === 'goal' && data.id) {
-        await ApiService.updateFinancialGoal(data.id, data)
+        if (isAdminMode) {
+          await ApiService.updateFinancialGoalForUser(data.id, data, effectiveUserId)
+        } else {
+          await ApiService.updateFinancialGoal(data.id, data)
+        }
         setSaveStatus('Goal updated')
       } else if (itemType === 'expense' && data.id) {
-        await ApiService.updateFinancialExpense(data.id, data)
+        if (isAdminMode) {
+          await ApiService.updateFinancialExpenseForUser(data.id, data, effectiveUserId)
+        } else {
+          await ApiService.updateFinancialExpense(data.id, data)
+        }
         setSaveStatus('Expense updated')
       } else if (itemType === 'loan' && data.id) {
         const payload = { ...data, name: data.description, emi: data.emi === '' ? null : data.emi }
-        await ApiService.updateFinancialLoan(data.id, payload)
+        if (isAdminMode) {
+          await ApiService.updateFinancialLoanForUser(data.id, payload, effectiveUserId)
+        } else {
+          await ApiService.updateFinancialLoan(data.id, payload)
+        }
         setSaveStatus('Loan updated')
       }
       
@@ -863,7 +915,7 @@ export default function OriginalLifeSheet() {
       try {
         setSaving(true)
         const payload = {
-          user_id: user.id,
+          user_id: effectiveUserId,
           profile_id: financialProfile?.id,
           name: goal.description || '',
           target_amount: goal.amount || 0,
@@ -883,7 +935,9 @@ export default function OriginalLifeSheet() {
         }
         
         console.log('🎯 Goal creation payload:', payload)
-        const response = await ApiService.createFinancialGoal(payload)
+        const response = isAdminMode
+          ? await ApiService.createFinancialGoalForUser(payload, effectiveUserId)
+          : await ApiService.createFinancialGoal(payload)
         if (response.goal) {
           // Update local state with the new ID
           const updatedGoals = [...goals]
@@ -906,7 +960,11 @@ export default function OriginalLifeSheet() {
     const goalToRemove = goals[index];
     if (goalToRemove.id) {
       try {
-        await ApiService.deleteFinancialGoal(goalToRemove.id);
+        if (isAdminMode) {
+          await ApiService.deleteFinancialGoalForUser(goalToRemove.id, effectiveUserId)
+        } else {
+          await ApiService.deleteFinancialGoal(goalToRemove.id)
+        }
       } catch (error) {
         console.error('Failed to delete goal from backend:', error);
       }
@@ -950,7 +1008,7 @@ export default function OriginalLifeSheet() {
       try {
         setSaving(true)
         const payload = {
-          user_id: user.id,
+          user_id: effectiveUserId,
           profile_id: financialProfile?.id,
           description: expense.description || 'General',
           amount: expense.amount || 0,
@@ -961,7 +1019,9 @@ export default function OriginalLifeSheet() {
         }
         
         console.log('💰 Expense creation payload:', payload)
-        const response = await ApiService.createFinancialExpense(payload)
+        const response = isAdminMode
+          ? await ApiService.createFinancialExpenseForUser(payload, effectiveUserId)
+          : await ApiService.createFinancialExpense(payload)
         if (response.expense) {
           // Update local state with the new ID
           const updatedExpenses = [...expenses]
@@ -1078,7 +1138,7 @@ export default function OriginalLifeSheet() {
       try {
         setSaving(true)
         const payload = {
-          user_id: user.id,
+          user_id: effectiveUserId,
           profile_id: financialProfile?.id,
           lender: loan.description || 'Loan',
           principal_outstanding: loan.amount || 0,
@@ -1086,7 +1146,9 @@ export default function OriginalLifeSheet() {
         }
         
         console.log('🏦 Loan creation payload:', payload)
-        const response = await ApiService.createFinancialLoan(payload)
+        const response = isAdminMode
+          ? await ApiService.createFinancialLoanForUser(payload, effectiveUserId)
+          : await ApiService.createFinancialLoan(payload)
         if (response.loan) {
           // Update local state with the new ID
           const updatedLoans = loans.map((l, idx) => {
@@ -1232,39 +1294,52 @@ export default function OriginalLifeSheet() {
         </div>
         
         <div className="flex items-center gap-4">
-          {isAuthenticated ? (
+          {effectiveIsAuthenticated ? (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700">
-                  {user?.name || user?.email || 'User'}
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={logout}
-                className="flex items-center gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </Button>
+              {isAdminMode ? (
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Viewing as Admin
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-700">
+                      {user?.name || user?.email || 'User'}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={logout}
+                    className="flex items-center gap-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
-            <Button
-              size="sm"
-              onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-2"
-            >
-              <User className="h-4 w-4" />
-              Login / Sign Up
-            </Button>
+            !isAdminMode && (
+              <Button
+                size="sm"
+                onClick={() => setShowAuthModal(true)}
+                className="flex items-center gap-2"
+              >
+                <User className="h-4 w-4" />
+                Login / Sign Up
+              </Button>
+            )
           )}
         </div>
       </div>
 
-      {/* Show warning if not authenticated */}
-      {!isAuthenticated && (
+      {/* Show warning if not authenticated (but not in admin mode) */}
+      {!effectiveIsAuthenticated && !isAdminMode && (
         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded">
           <p>You are not logged in. You can use the calculator, but your data will not be saved unless you log in.</p>
         </div>

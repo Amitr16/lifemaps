@@ -14,6 +14,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [admin, setAdmin] = useState(null); // Admin or super admin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -25,10 +26,36 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is already logged in on app start
   useEffect(() => {
-    // Only check auth status if a token exists in localStorage or cookies
+    // Check for regular user token
     const hasToken = Boolean(localStorage.getItem('authToken'));
+    // Check for admin token
+    const hasAdminToken = Boolean(localStorage.getItem('adminToken'));
+    
     if (hasToken) {
       checkAuthStatus();
+    } else if (hasAdminToken) {
+      // Admin token exists - try to decode it to restore admin state
+      try {
+        const token = localStorage.getItem('adminToken');
+        if (token) {
+          // Decode JWT token to get admin info (without verification, just for UI state)
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.adminId && payload.role) {
+            // Set a minimal admin object to restore state
+            setAdmin({
+              id: payload.adminId,
+              role: payload.role,
+              username: payload.username || 'Admin'
+            });
+            console.log('[AuthContext] Restored admin state from token');
+          }
+        }
+      } catch (error) {
+        console.error('[AuthContext] Failed to restore admin from token:', error);
+        // If token is invalid, clear it
+        localStorage.removeItem('adminToken');
+      }
+      setLoading(false);
     } else {
       setLoading(false);
     }
@@ -110,16 +137,80 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       setError(null);
-      await ApiService.logout();
+      // Try to logout from server (only if user token exists)
+      if (localStorage.getItem('authToken')) {
+        await ApiService.logout();
+      }
       setUser(null);
+      setAdmin(null);
       
-      // Clear token from localStorage
+      // Clear tokens from localStorage
       localStorage.removeItem('authToken');
+      localStorage.removeItem('adminToken');
     } catch (error) {
       setError(error.message);
       // Even if logout fails on server, clear local state
       setUser(null);
+      setAdmin(null);
       localStorage.removeItem('authToken');
+      localStorage.removeItem('adminToken');
+    }
+  };
+
+  // Admin login methods
+  const superAdminLogin = async (credentials) => {
+    try {
+      setError(null);
+      setLoading(true);
+      const response = await ApiService.superAdminLogin(credentials);
+      setAdmin(response.user);
+      
+      // Store admin token in localStorage
+      if (response.token) {
+        localStorage.setItem('adminToken', response.token);
+        localStorage.removeItem('authToken'); // Clear user token if exists
+      }
+      
+      return response;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const adminLogin = async (credentials) => {
+    try {
+      setError(null);
+      setLoading(true);
+      const response = await ApiService.adminLogin(credentials);
+      setAdmin(response.user);
+      
+      // Store admin token in localStorage
+      if (response.token) {
+        localStorage.setItem('adminToken', response.token);
+        localStorage.removeItem('authToken'); // Clear user token if exists
+      }
+      
+      return response;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const adminLogout = async () => {
+    try {
+      setError(null);
+      setAdmin(null);
+      localStorage.removeItem('adminToken');
+    } catch (error) {
+      setError(error.message);
+      setAdmin(null);
+      localStorage.removeItem('adminToken');
     }
   };
 
@@ -142,6 +233,8 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     setUser,
+    admin,
+    setAdmin,
     loading,
     error,
     login,
@@ -150,6 +243,11 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     clearError,
     isAuthenticated: !!user,
+    isAdmin: !!admin,
+    isSuperAdmin: admin?.role === 'super_admin',
+    superAdminLogin,
+    adminLogin,
+    adminLogout,
     setError,
   };
 

@@ -11,6 +11,10 @@ import EnhancedGoalsPage from './pages/EnhancedGoalsPage.jsx'
 import LoansPage from './pages/LoansPage.jsx'
 import ExpensesPage from './pages/ExpensesPage.jsx'
 import InsurancePage from './pages/InsurancePage.jsx'
+import SuperAdminPage from './pages/SuperAdminPage.jsx'
+import SuperAdminLoginPage from './pages/SuperAdminLoginPage.jsx'
+import AdminPage from './pages/AdminPage.jsx'
+import AdminLoginPage from './pages/AdminLoginPage.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './App.css'
 
@@ -21,46 +25,68 @@ function App() {
         <ChartProvider>
           <Router>
             <div className="App">
-              <Shell>
-                <Routes>
-                  <Route path="/" element={
+              <Routes>
+                {/* Regular User Routes - with Shell navigation */}
+                <Route path="/" element={
+                  <Shell>
                     <ErrorBoundary>
                       <OriginalLifeSheet />
                     </ErrorBoundary>
-                  } />
-                  <Route path="/assets" element={<AssetsPage />} />
-                  <Route path="/work-assets" element={
+                  </Shell>
+                } />
+                <Route path="/assets" element={
+                  <Shell>
+                    <AssetsPage />
+                  </Shell>
+                } />
+                <Route path="/work-assets" element={
+                  <Shell>
                     <ErrorBoundary>
                       <WorkAssetsPage />
                     </ErrorBoundary>
-                  } />
-                  <Route path="/goals" element={
+                  </Shell>
+                } />
+                <Route path="/goals" element={
+                  <Shell>
                     <ErrorBoundary>
                       <EnhancedGoalsPage />
                     </ErrorBoundary>
-                  } />
-                  <Route path="/goals-original" element={
+                  </Shell>
+                } />
+                <Route path="/goals-original" element={
+                  <Shell>
                     <ErrorBoundary>
                       <GoalsPage />
                     </ErrorBoundary>
-                  } />
-                  <Route path="/loans" element={
+                  </Shell>
+                } />
+                <Route path="/loans" element={
+                  <Shell>
                     <ErrorBoundary>
                       <LoansPage />
                     </ErrorBoundary>
-                  } />
-                  <Route path="/expenses" element={
+                  </Shell>
+                } />
+                <Route path="/expenses" element={
+                  <Shell>
                     <ErrorBoundary>
                       <ExpensesPage />
                     </ErrorBoundary>
-                  } />
-                  <Route path="/insurance" element={
+                  </Shell>
+                } />
+                <Route path="/insurance" element={
+                  <Shell>
                     <ErrorBoundary>
                       <InsurancePage />
                     </ErrorBoundary>
-                  } />
-                </Routes>
-              </Shell>
+                  </Shell>
+                } />
+                {/* Admin Routes - without Shell navigation */}
+                <Route path="/super-admin/login" element={<SuperAdminLoginPage />} />
+                <Route path="/super-admin" element={<SuperAdminPage />} />
+                <Route path="/admin/login" element={<AdminLoginPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+              </Routes>
             </div>
           </Router>
         </ChartProvider>

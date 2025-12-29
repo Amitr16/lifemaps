@@ -2,12 +2,19 @@
 import React, { useEffect, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminUser } from '@/contexts/AdminUserContext';
 import ApiService from '@/services/api';
 import { useLifeSheetStore } from '@/store/enhanced-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function InsurancePage() {
   const { user } = useAuth();
+  const adminUser = useAdminUser();
+  
+  // Check if we're in admin mode
+  const isAdminMode = !!adminUser?.userId;
+  const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null);
+  const effectiveIsAuthenticated = isAdminMode || !!user;
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingRows, setSavingRows] = useState(new Set());
@@ -218,11 +225,14 @@ export default function InsurancePage() {
 
   // Load financial data - same as OriginalLifeSheet
   useEffect(() => {
-    if (user?.id) {
+    if (effectiveIsAuthenticated && effectiveUserId) {
       loadInsurance();
       
       // Load financial profile
-      ApiService.getFinancialProfile(user.id).then(res => {
+      const profilePromise = isAdminMode
+        ? ApiService.getFinancialProfileForUser(effectiveUserId)
+        : ApiService.getFinancialProfile(effectiveUserId);
+      profilePromise.then(res => {
         const profile = res.profile || res;
         if (profile) {
           setFormData(prev => ({
@@ -240,7 +250,10 @@ export default function InsurancePage() {
       });
       
       // Load loans
-      ApiService.getFinancialLoans(user.id).then(res => {
+      const loansPromise = isAdminMode
+        ? ApiService.getFinancialLoansForUser(effectiveUserId)
+        : ApiService.getFinancialLoans(effectiveUserId);
+      loansPromise.then(res => {
         const mappedLoans = (res.loans || []).map(loan => ({
           ...loan,
           description: loan.provider || loan.lender || loan.name || '',
@@ -252,7 +265,10 @@ export default function InsurancePage() {
       });
       
       // Load goals
-      ApiService.getFinancialGoals(user.id).then(res => {
+      const goalsPromise = isAdminMode
+        ? ApiService.getFinancialGoalsForUser(effectiveUserId)
+        : ApiService.getFinancialGoals(effectiveUserId);
+      goalsPromise.then(res => {
         const mappedGoals = (res.goals || []).map(goal => ({
           ...goal,
           amount: parseFloat(goal.target_amount || goal.amount || 0)
@@ -263,7 +279,10 @@ export default function InsurancePage() {
       });
       
       // Load expenses
-      ApiService.getFinancialExpenses(user.id).then(res => {
+      const expensesPromise = isAdminMode
+        ? ApiService.getFinancialExpensesForUser(effectiveUserId)
+        : ApiService.getFinancialExpenses(effectiveUserId);
+      expensesPromise.then(res => {
         const expensesData = res.expenses || [];
         setExpenses(expensesData);
       }).catch(error => {
@@ -285,13 +304,22 @@ export default function InsurancePage() {
       } catch (e) {
         console.warn('Failed to load Quick Calculator assumptions from localStorage:', e);
       }
+    } else if (!effectiveIsAuthenticated) {
+      // If not authenticated, set loading to false immediately
+      setLoading(false);
     }
-  }, [user?.id]);
+  }, [effectiveIsAuthenticated, effectiveUserId, isAdminMode]);
 
   const loadInsurance = async () => {
+    if (!effectiveUserId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const response = await ApiService.getFinancialInsurance(user.id);
+      const response = isAdminMode
+        ? await ApiService.getFinancialInsuranceForUser(effectiveUserId)
+        : await ApiService.getFinancialInsurance(effectiveUserId);
       const insurance = response.insurance || response || [];
       
       // Map database fields to frontend field names

@@ -21,22 +21,48 @@ class ApiService {
       return existing.promise; // reuse in-flight promise
     }
 
-    // Get token from localStorage
-    const token = localStorage.getItem('authToken');
+    // Get token from localStorage (check admin token first, then user token)
+    const adminToken = localStorage.getItem('adminToken');
+    const userToken = localStorage.getItem('authToken');
+    // For admin endpoints, prioritize admin token; for regular endpoints, use user token
+    const isAdminEndpoint = endpoint.includes('/admin/');
+    const token = isAdminEndpoint ? (adminToken || userToken) : (userToken || adminToken);
+    
+    // Debug logging for admin endpoints
+    if (isAdminEndpoint) {
+      console.log('[API] Admin endpoint detected:', endpoint);
+      console.log('[API] Admin token exists:', !!adminToken, adminToken ? adminToken.substring(0, 20) + '...' : 'none');
+      console.log('[API] User token exists:', !!userToken);
+      console.log('[API] Selected token:', token ? 'YES (' + (isAdminEndpoint && adminToken ? 'admin' : 'user') + ')' : 'NO');
+    }
     
     const controller = new AbortController();
     const signal = controller.signal;
     
+    // Build headers - ensure Authorization is set if token exists
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+    
+    // Set Authorization header if token exists
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
     const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers,
-      },
+      headers,
       credentials: 'include', // Include cookies for session management
       signal,
       ...options,
     };
+    
+    // Final check for admin endpoints - ensure token is present
+    if (isAdminEndpoint && !token) {
+      console.error('[API] ERROR: Admin endpoint requires token but none found!');
+      console.error('[API] Admin token in localStorage:', !!adminToken);
+      console.error('[API] User token in localStorage:', !!userToken);
+    }
 
     if (config.body && typeof config.body === 'object') {
       config.body = JSON.stringify(config.body);
@@ -48,9 +74,18 @@ class ApiService {
         
         if (!response.ok) {
           const errorText = await response.text().catch(() => '');
-          // If token is invalid, clear it
+          // If token is invalid, clear it (but only if it's actually an auth error, not a user not found error)
           if (response.status === 401 || response.status === 403) {
-            localStorage.removeItem('authToken');
+            // Only clear tokens if the error message indicates authentication failure
+            // Don't clear if it's a "User not found" or similar error
+            const errorLower = errorText.toLowerCase();
+            if (errorLower.includes('access token') || errorLower.includes('unauthorized') || errorLower.includes('invalid token') || errorLower.includes('token required')) {
+              console.log('[API] Clearing tokens due to auth error:', errorText);
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('adminToken');
+            } else {
+              console.log('[API] Not clearing tokens - error is not auth-related:', errorText);
+            }
           }
           throw new Error(errorText || `API request failed with status ${response.status}`);
         }
@@ -401,7 +436,7 @@ class ApiService {
   async updateSourcePreference(component, source) {
     return this.request('/financial/source-preferences', {
       method: 'POST',
-      body: JSON.stringify({ component, source }),
+      body: { component, source },
     });
   }
 
@@ -438,6 +473,261 @@ class ApiService {
   async deleteExpenseTag(tagId) {
     return this.request(`/financial/expense-tag/${tagId}`, {
       method: 'DELETE',
+    });
+  }
+
+  // ==================== ADMIN & SUPER ADMIN APIs ====================
+
+  // Super Admin Authentication
+  async superAdminLogin(credentials) {
+    return this.request('/admin/super-admin/login', {
+      method: 'POST',
+      body: credentials,
+    });
+  }
+
+  // Admin Authentication
+  async adminLogin(credentials) {
+    return this.request('/admin/admin/login', {
+      method: 'POST',
+      body: credentials,
+    });
+  }
+
+  // Super Admin - Admin Management
+  async getAdmins() {
+    return this.request('/admin/super-admin/admins');
+  }
+
+  async createAdmin(adminData) {
+    return this.request('/admin/super-admin/admins', {
+      method: 'POST',
+      body: adminData,
+    });
+  }
+
+  async updateAdmin(adminId, adminData) {
+    return this.request(`/admin/super-admin/admins/${adminId}`, {
+      method: 'PUT',
+      body: adminData,
+    });
+  }
+
+  async deleteAdmin(adminId) {
+    return this.request(`/admin/super-admin/admins/${adminId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Super Admin - User Management
+  async getAllUsers() {
+    return this.request('/admin/super-admin/users');
+  }
+
+  async transferUser(userId, adminId) {
+    return this.request(`/admin/super-admin/users/${userId}/transfer`, {
+      method: 'PUT',
+      body: { admin_id: adminId },
+    });
+  }
+
+  // Admin - User Management
+  async getAdminUsers() {
+    return this.request('/admin/admin/users');
+  }
+
+  async createUser(userData) {
+    return this.request('/admin/admin/users', {
+      method: 'POST',
+      body: userData,
+    });
+  }
+
+  async deleteUser(userId) {
+    return this.request(`/admin/admin/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getUserProfile(userId) {
+    return this.request(`/admin/admin/users/${userId}/profile`);
+  }
+
+  // Admin - Access User Financial Data (with userId context)
+  // These routes use /api/admin/financial which requires userId query parameter
+  async getFinancialProfileForUser(userId) {
+    return this.request(`/admin/financial/profile/${userId}?userId=${userId}`);
+  }
+
+  async updateFinancialProfileForUser(profileId, profileData, userId) {
+    return this.request(`/admin/financial/profile/${profileId}?userId=${userId}`, {
+      method: 'PUT',
+      body: profileData,
+    });
+  }
+
+  async getFinancialGoalsForUser(userId) {
+    return this.request(`/admin/financial/goal/${userId}?userId=${userId}`);
+  }
+
+  async createFinancialGoalForUser(goalData, userId) {
+    return this.request(`/admin/financial/goal?userId=${userId}`, {
+      method: 'POST',
+      body: goalData,
+    });
+  }
+
+  async updateFinancialGoalForUser(goalId, goalData, userId) {
+    return this.request(`/admin/financial/goal/${goalId}?userId=${userId}`, {
+      method: 'PUT',
+      body: goalData,
+    });
+  }
+
+  async deleteFinancialGoalForUser(goalId, userId) {
+    return this.request(`/admin/financial/goal/${goalId}?userId=${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getFinancialExpensesForUser(userId) {
+    return this.request(`/admin/financial/expense/${userId}?userId=${userId}`);
+  }
+
+  async createFinancialExpenseForUser(expenseData, userId) {
+    return this.request(`/admin/financial/expense?userId=${userId}`, {
+      method: 'POST',
+      body: expenseData,
+    });
+  }
+
+  async updateFinancialExpenseForUser(expenseId, expenseData, userId) {
+    return this.request(`/admin/financial/expense/${expenseId}?userId=${userId}`, {
+      method: 'PUT',
+      body: expenseData,
+    });
+  }
+
+  async deleteFinancialExpenseForUser(expenseId, userId) {
+    return this.request(`/admin/financial/expense/${expenseId}?userId=${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getFinancialLoansForUser(userId) {
+    return this.request(`/admin/financial/loan/${userId}?userId=${userId}`);
+  }
+
+  async createFinancialLoanForUser(loanData, userId) {
+    return this.request(`/admin/financial/loan?userId=${userId}`, {
+      method: 'POST',
+      body: loanData,
+    });
+  }
+
+  async updateFinancialLoanForUser(loanId, loanData, userId) {
+    return this.request(`/admin/financial/loan/${loanId}?userId=${userId}`, {
+      method: 'PUT',
+      body: loanData,
+    });
+  }
+
+  async deleteFinancialLoanForUser(loanId, userId) {
+    return this.request(`/admin/financial/loan/${loanId}?userId=${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getFinancialAssetsForUser(userId) {
+    return this.request(`/admin/financial/asset/${userId}?userId=${userId}`);
+  }
+
+  async createFinancialAssetForUser(assetData, userId) {
+    return this.request(`/admin/financial/asset?userId=${userId}`, {
+      method: 'POST',
+      body: assetData,
+    });
+  }
+
+  async updateFinancialAssetForUser(assetId, assetData, userId) {
+    return this.request(`/admin/financial/asset/${assetId}?userId=${userId}`, {
+      method: 'PUT',
+      body: assetData,
+    });
+  }
+
+  async deleteFinancialAssetForUser(assetId, userId) {
+    return this.request(`/admin/financial/asset/${assetId}?userId=${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getWorkAssetsForUser(userId) {
+    return this.request(`/admin/financial/work-assets/${userId}?userId=${userId}`);
+  }
+
+  async createWorkAssetForUser(workAssetData, userId) {
+    return this.request(`/admin/financial/work-asset?userId=${userId}`, {
+      method: 'POST',
+      body: workAssetData,
+    });
+  }
+
+  async updateWorkAssetForUser(assetId, workAssetData, userId) {
+    return this.request(`/admin/financial/work-asset/${assetId}?userId=${userId}`, {
+      method: 'PUT',
+      body: workAssetData,
+    });
+  }
+
+  async deleteWorkAssetForUser(assetId, userId) {
+    return this.request(`/admin/financial/work-asset/${assetId}?userId=${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getFinancialInsuranceForUser(userId) {
+    return this.request(`/admin/financial/insurance/${userId}?userId=${userId}`);
+  }
+
+  async createFinancialInsuranceForUser(insuranceData, userId) {
+    return this.request(`/admin/financial/insurance?userId=${userId}`, {
+      method: 'POST',
+      body: insuranceData,
+    });
+  }
+
+  async updateFinancialInsuranceForUser(insuranceId, insuranceData, userId) {
+    return this.request(`/admin/financial/insurance/${insuranceId}?userId=${userId}`, {
+      method: 'PUT',
+      body: insuranceData,
+    });
+  }
+
+  async deleteFinancialInsuranceForUser(insuranceId, userId) {
+    return this.request(`/admin/financial/insurance/${insuranceId}?userId=${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Admin - Asset Columns and User Tags
+  async getAssetColumnsForUser(userId) {
+    return this.request(`/admin/financial/asset-columns/${userId}?userId=${userId}`);
+  }
+
+  async getUserTagsForUser(userId) {
+    return this.request(`/admin/financial/user-tags/${userId}?userId=${userId}`);
+  }
+
+  // Admin - Source Preferences
+  async getSourcePreferencesForUser(userId) {
+    return this.request(`/admin/financial/source-preferences?userId=${userId}`);
+  }
+
+  async updateSourcePreferenceForUser(component, source, userId) {
+    return this.request(`/admin/financial/source-preferences?userId=${userId}`, {
+      method: 'POST',
+      body: { component, source },
     });
   }
 }

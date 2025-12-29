@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import EditableGrid from '@/components/EditableGrid.jsx'
 import { useAuth } from '../contexts/AuthContext'
+import { useAdminUser } from '../contexts/AdminUserContext'
 import { useLifeSheetStore } from '../store/enhanced-store'
 import ApiService from '../services/api'
 import LoansChart from '@/components/LoansChart.jsx'
@@ -9,10 +10,15 @@ import { Badge } from '@/components/ui/badge'
 
 export default function LoansPage() {
   const { user, isAuthenticated } = useAuth();
+  const adminUser = useAdminUser();
   const { setDetailEmi, setSourcePreference } = useLifeSheetStore();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [savingRows, setSavingRows] = useState(new Set());
+  
+  // Determine if we're in admin mode and get the correct userId
+  const isAdminMode = !!adminUser?.userId;
+  const userId = isAdminMode ? adminUser.userId : (user?.id || null);
 
   // Event dispatching for live chart updates (following WorkAssetsPage pattern)
   const dispatchLoansEvent = (updatedLoans) => {
@@ -65,7 +71,7 @@ export default function LoansPage() {
       // Update store with detailed EMI data
       setDetailEmi(emiSeries);
       // Set source preference to detailed (1) when Loans data is calculated
-      setSourcePreference('loans', 1);
+      setSourcePreference('loans', 1, { isAdminMode, userId: effectiveUserId });
       console.log('🔄 Loans: setDetailEmi called successfully');
       console.log('🔄 Loans: Source preference set to detailed (1)');
       
@@ -76,15 +82,18 @@ export default function LoansPage() {
 
   // Load loans from database
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (userId) {
       loadLoans();
     }
-  }, [isAuthenticated, user]);
+  }, [userId]);
 
   const loadLoans = async () => {
+    if (!userId) return;
     try {
       setLoading(true);
-      const response = await ApiService.getFinancialLoans(user.id);
+      const response = isAdminMode 
+        ? await ApiService.getFinancialLoansForUser(userId)
+        : await ApiService.getFinancialLoans(userId);
       console.log('💰 Loans response:', response);
       
       // Handle the response format - backend returns { loans: [...] }
@@ -124,7 +133,11 @@ export default function LoansPage() {
     const row = rows[idx];
     if (row.id && !row.id.toString().startsWith('temp_')) {
       try {
-        await ApiService.deleteFinancialLoan(row.id);
+        if (isAdminMode) {
+          await ApiService.deleteFinancialLoanForUser(row.id, userId);
+        } else {
+          await ApiService.deleteFinancialLoan(row.id);
+        }
       } catch (error) {
         console.error('Error deleting loan:', error);
       }
@@ -169,13 +182,23 @@ export default function LoansPage() {
             const endDate = row.loanExpiry ? `${parseInt(row.loanExpiry)}-12-31` : null;
             console.log('💾 Saving loan with expiry:', { loanExpiry: row.loanExpiry, endDate });
             
-            ApiService.updateFinancialLoan(row.id, {
-              lender: row.provider,
-              principal_outstanding: parseFloat(row.amount) || 0,
-              rate: parseFloat(row.interestRate) || 0,
-              emi: parseFloat(row.emi) || 0,
-              end_date: endDate
-            }).finally(() => {
+            const updatePromise = isAdminMode
+              ? ApiService.updateFinancialLoanForUser(row.id, {
+                  lender: row.provider,
+                  principal_outstanding: parseFloat(row.amount) || 0,
+                  rate: parseFloat(row.interestRate) || 0,
+                  emi: parseFloat(row.emi) || 0,
+                  end_date: endDate
+                }, userId)
+              : ApiService.updateFinancialLoan(row.id, {
+                  lender: row.provider,
+                  principal_outstanding: parseFloat(row.amount) || 0,
+                  rate: parseFloat(row.interestRate) || 0,
+                  emi: parseFloat(row.emi) || 0,
+                  end_date: endDate
+                });
+            
+            updatePromise.finally(() => {
               setSavingRows(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(rowIndex);
@@ -207,7 +230,12 @@ export default function LoansPage() {
             emi: row.emi 
           });
           
-          ApiService.createFinancialLoan(loanPayload).then(newLoan => {
+          const createPromise = isAdminMode
+            ? ApiService.createFinancialLoanForUser(loanPayload, userId)
+            : ApiService.createFinancialLoan(loanPayload);
+          
+          createPromise.then(response => {
+            const newLoan = response.loan || response;
             // Update the row with the new ID
             const updatedRowsWithId = [...rows];
             updatedRowsWithId[rowIndex] = { ...row, id: newLoan.id };

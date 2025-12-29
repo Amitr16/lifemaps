@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Plus, Trash2, Search, Download, Filter, MoreHorizontal, RefreshCw, GripVertical } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useAdminUser } from '@/contexts/AdminUserContext'
 import { eventBus } from '@/lib/eventBus'
 import { syncEarmarkingData } from '@/lib/goalCalculations'
 import ApiService from '@/services/api'
@@ -16,6 +17,12 @@ import { CORE_COLUMNS } from '@/constants/columns'
 
 const NotionStyleAssetRegister = () => {
   const { user, isAuthenticated } = useAuth()
+  const adminUser = useAdminUser()
+  
+  // Check if we're in admin mode
+  const isAdminMode = !!adminUser?.userId
+  const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null)
+  const effectiveIsAuthenticated = isAdminMode || isAuthenticated
   const [assets, setAssets] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTag, setFilterTag] = useState('all')
@@ -53,10 +60,10 @@ const NotionStyleAssetRegister = () => {
 
   // Reset loaded state when user changes
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (effectiveIsAuthenticated && effectiveUserId) {
       setHasLoaded(false)
     }
-  }, [isAuthenticated, user])
+  }, [effectiveIsAuthenticated, effectiveUserId])
 
   // Listen for goal linked assets changes from Goals page
   useEffect(() => {
@@ -91,29 +98,31 @@ const NotionStyleAssetRegister = () => {
 
   // Load assets and columns from database
   useEffect(() => {
-    if (isAuthenticated && user && !hasLoaded && !isLoading) {
+    if (effectiveIsAuthenticated && effectiveUserId && !hasLoaded && !isLoading) {
       setIsLoading(true)
       const loadAllData = async () => {
         try {
-          await Promise.all([
-            loadAssets(),
-            loadCustomColumns(),
-            loadUserTags(),
-            loadGoals()
-          ])
+          // Load in sequence to avoid overwhelming the API and to catch errors better
+          await loadAssets()
+          await loadCustomColumns()
+          await loadUserTags()
+          await loadGoals()
           
           // Note: Sync will happen in separate useEffect after both assets and goals are loaded
           
           setHasLoaded(true)
         } catch (error) {
           console.error('Error loading initial data:', error)
+          setError(`Failed to load data: ${error.message || 'Unknown error'}`)
+          // Still set hasLoaded to true to prevent infinite retries
+          setHasLoaded(true)
         } finally {
           setIsLoading(false)
         }
       }
       loadAllData()
     }
-  }, [isAuthenticated, user, hasLoaded, isLoading])
+  }, [effectiveIsAuthenticated, effectiveUserId])
 
   // Don't auto-sync assets with goals during page load to preserve deletions
   // The sync will happen when needed through user actions
@@ -128,7 +137,9 @@ const NotionStyleAssetRegister = () => {
 
   const loadAssets = async () => {
     try {
-      const response = await ApiService.getFinancialAssets(user.id)
+      const response = isAdminMode
+        ? await ApiService.getFinancialAssetsForUser(effectiveUserId)
+        : await ApiService.getFinancialAssets(effectiveUserId)
       console.log('📊 Assets fetch response:', response)
       setAssets(response.assets || [])
     } catch (error) {
@@ -140,7 +151,9 @@ const NotionStyleAssetRegister = () => {
 
   const loadCustomColumns = async () => {
     try {
-      const response = await ApiService.getAssetColumns(user.id)
+      const response = isAdminMode
+        ? await ApiService.getAssetColumnsForUser(effectiveUserId)
+        : await ApiService.getAssetColumns(effectiveUserId)
       console.log('📊 Columns fetch response:', response)
       
       // Backend will automatically create default columns if none exist
@@ -184,7 +197,9 @@ const NotionStyleAssetRegister = () => {
 
   const loadUserTags = async () => {
     try {
-      const response = await ApiService.getUserTags(user.id)
+      const response = isAdminMode
+        ? await ApiService.getUserTagsForUser(effectiveUserId)
+        : await ApiService.getUserTags(effectiveUserId)
       console.log('🏷️ Tags fetch response:', response)
       
       // Backend will automatically create default tags if none exist
@@ -198,7 +213,9 @@ const NotionStyleAssetRegister = () => {
 
   const loadGoals = async () => {
     try {
-      const response = await ApiService.getFinancialGoals(user.id)
+      const response = isAdminMode
+        ? await ApiService.getFinancialGoalsForUser(effectiveUserId)
+        : await ApiService.getFinancialGoals(effectiveUserId)
       console.log('🎯 Goals fetch response:', response)
       const goalsData = response.goals || []
       setGoals(goalsData)
@@ -310,7 +327,7 @@ const NotionStyleAssetRegister = () => {
   const handleAddAsset = async () => {
     try {
       setLoading(true)
-      const response = await ApiService.createFinancialAsset({
+      const assetData = {
         name: 'New Asset',
         tag: 'Investment',
         current_value: 0,
@@ -324,7 +341,13 @@ const NotionStyleAssetRegister = () => {
           expectedReturn: 5,
           sipExpiryDate: ''
         }
-      })
+      }
+      
+      const createPromise = isAdminMode
+        ? ApiService.createFinancialAssetForUser(assetData, effectiveUserId)
+        : ApiService.createFinancialAsset(assetData)
+      
+      const response = await createPromise
       
       if (response.asset) {
         const updatedAssets = [...assets, response.asset]
@@ -354,7 +377,11 @@ const NotionStyleAssetRegister = () => {
     
     try {
       setLoading(true)
-      await ApiService.deleteFinancialAsset(assetId)
+      if (isAdminMode) {
+        await ApiService.deleteFinancialAssetForUser(assetId, effectiveUserId)
+      } else {
+        await ApiService.deleteFinancialAsset(assetId)
+      }
       const updatedAssets = assets.filter(asset => asset.id !== assetId)
       setAssets(updatedAssets)
       
@@ -544,7 +571,10 @@ const NotionStyleAssetRegister = () => {
         console.log('💾 Saving asset field:', { assetId, field, updateData })
         
         
-        const response = await ApiService.updateFinancialAsset(assetId, updateData)
+        const updatePromise = isAdminMode
+          ? ApiService.updateFinancialAssetForUser(assetId, updateData, effectiveUserId)
+          : ApiService.updateFinancialAsset(assetId, updateData)
+        const response = await updatePromise
         
         if (response.asset) {
           const updatedAssets = assets.map(asset => 
@@ -861,7 +891,9 @@ const NotionStyleAssetRegister = () => {
         setLoadingTags(true)
         
         // Find the tag ID from the database
-        const response = await ApiService.getUserTags(user.id)
+        const response = isAdminMode
+        ? await ApiService.getUserTagsForUser(effectiveUserId)
+        : await ApiService.getUserTags(effectiveUserId)
         const tagToDelete = response.tags.find(tag => tag.tag_name === tagToRemove)
         
         if (tagToDelete) {
@@ -1189,7 +1221,9 @@ const NotionStyleAssetRegister = () => {
       const updateFinancialProfile = async () => {
         try {
           // First get the profile to get the profile ID
-          const response = await ApiService.getFinancialProfile(user.id)
+          const response = isAdminMode
+            ? await ApiService.getFinancialProfileForUser(effectiveUserId)
+            : await ApiService.getFinancialProfile(effectiveUserId)
           if (response && response.profile && response.profile.id) {
             await ApiService.updateFinancialProfile(response.profile.id, {
               total_asset_gross_market_value: totalValue

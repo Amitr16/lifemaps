@@ -6,6 +6,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdminUser } from '../contexts/AdminUserContext';
 import { useLifeSheetStore, eventBus } from '../store/enhanced-store';
 import ApiService from '../services/api';
 import { 
@@ -93,6 +94,7 @@ const calculateSIPProjection = ({ initial, sipAmount, sipFrequency, annualRate, 
 
 const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
   const { user, isAuthenticated } = useAuth();
+  const adminUser = useAdminUser();
   const { lifeSheet, loans, expenses, goals } = useLifeSheetStore();
   const [assets, setAssets] = useState([]);
   const [workAssets, setWorkAssets] = useState([]);
@@ -100,20 +102,28 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
   const [dependants, setDependants] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [enabledData, setEnabledData] = useState(defaultEnabled);
+  
+  // Check if we're in admin mode
+  const isAdminMode = !!adminUser?.userId;
+  const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null);
+  const effectiveIsAuthenticated = isAdminMode || isAuthenticated;
 
   // Load additional data
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (effectiveIsAuthenticated && effectiveUserId) {
       loadAssets();
       loadWorkAssets();
       loadInsurance();
       loadDependants();
     }
-  }, [isAuthenticated, user]);
+  }, [effectiveIsAuthenticated, effectiveUserId]);
 
   const loadAssets = async () => {
+    if (!effectiveUserId) return;
     try {
-      const response = await ApiService.getFinancialAssets(user.id);
+      const response = isAdminMode
+        ? await ApiService.getFinancialAssetsForUser(effectiveUserId)
+        : await ApiService.getFinancialAssets(effectiveUserId);
       console.log('📊 Assets for chart - Full response:', response);
       console.log('📊 Assets for chart - Assets array:', response.assets);
       if (response.assets && response.assets.length > 0) {
@@ -127,7 +137,7 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
 
   // Calculate chart data
   const calculateChartData = useCallback(() => {
-    if (!isAuthenticated || !user) {
+    if (!effectiveIsAuthenticated || !effectiveUserId) {
       setChartData([]);
       return;
     }
@@ -246,7 +256,7 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
     } catch (error) {
       console.error('Error calculating chart data:', error);
     }
-  }, [isAuthenticated, user, lifeSheet, assets, workAssets, goals, loans, expenses, insurance, dependants, enabledData]);
+  }, [effectiveIsAuthenticated, effectiveUserId, lifeSheet, assets, workAssets, goals, loans, expenses, insurance, dependants, enabledData]);
 
   // Listen for asset updates from the store
   useEffect(() => {
@@ -355,8 +365,11 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
   }, [calculateChartData]);
 
   const loadWorkAssets = async () => {
+    if (!effectiveUserId) return;
     try {
-      const workAssetsData = await ApiService.getWorkAssets(user.id);
+      const workAssetsData = isAdminMode
+        ? await ApiService.getWorkAssetsForUser(effectiveUserId)
+        : await ApiService.getWorkAssets(effectiveUserId);
       setWorkAssets(workAssetsData);
     } catch (error) {
       console.error('Error loading work assets:', error);
