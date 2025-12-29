@@ -109,7 +109,7 @@ export default function SuperAdminPage() {
 
   const handleLogout = async () => {
     await adminLogout();
-    navigate('/super-admin/login');
+    window.location.href = 'https://lifemaps-frontend.onrender.com/';
   };
 
   if (loading) {

@@ -90,7 +90,7 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     await adminLogout();
-    navigate('/admin/login');
+    window.location.href = 'https://lifemaps-frontend.onrender.com/';
   };
 
   if (loading) {

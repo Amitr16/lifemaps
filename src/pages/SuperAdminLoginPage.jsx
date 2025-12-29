@@ -64,9 +64,6 @@ export default function SuperAdminLoginPage() {
               {loading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
-          <p className="text-sm text-gray-500 mt-4 text-center">
-            Default: username: superadmin, password: superadmin123
-          </p>
         </CardContent>
       </Card>
     </div>
