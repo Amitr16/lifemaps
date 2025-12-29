@@ -21,7 +21,10 @@ from psycopg2 import sql
 import bcrypt
 from dotenv import load_dotenv
 
-# Load environment variables
+# Render Database URL (hardcoded for deployment - External connection)
+RENDER_DATABASE_URL = "postgresql://lifemaps_db_11b2_user:F1MdqhOkDjue889juYWEjSM00uhMX3B2@dpg-d35mkhali9vc738hhds0-a.oregon-postgres.render.com/lifemaps_db_11b2"
+
+# Load environment variables (for local development)
 env_path = os.path.join('backend', '.env')
 if os.path.exists(env_path):
     load_dotenv(env_path)
@@ -29,9 +32,33 @@ else:
     load_dotenv()
 
 def get_db_connection():
-    """Get database connection from environment variables"""
+    """Get database connection - uses Render URL by default, falls back to env vars"""
+    # First try Render database URL (hardcoded)
+    if RENDER_DATABASE_URL:
+        print(f"[INFO] Connecting to Render database using hardcoded DATABASE_URL")
+        try:
+            # Parse the URL and add SSL parameters for Render
+            conn = psycopg2.connect(
+                RENDER_DATABASE_URL,
+                sslmode='require'
+            )
+            print("[OK] Connected to Render database successfully")
+            return conn
+        except Exception as e:
+            print(f"[WARN] Failed to connect to Render database: {e}")
+            print("[INFO] Trying with SSL disabled...")
+            try:
+                # Try without SSL requirement
+                conn = psycopg2.connect(RENDER_DATABASE_URL)
+                print("[OK] Connected to Render database successfully (no SSL)")
+                return conn
+            except Exception as e2:
+                print(f"[WARN] Failed to connect to Render database: {e2}")
+                print("[INFO] Falling back to environment variables...")
+    
+    # Fall back to environment variables
     if os.getenv('DATABASE_URL'):
-        print(f"[INFO] Connecting to database using DATABASE_URL")
+        print(f"[INFO] Connecting to database using DATABASE_URL from environment")
         try:
             conn = psycopg2.connect(os.getenv('DATABASE_URL'))
             print("[OK] Connected to database successfully")
