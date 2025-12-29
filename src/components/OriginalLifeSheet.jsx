@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.j
 import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart, Area, Legend } from 'recharts'
-import { TrendingUp, TrendingDown, Calculator, Target, DollarSign, PiggyBank, User, LogOut, Save, RefreshCw, Plus, Trash2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Calculator, Target, DollarSign, PiggyBank, User, LogOut, Save, RefreshCw, Plus, Trash2, Shield, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAdminUser } from '../contexts/AdminUserContext'
 import { useChart } from '../contexts/ChartContext'
@@ -18,6 +19,7 @@ import '../styles/professional-theme.css'
 export default function OriginalLifeSheet() {
   const { user, logout, isAuthenticated } = useAuth()
   const adminUser = useAdminUser()
+  const navigate = useNavigate()
   
   // Check if we're in admin mode
   const isAdminMode = !!adminUser?.userId
@@ -1340,8 +1342,39 @@ export default function OriginalLifeSheet() {
 
       {/* Show warning if not authenticated (but not in admin mode) */}
       {!effectiveIsAuthenticated && !isAdminMode && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded">
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded mb-6">
           <p>You are not logged in. You can use the calculator, but your data will not be saved unless you log in.</p>
+        </div>
+      )}
+
+      {/* Admin Login Buttons - Show when not authenticated */}
+      {!effectiveIsAuthenticated && !isAdminMode && (
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <Button
+              onClick={() => navigate('/super-admin/login')}
+              size="lg"
+              className="h-32 flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white shadow-lg hover:shadow-xl transition-all"
+            >
+              <Shield className="h-12 w-12" />
+              <div className="text-center">
+                <div className="text-2xl font-bold">Super Admin</div>
+                <div className="text-sm opacity-90">Manage admins and users</div>
+              </div>
+            </Button>
+            
+            <Button
+              onClick={() => navigate('/admin/login')}
+              size="lg"
+              className="h-32 flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white shadow-lg hover:shadow-xl transition-all"
+            >
+              <Users className="h-12 w-12" />
+              <div className="text-center">
+                <div className="text-2xl font-bold">Admin</div>
+                <div className="text-sm opacity-90">Manage client accounts</div>
+              </div>
+            </Button>
+          </div>
         </div>
       )}
 
