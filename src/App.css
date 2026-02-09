@@ -235,12 +235,12 @@
   }
 
   .lifemap-page-title {
-    @apply text-3xl font-semibold text-slate-900;
+    @apply text-3xl font-semibold text-slate-900 dark:text-white;
     font-family: 'Playfair Display', 'Inter', serif;
   }
 
   .lifemap-page-subtitle {
-    @apply text-sm text-slate-500 mt-1;
+    @apply text-sm text-slate-500 dark:text-slate-300 mt-1;
   }
 
   .lifemap-alert {

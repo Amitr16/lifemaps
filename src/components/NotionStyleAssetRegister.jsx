@@ -1295,10 +1295,10 @@ const NotionStyleAssetRegister = () => {
 
       {/* Asset Register */}
       <Card className="lifemap-panel">
-        <CardHeader className="lifemap-panel-header">
-          <div className="space-y-4">
+        <CardHeader className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-col items-stretch">
+          <div className="space-y-4 w-full">
             {/* Row 1: Title + Filters */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-4">
               <CardTitle className="lifemap-panel-title">
                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
                   <PiggyBank className="h-4 w-4" />
@@ -1332,35 +1332,39 @@ const NotionStyleAssetRegister = () => {
             </div>
 
             {/* Row 2: Action Buttons */}
-            <div className="flex items-center justify-end gap-2 flex-wrap">
-              <Button onClick={handleAddAsset} className="bg-green-600 hover:bg-green-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Row
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => setEditingColumn('new')}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Column
-              </Button>
-              <Button variant="ghost" onClick={handleRefresh} disabled={isLoading} className="text-red-500">
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Reset
-              </Button>
-              <Button variant="outline" onClick={handleExportCSV} disabled={exporting}>
-                <Download className="h-4 w-4 mr-2" />
-                {exporting ? 'Exporting...' : 'Export CSV'}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowAllColumns(!showAllColumns)}
-                className={showAllColumns ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}
-                title={showAllColumns ? 'Hide empty columns' : 'Show all columns including empty ones'}
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                {showAllColumns ? 'Hide Empty' : `Show All (${customColumns.length})`}
-              </Button>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Button onClick={handleAddAsset} className="bg-green-600 hover:bg-green-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Row
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => setEditingColumn('new')}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Column
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" onClick={handleRefresh} disabled={isLoading} className="text-red-500 dark:text-red-400">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Reset
+                </Button>
+                <Button variant="outline" onClick={handleExportCSV} disabled={exporting}>
+                  <Download className="h-4 w-4 mr-2" />
+                  {exporting ? 'Exporting...' : 'Export CSV'}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowAllColumns(!showAllColumns)}
+                  className={showAllColumns ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-400' : ''}
+                  title={showAllColumns ? 'Hide empty columns' : 'Show all columns including empty ones'}
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  {showAllColumns ? 'Hide Empty' : `Show All (${customColumns.length})`}
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
