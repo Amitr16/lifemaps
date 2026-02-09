@@ -1434,6 +1434,20 @@ export default function OriginalLifeSheet() {
               ? 'Financial Planning Calculator'
               : 'Start setting up your profile and financial data to use the calculator'}
           </p>
+          <div className="flex items-center gap-4 mt-2">
+            <a 
+              href="/admin/login" 
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Admin Login
+            </a>
+            <a 
+              href="/super-admin/login" 
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Super Admin Login
+            </a>
+          </div>
         </div>
         <div className="flex items-center gap-6">
           <div

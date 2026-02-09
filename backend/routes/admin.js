@@ -77,26 +77,44 @@ router.post('/admin/login', [
       [username]
     );
 
-    console.log('🔍 Admin query result:', { found: result.rows.length > 0, username });
+    console.log('🔍 Admin query result:', { found: result.rows.length > 0, username, totalAdmins: result.rows.length });
 
     if (result.rows.length === 0) {
       console.log('❌ Admin not found:', username);
+      // Also check if there are any admins with similar usernames (case-insensitive)
+      const similarCheck = await pool.query(
+        'SELECT username FROM admin WHERE LOWER(username) = LOWER($1)',
+        [username]
+      );
+      if (similarCheck.rows.length > 0) {
+        console.log('⚠️ Found admin with similar username (case mismatch):', similarCheck.rows[0].username);
+        return res.status(401).json({ error: 'Invalid credentials - Username case mismatch. Please check your username.' });
+      }
       return res.status(401).json({ error: 'Invalid credentials - Admin not found' });
     }
 
     const admin = result.rows[0];
     
+    console.log('🔍 Admin details:', { id: admin.id, username: admin.username, is_active: admin.is_active, has_password_hash: !!admin.password_hash });
+    
     if (!admin.is_active) {
       console.log('❌ Admin account inactive:', username);
-      return res.status(403).json({ error: 'Admin account is inactive' });
+      return res.status(403).json({ error: 'Admin account is inactive. Please contact super admin to activate your account.' });
+    }
+
+    if (!admin.password_hash) {
+      console.log('❌ Admin has no password hash:', username);
+      return res.status(500).json({ error: 'Admin account configuration error. Please contact support.' });
     }
 
     const isValidPassword = await bcrypt.compare(password, admin.password_hash);
     
-    console.log('🔐 Password check:', { isValid: isValidPassword });
-    
+    console.log('🔐 Password check:', { isValid: isValidPassword, passwordLength: password.length });
+
     if (!isValidPassword) {
       console.log('❌ Invalid password for admin:', username);
+      // For debugging: log the first few characters of the stored hash (not the actual hash)
+      console.log('🔍 Password hash info:', { hashLength: admin.password_hash.length, hashPrefix: admin.password_hash.substring(0, 10) + '...' });
       return res.status(401).json({ error: 'Invalid credentials - Wrong password' });
     }
 
@@ -119,6 +137,28 @@ router.post('/admin/login', [
     console.error('❌ Admin login error:', error);
     console.error('Error stack:', error.stack);
     res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// ==================== ADMIN PROFILE ====================
+
+// Get current admin profile
+router.get('/admin/profile', authenticateAdmin, async (req, res) => {
+  try {
+    // req.admin is already set by authenticateAdmin middleware
+    res.json({
+      admin: {
+        id: req.admin.id,
+        username: req.admin.username,
+        name: req.admin.name,
+        email: req.admin.email,
+        role: req.admin.role,
+        is_active: req.admin.is_active
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching admin profile:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -171,18 +211,44 @@ router.post('/super-admin/admins', authenticateSuperAdmin, [
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const result = await pool.query(
-      'INSERT INTO admin (username, password_hash, name, email, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, is_active, created_at',
-      [username, passwordHash, name || null, email || null, req.admin.id]
-    );
+    // Get super admin ID from the authenticated admin
+    // If the current admin is a super admin, use their ID, otherwise use null
+    const superAdminId = req.admin.role === 'super_admin' ? req.admin.id : null;
+
+    // Try to insert with super_admin_id first (correct column name)
+    // If that fails, try with created_by (for backwards compatibility)
+    let result;
+    try {
+      result = await pool.query(
+        'INSERT INTO admin (username, password_hash, name, email, super_admin_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, is_active, created_at',
+        [username, passwordHash, name || null, email || null, superAdminId]
+      );
+    } catch (insertError) {
+      // If super_admin_id column doesn't exist, try created_by
+      if (insertError.message && insertError.message.includes('super_admin_id')) {
+        console.log('⚠️ Column super_admin_id not found, trying created_by...');
+        result = await pool.query(
+          'INSERT INTO admin (username, password_hash, name, email, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, is_active, created_at',
+          [username, passwordHash, name || null, email || null, superAdminId]
+        );
+      } else {
+        throw insertError;
+      }
+    }
+
+    console.log('✅ Admin created successfully:', { id: result.rows[0].id, username: result.rows[0].username, is_active: result.rows[0].is_active });
 
     res.status(201).json({
       message: 'Admin created successfully',
       admin: result.rows[0]
     });
   } catch (error) {
-    console.error('Error creating admin:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Error creating admin:', error);
+    console.error('Error details:', error.message);
+    if (error.stack) {
+      console.error('Stack trace:', error.stack);
+    }
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
@@ -375,14 +441,27 @@ router.get('/super-admin/users', authenticateSuperAdmin, async (req, res) => {
 // Get users assigned to admin
 router.get('/admin/users', authenticateAdmin, async (req, res) => {
   try {
+    console.log('🔍 Fetching users for admin:', { adminId: req.admin.id, adminUsername: req.admin.username });
+    
     const result = await pool.query(
-      'SELECT id, email, name, created_at FROM "user" WHERE admin_id = $1 ORDER BY created_at DESC',
+      'SELECT id, email, name, created_at, admin_id FROM "user" WHERE admin_id = $1 ORDER BY created_at DESC',
       [req.admin.id]
     );
 
+    console.log('✅ Found users:', { count: result.rows.length, adminId: req.admin.id });
+    if (result.rows.length > 0) {
+      console.log('📋 Users:', result.rows.map(u => ({ id: u.id, email: u.email, name: u.name, admin_id: u.admin_id })));
+    } else {
+      // Also check if there are any users with null admin_id that might need to be assigned
+      const unassignedCheck = await pool.query(
+        'SELECT COUNT(*) as count FROM "user" WHERE admin_id IS NULL'
+      );
+      console.log('ℹ️ Unassigned users:', unassignedCheck.rows[0]?.count || 0);
+    }
+
     res.json({ users: result.rows });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('❌ Error fetching users:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

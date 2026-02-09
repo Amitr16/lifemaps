@@ -27,31 +27,46 @@ import {
 } from './ui/dropdown-menu'
 
 const navigationItems = [
-  { path: '/', label: 'FP Calculator', icon: Calculator },
-  { path: '/assets', label: 'Assets', icon: PiggyBank },
-  { path: '/work-assets', label: 'Work Assets', icon: Briefcase },
-  { path: '/goals', label: 'Goals', icon: Target },
-  { path: '/loans', label: 'Loans', icon: CreditCard },
-  { path: '/expenses', label: 'Expenses', icon: ShoppingCart },
-  { path: '/insurance', label: 'Insurance', icon: Shield },
-  { path: '/growth-assumptions', label: 'Growth Assumptions', icon: TrendingUp },
+  { path: '/', value: 'dashboard', label: 'FP Calculator', icon: Calculator },
+  { path: '/assets', value: 'assets', label: 'Assets', icon: PiggyBank },
+  { path: '/work-assets', value: 'work-assets', label: 'Work Assets', icon: Briefcase },
+  { path: '/goals', value: 'goals', label: 'Goals', icon: Target },
+  { path: '/loans', value: 'loans', label: 'Loans', icon: CreditCard },
+  { path: '/expenses', value: 'expenses', label: 'Expenses', icon: ShoppingCart },
+  { path: '/insurance', value: 'insurance', label: 'Insurance', icon: Shield },
+  { path: '/growth-assumptions', value: 'growth-assumptions', label: 'Growth Assumptions', icon: TrendingUp },
 ]
 
-export default function Shell({ children }) {
+export default function Shell({ children, adminMode = false, activeSection, onSectionChange, adminUserName, userName }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, admin, logout, adminLogout } = useAuth()
   const { theme, resolvedTheme, setTheme } = useTheme()
   const { isChartVisible, chartData, closeChart, toggleChart } = useChart()
   
   // Only show chart on non-main pages
-  const isMainPage = location.pathname === '/'
+  const isMainPage = adminMode ? activeSection === 'dashboard' : location.pathname === '/'
   const shouldShowChart = !isMainPage && isChartVisible
 
   const handleLogout = async () => {
-    await logout()
-    navigate('/')
+    if (adminMode && admin) {
+      await adminLogout()
+      window.location.href = 'https://lifemaps-frontend.onrender.com/'
+    } else {
+      await logout()
+      navigate('/')
+    }
   }
+
+  // Determine active item based on mode
+  const getActiveItem = () => {
+    if (adminMode) {
+      return activeSection || 'dashboard'
+    }
+    return location.pathname
+  }
+
+  const activePath = getActiveItem()
 
   return (
     <div className="lifemap-shell">
@@ -66,7 +81,23 @@ export default function Shell({ children }) {
         <nav className="lifemap-nav">
           {navigationItems.map((item) => {
             const Icon = item.icon
-            const isActive = location.pathname === item.path
+            const isActive = adminMode 
+              ? activeSection === item.value
+              : location.pathname === item.path
+
+            if (adminMode && onSectionChange) {
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => onSectionChange(item.value)}
+                  className={`lifemap-nav-item ${isActive ? 'lifemap-nav-item-active' : ''}`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </button>
+              )
+            }
 
             return (
               <Link
@@ -82,11 +113,18 @@ export default function Shell({ children }) {
         </nav>
 
         <div className="lifemap-sidebar-footer">
-          <Link to="/profile" className="lifemap-nav-item">
-            <UserCircle className="h-4 w-4" />
-            <span>Your Profile</span>
-          </Link>
-          {user ? (
+          {!adminMode && (
+            <Link to="/profile" className="lifemap-nav-item">
+              <UserCircle className="h-4 w-4" />
+              <span>Your Profile</span>
+            </Link>
+          )}
+          {adminMode && admin ? (
+            <button type="button" className="lifemap-nav-item" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          ) : user ? (
             <button type="button" className="lifemap-nav-item" onClick={handleLogout}>
               <LogOut className="h-4 w-4" />
               <span>Logout</span>
@@ -119,7 +157,19 @@ export default function Shell({ children }) {
               <Sun className="h-3 w-3" />
               <span className="lifemap-toggle-knob" />
             </button>
-            {user ? (
+            {adminMode && admin ? (
+              <div className="lifemap-user">
+                <span className="lifemap-user-label">Welcome</span>
+                <div className="lifemap-user-name-wrapper">
+                  <span className="lifemap-user-name">
+                    {admin?.name || admin?.username || 'Admin'}
+                  </span>
+                </div>
+                {userName && (
+                  <span className="lifemap-user-label text-xs mt-1 block">Viewing: {userName}</span>
+                )}
+              </div>
+            ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <div className="lifemap-user cursor-pointer">

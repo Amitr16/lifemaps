@@ -8,13 +8,15 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Edit, Plus, Users, LogOut } from 'lucide-react';
+import { Trash2, Edit, Plus, Users, LogOut, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useTheme } from 'next-themes';
 
 export default function SuperAdminPage() {
   const { admin, adminLogout, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [admins, setAdmins] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -113,21 +115,35 @@ export default function SuperAdminPage() {
   };
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="p-8 text-slate-900 dark:text-white">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-            <p className="text-gray-600 mt-1">Welcome, {admin?.username}</p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Super Admin Dashboard</h1>
+            <p className="text-gray-600 dark:text-slate-300 mt-1">Welcome, {admin?.username}</p>
           </div>
-          <Button onClick={handleLogout} variant="outline">
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="lifemap-toggle"
+              data-theme={resolvedTheme || theme || 'light'}
+              aria-label="Toggle theme"
+              aria-pressed={(resolvedTheme || theme) === 'dark'}
+              onClick={() => setTheme((resolvedTheme || theme) === 'dark' ? 'light' : 'dark')}
+            >
+              <Moon className="h-3 w-3" />
+              <Sun className="h-3 w-3" />
+              <span className="lifemap-toggle-knob" />
+            </button>
+            <Button onClick={handleLogout} variant="outline" className="dark:border-slate-600 dark:text-white">
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         {/* Admin Management */}
@@ -142,44 +158,48 @@ export default function SuperAdminPage() {
                     Create Admin
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="dark:bg-slate-800 dark:border-slate-700">
                   <DialogHeader>
-                    <DialogTitle>Create New Admin</DialogTitle>
+                    <DialogTitle className="dark:text-white">Create New Admin</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleCreateAdmin} className="space-y-4">
                     <div>
-                      <Label>Username *</Label>
+                      <Label className="dark:text-white">Username *</Label>
                       <Input
                         value={adminForm.username}
                         onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })}
                         required
+                        className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                       />
                     </div>
                     <div>
-                      <Label>Password *</Label>
+                      <Label className="dark:text-white">Password *</Label>
                       <Input
                         type="password"
                         value={adminForm.password}
                         onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
                         required
+                        className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                       />
                     </div>
                     <div>
-                      <Label>Name</Label>
+                      <Label className="dark:text-white">Name</Label>
                       <Input
                         value={adminForm.name}
                         onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
+                        className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                       />
                     </div>
                     <div>
-                      <Label>Email</Label>
+                      <Label className="dark:text-white">Email</Label>
                       <Input
                         type="email"
                         value={adminForm.email}
                         onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                        className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                       />
                     </div>
-                    <Button type="submit" className="w-full">Create Admin</Button>
+                    <Button type="submit" className="w-full dark:text-white">Create Admin</Button>
                   </form>
                 </DialogContent>
               </Dialog>
@@ -199,13 +219,13 @@ export default function SuperAdminPage() {
               </TableHeader>
               <TableBody>
                 {admins.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell>{a.username}</TableCell>
-                    <TableCell>{a.name || '-'}</TableCell>
-                    <TableCell>{a.email || '-'}</TableCell>
-                    <TableCell>{a.user_count || 0}</TableCell>
+                  <TableRow key={a.id} className="dark:hover:bg-slate-800">
+                    <TableCell className="dark:text-white">{a.username}</TableCell>
+                    <TableCell className="dark:text-white">{a.name || '-'}</TableCell>
+                    <TableCell className="dark:text-slate-300">{a.email || '-'}</TableCell>
+                    <TableCell className="dark:text-white">{a.user_count || 0}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded ${a.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      <span className={`px-2 py-1 rounded ${a.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'}`}>
                         {a.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </TableCell>
@@ -218,6 +238,7 @@ export default function SuperAdminPage() {
                             setShowEditAdmin(a);
                             setAdminForm({ username: a.username, password: '', name: a.name || '', email: a.email || '' });
                           }}
+                          className="dark:border-slate-600 dark:text-white"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -225,6 +246,7 @@ export default function SuperAdminPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleDeleteAdmin(a.id)}
+                          className="dark:border-slate-600 dark:text-white"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -254,32 +276,32 @@ export default function SuperAdminPage() {
               </TableHeader>
               <TableBody>
                 {users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.name}</TableCell>
-                    <TableCell>{u.admin_username || 'Unassigned'}</TableCell>
+                  <TableRow key={u.id} className="dark:hover:bg-slate-800">
+                    <TableCell className="dark:text-white">{u.email}</TableCell>
+                    <TableCell className="dark:text-white">{u.name}</TableCell>
+                    <TableCell className="dark:text-slate-300">{u.admin_username || 'Unassigned'}</TableCell>
                     <TableCell>
                       <Dialog open={showTransferUser === u.id} onOpenChange={(open) => setShowTransferUser(open ? u.id : null)}>
                         <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="dark:border-slate-600 dark:text-white">
                             Transfer
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="dark:bg-slate-800 dark:border-slate-700">
                           <DialogHeader>
-                            <DialogTitle>Transfer User to Admin</DialogTitle>
+                            <DialogTitle className="dark:text-white">Transfer User to Admin</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4">
                             <div>
-                              <Label>Select Admin</Label>
+                              <Label className="dark:text-white">Select Admin</Label>
                               <Select onValueChange={(value) => handleTransferUser(u.id, value === 'none' ? null : parseInt(value))}>
-                                <SelectTrigger>
+                                <SelectTrigger className="dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                   <SelectValue placeholder="Select admin" />
                                 </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">Unassigned</SelectItem>
+                                <SelectContent className="dark:bg-slate-800 dark:border-slate-700">
+                                  <SelectItem value="none" className="dark:text-white">Unassigned</SelectItem>
                                   {admins.filter(a => a.is_active).map((a) => (
-                                    <SelectItem key={a.id} value={a.id.toString()}>
+                                    <SelectItem key={a.id} value={a.id.toString()} className="dark:text-white">
                                       {a.username} ({a.name || 'No name'})
                                     </SelectItem>
                                   ))}
@@ -300,44 +322,48 @@ export default function SuperAdminPage() {
         {/* Edit Admin Dialog */}
         {showEditAdmin && (
           <Dialog open={!!showEditAdmin} onOpenChange={() => setShowEditAdmin(null)}>
-            <DialogContent>
+            <DialogContent className="dark:bg-slate-800 dark:border-slate-700">
               <DialogHeader>
-                <DialogTitle>Edit Admin</DialogTitle>
+                <DialogTitle className="dark:text-white">Edit Admin</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleUpdateAdmin} className="space-y-4">
                 <div>
-                  <Label>Username *</Label>
+                  <Label className="dark:text-white">Username *</Label>
                   <Input
                     value={adminForm.username}
                     onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })}
                     required
+                    className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                   />
                 </div>
                 <div>
-                  <Label>Password (leave blank to keep current)</Label>
+                  <Label className="dark:text-white">Password (leave blank to keep current)</Label>
                   <Input
                     type="password"
                     value={adminForm.password}
                     onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                    className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                   />
                 </div>
                 <div>
-                  <Label>Name</Label>
+                  <Label className="dark:text-white">Name</Label>
                   <Input
                     value={adminForm.name}
                     onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
+                    className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                   />
                 </div>
                 <div>
-                  <Label>Email</Label>
+                  <Label className="dark:text-white">Email</Label>
                   <Input
                     type="email"
                     value={adminForm.email}
                     onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                    className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                   />
                 </div>
                 <div>
-                  <Label>
+                  <Label className="dark:text-white">
                     <input
                       type="checkbox"
                       checked={showEditAdmin.is_active}
@@ -348,8 +374,8 @@ export default function SuperAdminPage() {
                   </Label>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit">Update Admin</Button>
-                  <Button type="button" variant="outline" onClick={() => setShowEditAdmin(null)}>
+                  <Button type="submit" className="dark:text-white">Update Admin</Button>
+                  <Button type="button" variant="outline" onClick={() => setShowEditAdmin(null)} className="dark:border-slate-600 dark:text-white">
                     Cancel
                   </Button>
                 </div>

@@ -34,28 +34,8 @@ export const AuthProvider = ({ children }) => {
     if (hasToken) {
       checkAuthStatus();
     } else if (hasAdminToken) {
-      // Admin token exists - try to decode it to restore admin state
-      try {
-        const token = localStorage.getItem('adminToken');
-        if (token) {
-          // Decode JWT token to get admin info (without verification, just for UI state)
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          if (payload.adminId && payload.role) {
-            // Set a minimal admin object to restore state
-            setAdmin({
-              id: payload.adminId,
-              role: payload.role,
-              username: payload.username || 'Admin'
-            });
-            console.log('[AuthContext] Restored admin state from token');
-          }
-        }
-      } catch (error) {
-        console.error('[AuthContext] Failed to restore admin from token:', error);
-        // If token is invalid, clear it
-        localStorage.removeItem('adminToken');
-      }
-      setLoading(false);
+      // Admin token exists - fetch admin details from backend
+      checkAdminStatus();
     } else {
       setLoading(false);
     }
@@ -87,6 +67,25 @@ export const AuthProvider = ({ children }) => {
       } else {
         setError(null); // Don't show error for expected unauthenticated state
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkAdminStatus = async () => {
+    try {
+      setLoading(true);
+      // Fetch admin profile from backend
+      const response = await ApiService.getAdminProfile();
+      if (response.admin) {
+        setAdmin(response.admin);
+        console.log('[AuthContext] Restored admin state from backend:', response.admin);
+      }
+    } catch (error) {
+      console.error('[AuthContext] Failed to check admin status:', error);
+      // If token is invalid, clear it
+      localStorage.removeItem('adminToken');
+      setAdmin(null);
     } finally {
       setLoading(false);
     }

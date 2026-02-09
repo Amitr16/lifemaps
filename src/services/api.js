@@ -494,6 +494,10 @@ class ApiService {
     });
   }
 
+  async getAdminProfile() {
+    return this.request('/admin/admin/profile');
+  }
+
   // Super Admin - Admin Management
   async getAdmins() {
     return this.request('/admin/super-admin/admins');

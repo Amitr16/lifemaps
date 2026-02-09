@@ -8,24 +8,16 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Plus, LogOut, Calculator, PiggyBank, Briefcase, Target, CreditCard, ShoppingCart, Shield } from 'lucide-react';
-
-const navigationItems = [
-  { value: 'dashboard', label: 'Life Sheet', icon: Calculator },
-  { value: 'assets', label: 'Assets', icon: PiggyBank },
-  { value: 'work-assets', label: 'Work Assets', icon: Briefcase },
-  { value: 'goals', label: 'Goals', icon: Target },
-  { value: 'loans', label: 'Loans', icon: CreditCard },
-  { value: 'expenses', label: 'Expenses', icon: ShoppingCart },
-  { value: 'insurance', label: 'Insurance', icon: Shield },
-];
+import { Trash2, Plus, LogOut, Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-// Import will be done in the component functions below
+import Shell from '../components/Shell';
 
 export default function AdminPage() {
   const { admin, adminLogout, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,8 +42,10 @@ export default function AdminPage() {
     try {
       setLoading(true);
       const response = await ApiService.getAdminUsers();
+      console.log('📋 Loaded users:', { count: response.users?.length || 0, users: response.users });
       setUsers(response.users || []);
     } catch (error) {
+      console.error('❌ Failed to load users:', error);
       toast.error('Failed to load users: ' + error.message);
     } finally {
       setLoading(false);
@@ -94,21 +88,35 @@ export default function AdminPage() {
   };
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="p-8 text-slate-900 dark:text-white">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="border-b bg-white p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+      <div className="border-b bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 p-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-            <p className="text-gray-600 text-sm">Welcome, {admin?.name || admin?.username}</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Admin Dashboard</h1>
+            <p className="text-gray-600 dark:text-slate-300 text-sm">Welcome, {admin?.name || admin?.username || 'Admin'}</p>
           </div>
-          <Button onClick={handleLogout} variant="outline">
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="lifemap-toggle"
+              data-theme={resolvedTheme || theme || 'light'}
+              aria-label="Toggle theme"
+              aria-pressed={(resolvedTheme || theme) === 'dark'}
+              onClick={() => setTheme((resolvedTheme || theme) === 'dark' ? 'light' : 'dark')}
+            >
+              <Moon className="h-3 w-3" />
+              <Sun className="h-3 w-3" />
+              <span className="lifemap-toggle-knob" />
+            </button>
+            <Button onClick={handleLogout} variant="outline" className="dark:border-slate-600 dark:text-white">
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -133,39 +141,42 @@ export default function AdminPage() {
                         Create User
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="dark:bg-slate-800 dark:border-slate-700">
                       <DialogHeader>
-                        <DialogTitle>Create New User</DialogTitle>
+                        <DialogTitle className="dark:text-white">Create New User</DialogTitle>
                       </DialogHeader>
                       <form onSubmit={handleCreateUser} className="space-y-4">
                         <div>
-                          <Label>Email *</Label>
+                          <Label className="dark:text-white">Email *</Label>
                           <Input
                             type="email"
                             value={userForm.email}
                             onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
                             required
+                            className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                           />
                         </div>
                         <div>
-                          <Label>Password *</Label>
+                          <Label className="dark:text-white">Password *</Label>
                           <Input
                             type="password"
                             value={userForm.password}
                             onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
                             required
                             minLength={6}
+                            className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                           />
                         </div>
                         <div>
-                          <Label>Name *</Label>
+                          <Label className="dark:text-white">Name *</Label>
                           <Input
                             value={userForm.name}
                             onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
                             required
+                            className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                           />
                         </div>
-                        <Button type="submit" className="w-full">Create User</Button>
+                        <Button type="submit" className="w-full dark:text-white">Create User</Button>
                       </form>
                     </DialogContent>
                   </Dialog>
@@ -184,7 +195,7 @@ export default function AdminPage() {
                   <TableBody>
                     {users.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500">
+                        <TableCell colSpan={4} className="text-center text-gray-500 dark:text-slate-400">
                           No users assigned to you yet
                         </TableCell>
                       </TableRow>
@@ -192,20 +203,21 @@ export default function AdminPage() {
                       users.map((user) => (
                         <TableRow
                           key={user.id}
-                          className={selectedUser?.id === user.id ? 'bg-blue-50' : 'cursor-pointer hover:bg-gray-50'}
+                          className={selectedUser?.id === user.id ? 'bg-blue-50 dark:bg-blue-900/30' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800'}
                           onClick={() => {
                             setSelectedUser(user);
                             setActiveTab('user-view');
                           }}
                         >
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.name}</TableCell>
-                          <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell className="dark:text-white">{user.email}</TableCell>
+                          <TableCell className="dark:text-white">{user.name}</TableCell>
+                          <TableCell className="dark:text-slate-300">{new Date(user.created_at).toLocaleDateString()}</TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeleteUser(user.id)}
+                              className="dark:border-slate-600 dark:text-white"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -223,8 +235,8 @@ export default function AdminPage() {
             {selectedUser ? (
               <UserDataView userId={selectedUser.id} userName={selectedUser.name} />
             ) : (
-              <Card>
-                <CardContent className="p-8 text-center text-gray-500">
+              <Card className="dark:bg-slate-800 dark:border-slate-700">
+                <CardContent className="p-8 text-center text-gray-500 dark:text-slate-400">
                   Please select a user from the Users tab
                 </CardContent>
               </Card>
@@ -242,82 +254,13 @@ function UserDataView({ userId, userName }) {
   const { admin } = useAuth();
 
   return (
-    <div>
-      {/* User Navigation Header - Similar to Shell */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 mb-4">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <div className="bg-emerald-500 p-2 rounded-lg">
-                <Calculator className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">{userName}'s Life Sheet</h2>
-                <p className="text-xs text-gray-500">Viewing as Admin: {admin?.name || admin?.username}</p>
-              </div>
-            </div>
-            {/* Navigation Links */}
-            <div className="hidden md:flex items-center space-x-1">
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeSection === item.value;
-                return (
-                  <Button
-                    key={item.value}
-                    variant={isActive ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setActiveSection(item.value)}
-                    className={`flex items-center gap-2 ${
-                      isActive 
-                        ? "bg-emerald-500 text-white hover:bg-emerald-600" 
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Button>
-                );
-              })}
-            </div>
-            {/* Mobile menu */}
-            <div className="md:hidden">
-              <Button variant="ghost" size="sm">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </Button>
-            </div>
-          </div>
-        </div>
-        {/* Mobile Navigation */}
-        <div className="md:hidden bg-white border-t border-gray-200">
-          <div className="px-4 py-2">
-            <div className="grid grid-cols-4 gap-2">
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeSection === item.value;
-                return (
-                  <Button
-                    key={item.value}
-                    variant={isActive ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setActiveSection(item.value)}
-                    className={`w-full flex flex-col items-center gap-1 h-auto py-2 ${
-                      isActive 
-                        ? "bg-emerald-500 text-white" 
-                        : "text-gray-600"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="text-xs">{item.label}</span>
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <Shell 
+      adminMode={true}
+      activeSection={activeSection}
+      onSectionChange={setActiveSection}
+      adminUserName={admin?.name || admin?.username}
+      userName={userName}
+    >
       <Tabs value={activeSection} onValueChange={setActiveSection} className="w-full">
         <div className="hidden">
           <TabsList className="grid w-full grid-cols-7">
@@ -359,7 +302,7 @@ function UserDataView({ userId, userName }) {
           <AdminUserInsurance userId={userId} />
         </TabsContent>
       </Tabs>
-    </div>
+    </Shell>
   );
 }
 
