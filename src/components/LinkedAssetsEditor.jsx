@@ -140,24 +140,24 @@ const LinkedAssetsEditor = ({
     <>
       <div className={`${className}`}>
         <div 
-          className="min-h-[40px] p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition-colors"
+          className="min-h-[40px] p-3 border border-gray-300 dark:border-slate-600 rounded-md bg-gray-50/50 dark:bg-slate-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors"
           onClick={() => {
             console.log('🔘 Cell clicked!')
             handleOpen()
           }}
         >
           {linkedAssets.length === 0 ? (
-            <div className="text-gray-500 text-sm">
+            <div className="text-gray-500 dark:text-slate-300 text-sm">
               Click to earmark goals
             </div>
           ) : (
             <div className="space-y-2">
               {linkedAssets.map((linkedAsset, index) => (
-                <div key={index} className="flex items-center gap-2 bg-gray-50 p-2 rounded">
-                  <Badge variant="outline" className="text-xs">
+                <div key={index} className="flex items-center gap-2 bg-gray-50 dark:bg-slate-600 p-2 rounded">
+                  <Badge variant="outline" className="text-xs dark:text-white dark:border-slate-500">
                     {linkedAsset.assetName}
                   </Badge>
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium dark:text-white">
                     {linkedAsset.percent}%
                   </span>
                 </div>
@@ -170,8 +170,8 @@ const LinkedAssetsEditor = ({
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Manage Linked Assets</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="dark:text-white">Manage Linked Assets</DialogTitle>
+            <DialogDescription className="dark:text-slate-300">
               Link assets to this goal with their contribution percentages.
             </DialogDescription>
           </DialogHeader>
@@ -179,26 +179,26 @@ const LinkedAssetsEditor = ({
           <div className="space-y-4">
             {/* Current Linked Assets */}
             <div>
-              <h4 className="text-sm font-medium mb-2">Current Linked Assets</h4>
+              <h4 className="text-sm font-medium mb-2 dark:text-white">Current Linked Assets</h4>
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {linkedAssets.map((linkedAsset, index) => (
-                  <Card key={index} className="p-3">
+                  <Card key={index} className="p-3 dark:bg-slate-800 dark:border-slate-700">
                     <CardContent className="p-0">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs dark:text-white dark:border-slate-600">
                             {linkedAsset.assetName}
                           </Badge>
                           <Input
                             type="number"
                             value={linkedAsset.percent}
                             onChange={(e) => handleUpdatePercent(index, e.target.value)}
-                            className="w-20 h-8"
+                            className="w-20 h-8 dark:text-white dark:bg-slate-700 dark:border-slate-600"
                             min="0"
                             max="100"
                             step="0.1"
                           />
-                          <span className="text-sm text-gray-500">%</span>
+                          <span className="text-sm text-gray-500 dark:text-slate-300">%</span>
                         </div>
                         <Button
                           variant="ghost"
@@ -209,7 +209,7 @@ const LinkedAssetsEditor = ({
                             console.log('🗑️ Delete button clicked for index:', index);
                             handleRemoveLinkedAsset(index);
                           }}
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
                           title="Remove linked asset"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -223,15 +223,15 @@ const LinkedAssetsEditor = ({
 
             {/* Add New Linked Asset */}
             <div>
-              <h4 className="text-sm font-medium mb-2">Add New Linked Asset</h4>
+              <h4 className="text-sm font-medium mb-2 dark:text-white">Add New Linked Asset</h4>
               <div className="flex items-center gap-2">
                 <Select value={newAssetId} onValueChange={setNewAssetId}>
-                  <SelectTrigger className="flex-1">
+                  <SelectTrigger className="flex-1 dark:text-white dark:bg-slate-700 dark:border-slate-600">
                     <SelectValue placeholder="Select asset" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="dark:bg-slate-800 dark:border-slate-700">
                     {getAvailableAssets().map((asset) => (
-                      <SelectItem key={asset.id} value={asset.id}>
+                      <SelectItem key={asset.id} value={asset.id} className="dark:text-white dark:hover:bg-slate-700">
                         {asset.name}
                       </SelectItem>
                     ))}
@@ -243,19 +243,19 @@ const LinkedAssetsEditor = ({
                   placeholder="%"
                   value={newPercent}
                   onChange={(e) => setNewPercent(e.target.value)}
-                  className="w-20"
+                  className="w-20 dark:text-white dark:bg-slate-700 dark:border-slate-600"
                   min="0"
                   max="100"
                   step="0.1"
                 />
                 
-                <Button onClick={handleAddLinkedAsset} disabled={!newAssetId || !newPercent}>
+                <Button onClick={handleAddLinkedAsset} disabled={!newAssetId || !newPercent} className="dark:text-white">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
               
               {Object.keys(errors).length > 0 && (
-                <div className="text-sm text-red-600 mt-2">
+                <div className="text-sm text-red-600 dark:text-red-400 mt-2">
                   {Object.values(errors).join(', ')}
                 </div>
               )}
@@ -263,7 +263,7 @@ const LinkedAssetsEditor = ({
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} className="text-white dark:text-white">
               Cancel
             </Button>
             <Button 
@@ -271,7 +271,7 @@ const LinkedAssetsEditor = ({
                 console.log('🔵 Save Changes button clicked!')
                 handleSave()
               }}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Save className="h-4 w-4 mr-2" />
               Save Changes

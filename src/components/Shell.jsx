@@ -1,123 +1,174 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Calculator, 
-  PiggyBank, 
-  Briefcase, 
-  Target, 
-  CreditCard, 
-  ShoppingCart, 
-  Shield, 
-  Users,
-  TrendingUp
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import {
+  Calculator,
+  ChevronDown,
+  CreditCard,
+  LogOut,
+  Moon,
+  Sun,
+  PiggyBank,
+  Shield,
+  ShoppingCart,
+  Target,
+  Briefcase,
+  TrendingUp,
+  UserCircle
 } from 'lucide-react'
 import FloatingChartDock, { ChartToggleButton } from './FloatingChartDock'
 import { useChart } from '../contexts/ChartContext'
+import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from 'next-themes'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu'
 
 const navigationItems = [
-  { path: '/', label: 'Life Sheet', icon: Calculator },
+  { path: '/', label: 'FP Calculator', icon: Calculator },
   { path: '/assets', label: 'Assets', icon: PiggyBank },
   { path: '/work-assets', label: 'Work Assets', icon: Briefcase },
   { path: '/goals', label: 'Goals', icon: Target },
   { path: '/loans', label: 'Loans', icon: CreditCard },
   { path: '/expenses', label: 'Expenses', icon: ShoppingCart },
   { path: '/insurance', label: 'Insurance', icon: Shield },
+  { path: '/growth-assumptions', label: 'Growth Assumptions', icon: TrendingUp },
 ]
 
 export default function Shell({ children }) {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const { theme, resolvedTheme, setTheme } = useTheme()
   const { isChartVisible, chartData, closeChart, toggleChart } = useChart()
   
   // Only show chart on non-main pages
   const isMainPage = location.pathname === '/'
   const shouldShowChart = !isMainPage && isChartVisible
 
+  const handleLogout = async () => {
+    await logout()
+    navigate('/')
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="bg-emerald-500 p-2 rounded-lg">
-                <Calculator className="h-6 w-6 text-white" />
+    <div className="lifemap-shell">
+      <aside className="lifemap-sidebar">
+        <div className="lifemap-logo">
+          <div className="lifemap-logo-icon">
+            <Calculator className="h-5 w-5 text-white" />
+          </div>
+          <span className="lifemap-logo-text">LifeMap</span>
+        </div>
+
+        <nav className="lifemap-nav">
+          {navigationItems.map((item) => {
+            const Icon = item.icon
+            const isActive = location.pathname === item.path
+
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`lifemap-nav-item ${isActive ? 'lifemap-nav-item-active' : ''}`}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </Link>
+            )
+          })}
+        </nav>
+
+        <div className="lifemap-sidebar-footer">
+          <Link to="/profile" className="lifemap-nav-item">
+            <UserCircle className="h-4 w-4" />
+            <span>Your Profile</span>
+          </Link>
+          {user ? (
+            <button type="button" className="lifemap-nav-item" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="lifemap-nav-item"
+              onClick={() => window.dispatchEvent(new CustomEvent('openAuthModal', { detail: { tab: 'login' } }))}
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Login</span>
+            </button>
+          )}
+        </div>
+      </aside>
+
+      <div className="lifemap-main">
+        <header className="lifemap-topbar">
+          <div className="lifemap-topbar-actions">
+            <button
+              type="button"
+              className="lifemap-toggle"
+              data-theme={resolvedTheme || theme || 'light'}
+              aria-label="Toggle theme"
+              aria-pressed={(resolvedTheme || theme) === 'dark'}
+              onClick={() => setTheme((resolvedTheme || theme) === 'dark' ? 'light' : 'dark')}
+            >
+              <Moon className="h-3 w-3" />
+              <Sun className="h-3 w-3" />
+              <span className="lifemap-toggle-knob" />
+            </button>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <div className="lifemap-user cursor-pointer">
+                    <span className="lifemap-user-label">Welcome</span>
+                    <div className="lifemap-user-name-container">
+                      <span className="lifemap-user-name">
+                        {user?.name || user?.email || 'User'}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-slate-400 dark:text-slate-400 ml-1" />
+                    </div>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                      <UserCircle className="h-4 w-4" />
+                      <span>Your Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-red-600 dark:text-red-400">
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-full bg-blue-600 text-white text-sm px-4 py-2"
+                  onClick={() => window.dispatchEvent(new CustomEvent('openAuthModal', { detail: { tab: 'login' } }))}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full bg-blue-100 text-blue-700 text-sm px-4 py-2"
+                  onClick={() => window.dispatchEvent(new CustomEvent('openAuthModal', { detail: { tab: 'register' } }))}
+                >
+                  Register
+                </button>
               </div>
-              <h1 className="text-xl font-bold text-gray-900">Life Sheet</h1>
-            </div>
-
-            {/* Navigation Links */}
-            <div className="hidden md:flex items-center space-x-1">
-              {navigationItems.map((item) => {
-                const Icon = item.icon
-                const isActive = location.pathname === item.path
-                
-                return (
-                  <Link key={item.path} to={item.path}>
-                    <Button
-                      variant={isActive ? "default" : "ghost"}
-                      size="sm"
-                      className={`flex items-center gap-2 ${
-                        isActive 
-                          ? "bg-emerald-500 text-white hover:bg-emerald-600" 
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {item.label}
-                    </Button>
-                  </Link>
-                )
-              })}
-            </div>
-
-            {/* Mobile menu button */}
-            <div className="md:hidden">
-              <Button variant="ghost" size="sm">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </Button>
-            </div>
+            )}
           </div>
-        </div>
-      </nav>
+        </header>
 
-      {/* Mobile Navigation */}
-      <div className="md:hidden bg-white border-b border-gray-200">
-        <div className="px-4 py-2">
-          <div className="grid grid-cols-4 gap-2">
-            {navigationItems.map((item) => {
-              const Icon = item.icon
-              const isActive = location.pathname === item.path
-              
-              return (
-                <Link key={item.path} to={item.path}>
-                  <Button
-                    variant={isActive ? "default" : "ghost"}
-                    size="sm"
-                    className={`w-full flex flex-col items-center gap-1 h-auto py-2 ${
-                      isActive 
-                        ? "bg-emerald-500 text-white" 
-                        : "text-gray-600"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="text-xs">{item.label}</span>
-                  </Button>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <main className="flex-1">
-        {children}
-      </main>
+        <main className="lifemap-content">
+          {children}
+        </main>
 
       {/* Floating Chart Dock - Only on non-main pages */}
       {shouldShowChart && (
@@ -134,21 +185,15 @@ export default function Shell({ children }) {
         <ChartToggleButton onClick={toggleChart} />
       )}
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              © 2025 Life Sheet. Financial planning made simple.
-            </p>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                v2.0 Enhanced
-              </Badge>
-            </div>
+        <footer className="lifemap-footer">
+          <div>© 2025 Life Sheet. Financial planning made simple.</div>
+          <div className="lifemap-footer-links">
+            <span>Terms &amp; Conditions</span>
+            <span>|</span>
+            <span>Privacy Policy</span>
           </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   )
 }

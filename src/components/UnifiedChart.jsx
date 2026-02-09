@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, BarChart, Bar, ComposedChart, RadialBarChart, RadialBar, PieChart, Pie, Cell
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TrendingUp } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdminUser } from '../contexts/AdminUserContext';
@@ -412,10 +413,13 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
   ];
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Financial Overview</CardTitle>
+    <Card className="lifemap-panel">
+      <CardHeader className="lifemap-panel-header">
+        <div className="flex items-center justify-between w-full">
+          <CardTitle className="lifemap-panel-title">
+            <TrendingUp className="h-5 w-5 text-emerald-500" />
+            Financial Overview
+          </CardTitle>
           <div className="flex flex-wrap gap-4">
             {dataTypes.map(({ key, label, color }) => (
               <div key={key} className="flex items-center space-x-2">
@@ -439,7 +443,17 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="assetsFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="workAssetsFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#1d4ed8" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="year" 
@@ -454,27 +468,42 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
                 formatter={(value, name) => [`₹${value.toLocaleString()}`, dataTypes.find(dt => dt.key === name)?.label || name]}
                 labelFormatter={(label) => `Year: ${label}`}
               />
-              <Legend />
               {enabledData.includes('assets') && (
-                <Line 
+                <Area 
                   type="monotone" 
                   dataKey="assets" 
-                  stroke="#3b82f6" 
+                  stroke="#10b981" 
+                  fill="url(#assetsFill)"
                   strokeWidth={2}
-                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                  dot={{ fill: '#10b981', strokeWidth: 2, r: 3 }}
                 />
               )}
               {enabledData.includes('workAssets') && (
-                <Line 
+                <Area 
                   type="monotone" 
                   dataKey="workAssets" 
-                  stroke="#10b981" 
+                  stroke="#1d4ed8" 
+                  fill="url(#workAssetsFill)"
                   strokeWidth={2}
-                  dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                  dot={{ fill: '#1d4ed8', strokeWidth: 2, r: 3 }}
                 />
               )}
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
+        </div>
+        <div className="mt-4 flex items-center gap-4 justify-end text-xs text-slate-500">
+          {enabledData.includes('assets') && (
+            <span className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded bg-emerald-500" />
+              Assets
+            </span>
+          )}
+          {enabledData.includes('workAssets') && (
+            <span className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded bg-blue-700" />
+              Work Assets
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>

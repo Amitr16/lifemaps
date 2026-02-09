@@ -1,5 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
+import { AlertTriangle, Briefcase } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdminUser } from '../contexts/AdminUserContext';
@@ -207,6 +209,30 @@ export default function WorkAssetsPage() {
     }
   };
 
+  const handleReset = () => {
+    loadWorkAssets();
+  };
+
+  const handleExportCsv = () => {
+    const headers = ['Income Stream', 'Annual Amount', 'Growth Rate %', 'End Age'];
+    const csvRows = rows.map(row => ([
+      row.stream || '',
+      row.amount ?? '',
+      row.growthRate ?? '',
+      row.endAge ?? ''
+    ]));
+    const content = [headers, ...csvRows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `work-assets-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
 
   const columns = [
     { field:'stream', headerName:'Income Stream' }, 
@@ -226,20 +252,53 @@ export default function WorkAssetsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <UnifiedChart defaultEnabled={['workAssets']} />
-      
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Work Assets</h1>
+    <div className="space-y-6">
+      <div className="lifemap-page-header">
+        <div>
+          <h1 className="lifemap-page-title">Work Assets</h1>
+          <p className="lifemap-page-subtitle flex items-center gap-2">
+            <Briefcase className="h-4 w-4 text-slate-400" />
+            Add or edit your work assets
+          </p>
+        </div>
+        {rows.length === 0 && (
+          <div className="lifemap-alert">
+            <AlertTriangle className="h-4 w-4" />
+            <span>
+              Start adding your first work asset in the work asset register below. You may
+              add as many assets as you want.
+            </span>
+          </div>
+        )}
       </div>
-      <EditableGrid 
-        columns={columns} 
-        rows={rows} 
-        onChange={setRows} 
-        onAdd={addRow} 
-        onDelete={delRow}
-        onCellChange={handleCellChange}
-      />
+
+      <UnifiedChart defaultEnabled={['workAssets']} />
+
+      <div className="lifemap-panel">
+        <div className="lifemap-panel-header">
+          <div className="lifemap-panel-title">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
+              <Briefcase className="h-4 w-4" />
+            </span>
+            Work Asset Register
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={addRow}>Add Row</Button>
+            <Button size="sm" variant="outline" onClick={handleExportCsv}>Export CSV</Button>
+            <Button size="sm" variant="ghost" className="text-red-500" onClick={handleReset}>Reset</Button>
+          </div>
+        </div>
+        <div className="p-6">
+          <EditableGrid 
+            columns={columns} 
+            rows={rows} 
+            onChange={setRows} 
+            onAdd={addRow} 
+            onDelete={delRow}
+            onCellChange={handleCellChange}
+          />
+        </div>
+      </div>
     </div>
   );
 }

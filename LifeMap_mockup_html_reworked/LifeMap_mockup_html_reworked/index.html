@@ -1,0 +1,1012 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LifeMap • Mockup HTML Gallery</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.12);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.65);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+      background: rgba(11,15,20,0.72);
+      border-bottom: 1px solid var(--border);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+    h1 {
+      font-size: 16px;
+      margin: 0 0 10px 0;
+      font-weight: 650;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input, select {
+      appearance: none;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+      min-width: 220px;
+    }
+    select { min-width: 180px; }
+    input:focus, select:focus { border-color: rgba(255,255,255,0.22); }
+    .pill {
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(255,255,255,0.04);
+      white-space: nowrap;
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 14px 12px 28px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: transform 0.08s ease, border-color 0.08s ease;
+    }
+    .card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,0.22);
+    }
+    .card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: rgba(0,0,0,0.2);
+    }
+    .meta {
+      padding: 10px 10px 12px;
+      display: grid;
+      gap: 6px;
+    }
+    .name {
+      font-size: 13px;
+      line-height: 1.25;
+      font-weight: 600;
+    }
+    .cat {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    footer {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 12px 24px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>LifeMap • Mockup HTML Gallery</h1>
+      <div class="controls">
+        <input id="q" type="search" placeholder="Search screens… (press / to focus)" autocomplete="off" />
+        <select id="cat">
+          <option value="all">All categories</option>
+          <option value="Assets">Assets</option>
+<option value="Expenses">Expenses</option>
+<option value="Goals">Goals</option>
+<option value="Growth Assumptions">Growth Assumptions</option>
+<option value="Homepage">Homepage</option>
+<option value="Insurance">Insurance</option>
+<option value="Loans">Loans</option>
+<option value="Work Assets">Work Assets</option>
+<option value="Your Profile">Your Profile</option>
+        </select>
+        <span class="pill" id="count">0</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid" id="grid">
+      
+    <a class="card" href="pages/assets-data-entered-not-logged-in-d.html" data-name="assets - data entered (not logged in) - d" data-cat="Assets">
+      <img loading="lazy" src="assets/thumbs/assets-data-entered-not-logged-in-d.jpg" alt="Assets - Data entered (not logged in) - D">
+      <div class="meta">
+        <div class="name">Assets - Data entered (not logged in) - D</div>
+        <div class="cat">Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/assets-data-entered-not-logged-in.html" data-name="assets - data entered (not logged in)" data-cat="Assets">
+      <img loading="lazy" src="assets/thumbs/assets-data-entered-not-logged-in.jpg" alt="Assets - Data entered (not logged in)">
+      <div class="meta">
+        <div class="name">Assets - Data entered (not logged in)</div>
+        <div class="cat">Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/assets-data-entered-d.html" data-name="assets - data entered - d" data-cat="Assets">
+      <img loading="lazy" src="assets/thumbs/assets-data-entered-d.jpg" alt="Assets - Data entered - D">
+      <div class="meta">
+        <div class="name">Assets - Data entered - D</div>
+        <div class="cat">Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/assets-data-entered.html" data-name="assets - data entered" data-cat="Assets">
+      <img loading="lazy" src="assets/thumbs/assets-data-entered.jpg" alt="Assets - Data entered">
+      <div class="meta">
+        <div class="name">Assets - Data entered</div>
+        <div class="cat">Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/assets-no-data-entered-yet-not-logged-in-d.html" data-name="assets - no data entered yet (not logged in) - d" data-cat="Assets">
+      <img loading="lazy" src="assets/thumbs/assets-no-data-entered-yet-not-logged-in-d.jpg" alt="Assets - no data entered yet (not logged in) - D">
+      <div class="meta">
+        <div class="name">Assets - no data entered yet (not logged in) - D</div>
+        <div class="cat">Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/assets-no-data-entered-yet-not-logged-in.html" data-name="assets - no data entered yet (not logged in)" data-cat="Assets">
+      <img loading="lazy" src="assets/thumbs/assets-no-data-entered-yet-not-logged-in.jpg" alt="Assets - no data entered yet (not logged in)">
+      <div class="meta">
+        <div class="name">Assets - no data entered yet (not logged in)</div>
+        <div class="cat">Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/assets-no-data-entered-yet-d.html" data-name="assets - no data entered yet - d" data-cat="Assets">
+      <img loading="lazy" src="assets/thumbs/assets-no-data-entered-yet-d.jpg" alt="Assets - no data entered yet - D">
+      <div class="meta">
+        <div class="name">Assets - no data entered yet - D</div>
+        <div class="cat">Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/assets-no-data-entered-yet.html" data-name="assets - no data entered yet" data-cat="Assets">
+      <img loading="lazy" src="assets/thumbs/assets-no-data-entered-yet.jpg" alt="Assets - no data entered yet">
+      <div class="meta">
+        <div class="name">Assets - no data entered yet</div>
+        <div class="cat">Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-data-entered-category-mix-over-time-not-logged-in-d.html" data-name="expenses - data entered - category mix over time (not logged in) - d" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-data-entered-category-mix-over-time-not-logged-in-d.jpg" alt="Expenses - Data entered - Category Mix Over Time (not logged in) - D">
+      <div class="meta">
+        <div class="name">Expenses - Data entered - Category Mix Over Time (not logged in) - D</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-data-entered-category-mix-over-time-not-logged-in.html" data-name="expenses - data entered - category mix over time (not logged in)" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-data-entered-category-mix-over-time-not-logged-in.jpg" alt="Expenses - Data entered - Category Mix Over Time (not logged in)">
+      <div class="meta">
+        <div class="name">Expenses - Data entered - Category Mix Over Time (not logged in)</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-data-entered-category-mix-over-time-d.html" data-name="expenses - data entered - category mix over time - d" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-data-entered-category-mix-over-time-d.jpg" alt="Expenses - Data entered - Category Mix Over Time - D">
+      <div class="meta">
+        <div class="name">Expenses - Data entered - Category Mix Over Time - D</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-data-entered-category-mix-over-time.html" data-name="expenses - data entered - category mix over time" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-data-entered-category-mix-over-time.jpg" alt="Expenses - Data entered - Category Mix Over Time">
+      <div class="meta">
+        <div class="name">Expenses - Data entered - Category Mix Over Time</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-no-data-entered-yet-category-mix-over-time-not-logged-in-d.html" data-name="expenses - no data entered yet - category mix over time (not logged in) - d" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-no-data-entered-yet-category-mix-over-time-not-logged-in-d.jpg" alt="Expenses - no data entered yet - Category Mix Over Time (not logged in) - D">
+      <div class="meta">
+        <div class="name">Expenses - no data entered yet - Category Mix Over Time (not logged in) - D</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-no-data-entered-yet-category-mix-over-time-not-logged-in.html" data-name="expenses - no data entered yet - category mix over time (not logged in)" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-no-data-entered-yet-category-mix-over-time-not-logged-in.jpg" alt="Expenses - no data entered yet - Category Mix Over Time (not logged in)">
+      <div class="meta">
+        <div class="name">Expenses - no data entered yet - Category Mix Over Time (not logged in)</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-no-data-entered-yet-category-mix-over-time-d.html" data-name="expenses - no data entered yet - category mix over time - d" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-no-data-entered-yet-category-mix-over-time-d.jpg" alt="Expenses - no data entered yet - Category Mix Over Time - D">
+      <div class="meta">
+        <div class="name">Expenses - no data entered yet - Category Mix Over Time - D</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-no-data-entered-yet-category-mix-over-time.html" data-name="expenses - no data entered yet - category mix over time" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-no-data-entered-yet-category-mix-over-time.jpg" alt="Expenses - no data entered yet - Category Mix Over Time">
+      <div class="meta">
+        <div class="name">Expenses - no data entered yet - Category Mix Over Time</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-no-data-entered-yet-needs-wants-savings-not-logged-in-d.html" data-name="expenses - no data entered yet - needs / wants / savings (not logged in) - d" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-no-data-entered-yet-needs-wants-savings-not-logged-in-d.jpg" alt="Expenses - no data entered yet - Needs / Wants / Savings (not logged in) - D">
+      <div class="meta">
+        <div class="name">Expenses - no data entered yet - Needs / Wants / Savings (not logged in) - D</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-no-data-entered-yet-needs-wants-savings-not-logged-in.html" data-name="expenses - no data entered yet - needs / wants / savings (not logged in)" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-no-data-entered-yet-needs-wants-savings-not-logged-in.jpg" alt="Expenses - no data entered yet - Needs / Wants / Savings (not logged in)">
+      <div class="meta">
+        <div class="name">Expenses - no data entered yet - Needs / Wants / Savings (not logged in)</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-no-data-entered-yet-needs-wants-savings-d.html" data-name="expenses - no data entered yet - needs / wants / savings - d" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-no-data-entered-yet-needs-wants-savings-d.jpg" alt="Expenses - no data entered yet - Needs / Wants / Savings - D">
+      <div class="meta">
+        <div class="name">Expenses - no data entered yet - Needs / Wants / Savings - D</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/expenses-no-data-entered-yet-needs-wants-savings.html" data-name="expenses - no data entered yet - needs / wants / savings" data-cat="Expenses">
+      <img loading="lazy" src="assets/thumbs/expenses-no-data-entered-yet-needs-wants-savings.jpg" alt="Expenses - no data entered yet - Needs / Wants / Savings">
+      <div class="meta">
+        <div class="name">Expenses - no data entered yet - Needs / Wants / Savings</div>
+        <div class="cat">Expenses</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-data-entered-progress-to-goals-not-logged-in.html" data-name="goals - data entered - progress to goals (not logged in)" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-data-entered-progress-to-goals-not-logged-in.jpg" alt="Goals - Data entered - Progress to Goals (not logged in)">
+      <div class="meta">
+        <div class="name">Goals - Data entered - Progress to Goals (not logged in)</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-data-entered-progress-to-goals-d.html" data-name="goals - data entered - progress to goals - d" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-data-entered-progress-to-goals-d.jpg" alt="Goals - Data entered - Progress to Goals - D">
+      <div class="meta">
+        <div class="name">Goals - Data entered - Progress to Goals - D</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-data-entered-progress-to-goals.html" data-name="goals - data entered - progress to goals" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-data-entered-progress-to-goals.jpg" alt="Goals - Data entered - Progress to Goals">
+      <div class="meta">
+        <div class="name">Goals - Data entered - Progress to Goals</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-data-entered-saving-need-over-time-not-logged-in.html" data-name="goals - data entered - saving need over time (not logged in)" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-data-entered-saving-need-over-time-not-logged-in.jpg" alt="Goals - data entered - Saving need over time (not logged in)">
+      <div class="meta">
+        <div class="name">Goals - data entered - Saving need over time (not logged in)</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-data-entered-saving-need-over-time-d.html" data-name="goals - data entered - saving need over time - d" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-data-entered-saving-need-over-time-d.jpg" alt="Goals - data entered - Saving need over time - D">
+      <div class="meta">
+        <div class="name">Goals - data entered - Saving need over time - D</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-data-entered-saving-need-over-time.html" data-name="goals - data entered - saving need over time" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-data-entered-saving-need-over-time.jpg" alt="Goals - data entered - Saving need over time">
+      <div class="meta">
+        <div class="name">Goals - data entered - Saving need over time</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-data-entered-yet-progress-to-goals-not-logged-in-d.html" data-name="goals - data entered yet - progress to goals (not logged in) - d" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-data-entered-yet-progress-to-goals-not-logged-in-d.jpg" alt="Goals - data entered yet - Progress to goals (not logged in) - D">
+      <div class="meta">
+        <div class="name">Goals - data entered yet - Progress to goals (not logged in) - D</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-no-data-entered-yet-progress-to-goals-not-logged-in-d.html" data-name="goals - no data entered yet - progress to goals (not logged in) - d" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-no-data-entered-yet-progress-to-goals-not-logged-in-d.jpg" alt="Goals - no data entered yet - Progress to goals (not logged in) - D">
+      <div class="meta">
+        <div class="name">Goals - no data entered yet - Progress to goals (not logged in) - D</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-no-data-entered-yet-progress-to-goals-not-logged-in.html" data-name="goals - no data entered yet - progress to goals (not logged in)" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-no-data-entered-yet-progress-to-goals-not-logged-in.jpg" alt="Goals - no data entered yet - Progress to goals (not logged in)">
+      <div class="meta">
+        <div class="name">Goals - no data entered yet - Progress to goals (not logged in)</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-no-data-entered-yet-progress-to-goals-d.html" data-name="goals - no data entered yet - progress to goals - d" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-no-data-entered-yet-progress-to-goals-d.jpg" alt="Goals - no data entered yet - Progress to goals - D">
+      <div class="meta">
+        <div class="name">Goals - no data entered yet - Progress to goals - D</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-no-data-entered-yet-progress-to-goals.html" data-name="goals - no data entered yet - progress to goals" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-no-data-entered-yet-progress-to-goals.jpg" alt="Goals - no data entered yet - Progress to goals">
+      <div class="meta">
+        <div class="name">Goals - no data entered yet - Progress to goals</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-no-data-entered-yet-saving-need-over-time-not-logged-in-d.html" data-name="goals - no data entered yet - saving need over time (not logged in) - d" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-no-data-entered-yet-saving-need-over-time-not-logged-in-d.jpg" alt="Goals - no data entered yet - Saving need over time (not logged in) - D">
+      <div class="meta">
+        <div class="name">Goals - no data entered yet - Saving need over time (not logged in) - D</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-no-data-entered-yet-saving-need-over-time-not-logged-in.html" data-name="goals - no data entered yet - saving need over time (not logged in)" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-no-data-entered-yet-saving-need-over-time-not-logged-in.jpg" alt="Goals - no data entered yet - Saving need over time (not logged in)">
+      <div class="meta">
+        <div class="name">Goals - no data entered yet - Saving need over time (not logged in)</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-no-data-entered-yet-saving-need-over-time-d-1.html" data-name="goals - no data entered yet - saving need over time - d-1" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-no-data-entered-yet-saving-need-over-time-d-1.jpg" alt="Goals - no data entered yet - Saving need over time - D-1">
+      <div class="meta">
+        <div class="name">Goals - no data entered yet - Saving need over time - D-1</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-no-data-entered-yet-saving-need-over-time-d.html" data-name="goals - no data entered yet - saving need over time - d" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-no-data-entered-yet-saving-need-over-time-d.jpg" alt="Goals - no data entered yet - Saving need over time - D">
+      <div class="meta">
+        <div class="name">Goals - no data entered yet - Saving need over time - D</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/goals-no-data-entered-yet-saving-need-over-time.html" data-name="goals - no data entered yet - saving need over time" data-cat="Goals">
+      <img loading="lazy" src="assets/thumbs/goals-no-data-entered-yet-saving-need-over-time.jpg" alt="Goals - no data entered yet - Saving need over time">
+      <div class="meta">
+        <div class="name">Goals - no data entered yet - Saving need over time</div>
+        <div class="cat">Goals</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/growth-assumptions-not-logged-in-d.html" data-name="growth assumptions (not logged in) - d" data-cat="Growth Assumptions">
+      <img loading="lazy" src="assets/thumbs/growth-assumptions-not-logged-in-d.jpg" alt="Growth Assumptions (not logged in) - D">
+      <div class="meta">
+        <div class="name">Growth Assumptions (not logged in) - D</div>
+        <div class="cat">Growth Assumptions</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/growth-assumptions-not-logged-in.html" data-name="growth assumptions (not logged in)" data-cat="Growth Assumptions">
+      <img loading="lazy" src="assets/thumbs/growth-assumptions-not-logged-in.jpg" alt="Growth Assumptions (not logged in)">
+      <div class="meta">
+        <div class="name">Growth Assumptions (not logged in)</div>
+        <div class="cat">Growth Assumptions</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/growth-assumptions-d.html" data-name="growth assumptions - d" data-cat="Growth Assumptions">
+      <img loading="lazy" src="assets/thumbs/growth-assumptions-d.jpg" alt="Growth Assumptions - D">
+      <div class="meta">
+        <div class="name">Growth Assumptions - D</div>
+        <div class="cat">Growth Assumptions</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/growth-assumptions.html" data-name="growth assumptions" data-cat="Growth Assumptions">
+      <img loading="lazy" src="assets/thumbs/growth-assumptions.jpg" alt="Growth Assumptions">
+      <div class="meta">
+        <div class="name">Growth Assumptions</div>
+        <div class="cat">Growth Assumptions</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-light-not-logged-in-d.html" data-name="homepage light (not logged in) - d" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-light-not-logged-in-d.jpg" alt="Homepage Light (not logged in) - D">
+      <div class="meta">
+        <div class="name">Homepage Light (not logged in) - D</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-light-not-logged-in.html" data-name="homepage light (not logged in)" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-light-not-logged-in.jpg" alt="Homepage Light (not logged in)">
+      <div class="meta">
+        <div class="name">Homepage Light (not logged in)</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-light-data-filled-not-logged-in-d.html" data-name="homepage light - data filled (not logged in) - d" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-light-data-filled-not-logged-in-d.jpg" alt="Homepage Light - data filled (not logged in) - D">
+      <div class="meta">
+        <div class="name">Homepage Light - data filled (not logged in) - D</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-light-data-filled-not-logged-in.html" data-name="homepage light - data filled (not logged in)" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-light-data-filled-not-logged-in.jpg" alt="Homepage Light - data filled (not logged in)">
+      <div class="meta">
+        <div class="name">Homepage Light - data filled (not logged in)</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-filled-with-full-data-d.html" data-name="homepage filled with full data - d" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-filled-with-full-data-d.jpg" alt="Homepage filled with full data - D">
+      <div class="meta">
+        <div class="name">Homepage filled with full data - D</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-filled-with-full-data.html" data-name="homepage filled with full data" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-filled-with-full-data.jpg" alt="Homepage filled with full data">
+      <div class="meta">
+        <div class="name">Homepage filled with full data</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-without-any-data-d.html" data-name="homepage without any data - d" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-without-any-data-d.jpg" alt="Homepage without any data - D">
+      <div class="meta">
+        <div class="name">Homepage without any data - D</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-without-any-data-financial-profile-getting-filled-d.html" data-name="homepage without any data - financial profile getting filled - d" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-without-any-data-financial-profile-getting-filled-d.jpg" alt="Homepage without any data - financial profile getting filled - D">
+      <div class="meta">
+        <div class="name">Homepage without any data - financial profile getting filled - D</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-without-any-data-financial-profile-getting-filled.html" data-name="homepage without any data - financial profile getting filled" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-without-any-data-financial-profile-getting-filled.jpg" alt="Homepage without any data - financial profile getting filled">
+      <div class="meta">
+        <div class="name">Homepage without any data - financial profile getting filled</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/homepage-without-any-data.html" data-name="homepage without any data" data-cat="Homepage">
+      <img loading="lazy" src="assets/thumbs/homepage-without-any-data.jpg" alt="Homepage without any data">
+      <div class="meta">
+        <div class="name">Homepage without any data</div>
+        <div class="cat">Homepage</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/insurance-data-entered-d.html" data-name="insurance - data entered - d" data-cat="Insurance">
+      <img loading="lazy" src="assets/thumbs/insurance-data-entered-d.jpg" alt="Insurance - Data entered - D">
+      <div class="meta">
+        <div class="name">Insurance - Data entered - D</div>
+        <div class="cat">Insurance</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/insurance-data-entered.html" data-name="insurance - data entered" data-cat="Insurance">
+      <img loading="lazy" src="assets/thumbs/insurance-data-entered.jpg" alt="Insurance - Data entered">
+      <div class="meta">
+        <div class="name">Insurance - Data entered</div>
+        <div class="cat">Insurance</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/insurance-data-entered-not-logged-in-d.html" data-name="insurance - data entered (not logged in) - d" data-cat="Insurance">
+      <img loading="lazy" src="assets/thumbs/insurance-data-entered-not-logged-in-d.jpg" alt="Insurance - data entered (not logged in) - D">
+      <div class="meta">
+        <div class="name">Insurance - data entered (not logged in) - D</div>
+        <div class="cat">Insurance</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/insurance-data-entered-not-logged-in.html" data-name="insurance - data entered (not logged in)" data-cat="Insurance">
+      <img loading="lazy" src="assets/thumbs/insurance-data-entered-not-logged-in.jpg" alt="Insurance - data entered (not logged in)">
+      <div class="meta">
+        <div class="name">Insurance - data entered (not logged in)</div>
+        <div class="cat">Insurance</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/insurance-no-data-entered-yet-not-logged-in-d.html" data-name="insurance - no data entered yet (not logged in) - d" data-cat="Insurance">
+      <img loading="lazy" src="assets/thumbs/insurance-no-data-entered-yet-not-logged-in-d.jpg" alt="Insurance - no data entered yet (not logged in) - D">
+      <div class="meta">
+        <div class="name">Insurance - no data entered yet (not logged in) - D</div>
+        <div class="cat">Insurance</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/insurance-no-data-entered-yet-not-logged-in.html" data-name="insurance - no data entered yet (not logged in)" data-cat="Insurance">
+      <img loading="lazy" src="assets/thumbs/insurance-no-data-entered-yet-not-logged-in.jpg" alt="Insurance - no data entered yet (not logged in)">
+      <div class="meta">
+        <div class="name">Insurance - no data entered yet (not logged in)</div>
+        <div class="cat">Insurance</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/insurance-no-data-entered-yet-d.html" data-name="insurance - no data entered yet - d" data-cat="Insurance">
+      <img loading="lazy" src="assets/thumbs/insurance-no-data-entered-yet-d.jpg" alt="Insurance - no data entered yet - D">
+      <div class="meta">
+        <div class="name">Insurance - no data entered yet - D</div>
+        <div class="cat">Insurance</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/insurance-no-data-entered-yet.html" data-name="insurance - no data entered yet" data-cat="Insurance">
+      <img loading="lazy" src="assets/thumbs/insurance-no-data-entered-yet.jpg" alt="Insurance - no data entered yet">
+      <div class="meta">
+        <div class="name">Insurance - no data entered yet</div>
+        <div class="cat">Insurance</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/loans-data-entered-not-logged-in-d.html" data-name="loans - data entered (not logged in) - d" data-cat="Loans">
+      <img loading="lazy" src="assets/thumbs/loans-data-entered-not-logged-in-d.jpg" alt="Loans - Data entered (not logged in) - D">
+      <div class="meta">
+        <div class="name">Loans - Data entered (not logged in) - D</div>
+        <div class="cat">Loans</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/loans-data-entered-not-logged-in.html" data-name="loans - data entered (not logged in)" data-cat="Loans">
+      <img loading="lazy" src="assets/thumbs/loans-data-entered-not-logged-in.jpg" alt="Loans - Data entered (not logged in)">
+      <div class="meta">
+        <div class="name">Loans - Data entered (not logged in)</div>
+        <div class="cat">Loans</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/loans-data-entered-d.html" data-name="loans - data entered - d" data-cat="Loans">
+      <img loading="lazy" src="assets/thumbs/loans-data-entered-d.jpg" alt="Loans - Data entered - D">
+      <div class="meta">
+        <div class="name">Loans - Data entered - D</div>
+        <div class="cat">Loans</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/loans-data-entered.html" data-name="loans - data entered" data-cat="Loans">
+      <img loading="lazy" src="assets/thumbs/loans-data-entered.jpg" alt="Loans - Data entered">
+      <div class="meta">
+        <div class="name">Loans - Data entered</div>
+        <div class="cat">Loans</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/loans-no-data-entered-yet-not-logged-in-d.html" data-name="loans - no data entered yet (not logged in) - d" data-cat="Loans">
+      <img loading="lazy" src="assets/thumbs/loans-no-data-entered-yet-not-logged-in-d.jpg" alt="Loans - no data entered yet (not logged in) - D">
+      <div class="meta">
+        <div class="name">Loans - no data entered yet (not logged in) - D</div>
+        <div class="cat">Loans</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/loans-no-data-entered-yet-not-logged-in.html" data-name="loans - no data entered yet (not logged in)" data-cat="Loans">
+      <img loading="lazy" src="assets/thumbs/loans-no-data-entered-yet-not-logged-in.jpg" alt="Loans - no data entered yet (not logged in)">
+      <div class="meta">
+        <div class="name">Loans - no data entered yet (not logged in)</div>
+        <div class="cat">Loans</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/loans-no-data-entered-yet-d.html" data-name="loans - no data entered yet - d" data-cat="Loans">
+      <img loading="lazy" src="assets/thumbs/loans-no-data-entered-yet-d.jpg" alt="Loans - no data entered yet - D">
+      <div class="meta">
+        <div class="name">Loans - no data entered yet - D</div>
+        <div class="cat">Loans</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/loans-no-data-entered-yet.html" data-name="loans - no data entered yet" data-cat="Loans">
+      <img loading="lazy" src="assets/thumbs/loans-no-data-entered-yet.jpg" alt="Loans - no data entered yet">
+      <div class="meta">
+        <div class="name">Loans - no data entered yet</div>
+        <div class="cat">Loans</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/work-assets-data-entered-not-logged-in-d.html" data-name="work assets - data entered (not logged in) - d" data-cat="Work Assets">
+      <img loading="lazy" src="assets/thumbs/work-assets-data-entered-not-logged-in-d.jpg" alt="Work Assets - Data entered (not logged in) - D">
+      <div class="meta">
+        <div class="name">Work Assets - Data entered (not logged in) - D</div>
+        <div class="cat">Work Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/work-assets-data-entered-not-logged-in.html" data-name="work assets - data entered (not logged in)" data-cat="Work Assets">
+      <img loading="lazy" src="assets/thumbs/work-assets-data-entered-not-logged-in.jpg" alt="Work Assets - Data entered (not logged in)">
+      <div class="meta">
+        <div class="name">Work Assets - Data entered (not logged in)</div>
+        <div class="cat">Work Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/work-assets-data-entered-d.html" data-name="work assets - data entered - d" data-cat="Work Assets">
+      <img loading="lazy" src="assets/thumbs/work-assets-data-entered-d.jpg" alt="Work Assets - Data entered - D">
+      <div class="meta">
+        <div class="name">Work Assets - Data entered - D</div>
+        <div class="cat">Work Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/work-assets-data-entered.html" data-name="work assets - data entered" data-cat="Work Assets">
+      <img loading="lazy" src="assets/thumbs/work-assets-data-entered.jpg" alt="Work Assets - Data entered">
+      <div class="meta">
+        <div class="name">Work Assets - Data entered</div>
+        <div class="cat">Work Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/work-assets-no-data-entered-yet-not-logged-in-d.html" data-name="work assets - no data entered yet (not logged in) - d" data-cat="Work Assets">
+      <img loading="lazy" src="assets/thumbs/work-assets-no-data-entered-yet-not-logged-in-d.jpg" alt="Work Assets - no data entered yet (not logged in) - D">
+      <div class="meta">
+        <div class="name">Work Assets - no data entered yet (not logged in) - D</div>
+        <div class="cat">Work Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/work-assets-no-data-entered-yet-not-logged-in.html" data-name="work assets - no data entered yet (not logged in)" data-cat="Work Assets">
+      <img loading="lazy" src="assets/thumbs/work-assets-no-data-entered-yet-not-logged-in.jpg" alt="Work Assets - no data entered yet (not logged in)">
+      <div class="meta">
+        <div class="name">Work Assets - no data entered yet (not logged in)</div>
+        <div class="cat">Work Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/work-assets-no-data-entered-yet-d.html" data-name="work assets - no data entered yet - d" data-cat="Work Assets">
+      <img loading="lazy" src="assets/thumbs/work-assets-no-data-entered-yet-d.jpg" alt="Work Assets - no data entered yet - D">
+      <div class="meta">
+        <div class="name">Work Assets - no data entered yet - D</div>
+        <div class="cat">Work Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/work-assets-no-data-entered-yet.html" data-name="work assets - no data entered yet" data-cat="Work Assets">
+      <img loading="lazy" src="assets/thumbs/work-assets-no-data-entered-yet.jpg" alt="Work Assets - no data entered yet">
+      <div class="meta">
+        <div class="name">Work Assets - no data entered yet</div>
+        <div class="cat">Work Assets</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-change-password-d.html" data-name="your profile - change password - d" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-change-password-d.jpg" alt="Your Profile - Change password - D">
+      <div class="meta">
+        <div class="name">Your Profile - Change password - D</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-change-password-successful-d.html" data-name="your profile - change password - successful - d" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-change-password-successful-d.jpg" alt="Your Profile - Change password - successful - D">
+      <div class="meta">
+        <div class="name">Your Profile - Change password - successful - D</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-change-password-successful.html" data-name="your profile - change password - successful" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-change-password-successful.jpg" alt="Your Profile - Change password - successful">
+      <div class="meta">
+        <div class="name">Your Profile - Change password - successful</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-change-password-unsuccessful-d.html" data-name="your profile - change password - unsuccessful - d" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-change-password-unsuccessful-d.jpg" alt="Your Profile - Change password - unsuccessful - D">
+      <div class="meta">
+        <div class="name">Your Profile - Change password - unsuccessful - D</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-change-password-unsuccessful.html" data-name="your profile - change password - unsuccessful" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-change-password-unsuccessful.jpg" alt="Your Profile - Change password - unsuccessful">
+      <div class="meta">
+        <div class="name">Your Profile - Change password - unsuccessful</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-change-password.html" data-name="your profile - change password" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-change-password.jpg" alt="Your Profile - Change password">
+      <div class="meta">
+        <div class="name">Your Profile - Change password</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-d.html" data-name="your profile - d" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-d.jpg" alt="Your Profile - D">
+      <div class="meta">
+        <div class="name">Your Profile - D</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-with-full-data-change-email-id-successful-d.html" data-name="your profile - with full data - change email id (successful) - d" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-with-full-data-change-email-id-successful-d.jpg" alt="Your Profile - with full data - Change Email ID (Successful) - D">
+      <div class="meta">
+        <div class="name">Your Profile - with full data - Change Email ID (Successful) - D</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-with-full-data-change-email-id-successful.html" data-name="your profile - with full data - change email id (successful)" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-with-full-data-change-email-id-successful.jpg" alt="Your Profile - with full data - Change Email ID (Successful)">
+      <div class="meta">
+        <div class="name">Your Profile - with full data - Change Email ID (Successful)</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-with-full-data-change-email-id-unsuccessful-d.html" data-name="your profile - with full data - change email id (unsuccessful) - d" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-with-full-data-change-email-id-unsuccessful-d.jpg" alt="Your Profile - with full data - Change Email ID (Unsuccessful) - D">
+      <div class="meta">
+        <div class="name">Your Profile - with full data - Change Email ID (Unsuccessful) - D</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-with-full-data-change-email-id-unsuccessful.html" data-name="your profile - with full data - change email id (unsuccessful)" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-with-full-data-change-email-id-unsuccessful.jpg" alt="Your Profile - with full data - Change Email ID (Unsuccessful)">
+      <div class="meta">
+        <div class="name">Your Profile - with full data - Change Email ID (Unsuccessful)</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-with-full-data-change-email-id-d.html" data-name="your profile - with full data - change email id - d" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-with-full-data-change-email-id-d.jpg" alt="Your Profile - with full data - Change Email ID - D">
+      <div class="meta">
+        <div class="name">Your Profile - with full data - Change Email ID - D</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-with-full-data-change-email-id.html" data-name="your profile - with full data - change email id" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-with-full-data-change-email-id.jpg" alt="Your Profile - with full data - Change Email ID">
+      <div class="meta">
+        <div class="name">Your Profile - with full data - Change Email ID</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-with-full-data-d.html" data-name="your profile - with full data - d" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-with-full-data-d.jpg" alt="Your Profile - with full data - D">
+      <div class="meta">
+        <div class="name">Your Profile - with full data - D</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile-with-full-data.html" data-name="your profile - with full data" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile-with-full-data.jpg" alt="Your Profile - with full data">
+      <div class="meta">
+        <div class="name">Your Profile - with full data</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+
+    <a class="card" href="pages/your-profile.html" data-name="your profile" data-cat="Your Profile">
+      <img loading="lazy" src="assets/thumbs/your-profile.jpg" alt="Your Profile">
+      <div class="meta">
+        <div class="name">Your Profile</div>
+        <div class="cat">Your Profile</div>
+      </div>
+    </a>
+    
+    </div>
+  </main>
+
+  <footer>
+    Image-based HTML mockups generated from your Figma export. Keyboard: <kbd>/</kbd> focus search, <kbd>Esc</kbd> clear.
+  </footer>
+
+  <script>
+    const total = 90;
+    const q = document.getElementById('q');
+    const cat = document.getElementById('cat');
+    const count = document.getElementById('count');
+    const cards = Array.from(document.querySelectorAll('.card'));
+
+    function apply() {
+      const query = (q.value || '').trim().toLowerCase();
+      const c = cat.value;
+      let shown = 0;
+      for (const el of cards) {
+        const name = el.dataset.name || '';
+        const catVal = el.dataset.cat || '';
+        const ok = (c === 'all' || catVal === c) && (query === '' || name.includes(query));
+        el.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      }
+      count.textContent = shown + ' / ' + total + ' shown';
+    }
+
+    q.addEventListener('input', apply);
+    cat.addEventListener('change', apply);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== q) {
+        e.preventDefault();
+        q.focus();
+      }
+      if (e.key === 'Escape') {
+        if (document.activeElement === q) q.blur();
+        q.value = '';
+        apply();
+      }
+    });
+
+    apply();
+  </script>
+</body>
+</html>

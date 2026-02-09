@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { AlertTriangle, Target } from 'lucide-react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
@@ -168,11 +169,25 @@ export default function GoalsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <GoalsChart />
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Goals</h1>
+    <div className="space-y-6">
+      <div className="lifemap-page-header">
+        <div>
+          <h1 className="lifemap-page-title">Goals</h1>
+          <p className="lifemap-page-subtitle flex items-center gap-2">
+            <Target className="h-4 w-4 text-slate-400" />
+            Add or edit your goals
+          </p>
+        </div>
+        <div className="lifemap-alert">
+          <AlertTriangle className="h-4 w-4" />
+          <span>
+            Start adding your first goal in the goal register below. You may add as many
+            goals as you want.
+          </span>
+        </div>
       </div>
+
+      <GoalsChart />
       {columns && Array.isArray(columns) && rows && Array.isArray(rows) ? (
         <div>
           <EditableGrid 

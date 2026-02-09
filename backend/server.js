@@ -61,10 +61,18 @@ app.use(limiter);
 console.log('🔍 CORS_ORIGIN from env:', process.env.CORS_ORIGIN);
 const corsOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['http://localhost:5174', 'http://192.168.68.80:5174'];
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://192.168.68.80:5173', 'http://192.168.68.80:5174'];
 console.log('🔍 Parsed CORS origins:', corsOrigins);
 const corsOptions = {
-  origin: corsOrigins,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const allowed =
+      corsOrigins.includes(origin) ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:') ||
+      origin.startsWith('http://192.168.');
+    return callback(allowed ? null : new Error('Not allowed by CORS'), allowed);
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };

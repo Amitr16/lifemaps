@@ -6,7 +6,8 @@ import { useLifeSheetStore } from '../store/enhanced-store'
 import ApiService from '../services/api'
 import LoansChart from '@/components/LoansChart.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { AlertTriangle, CreditCard } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 export default function LoansPage() {
   const { user, isAuthenticated } = useAuth();
@@ -101,7 +102,11 @@ export default function LoansPage() {
       console.log('💰 Loans array:', loans);
       console.log('💰 First loan loanExpiry:', loans[0]?.loanExpiry);
       console.log('💰 First loan end_date from DB:', loans[0]?.end_date);
-      setRows(loans);
+      const mappedLoans = loans.map(loan => ({
+        ...loan,
+        loanName: loan.loanName || loan.type || loan.name || ''
+      }));
+      setRows(mappedLoans);
       
       // Dispatch event for live chart updates (following WorkAssetsPage pattern)
       dispatchLoansEvent(loans);
@@ -119,6 +124,7 @@ export default function LoansPage() {
   const addRow = () => {
     const newRow = { 
       id: `temp_${Date.now()}`, 
+      loanName: '',
       provider: '', 
       amount: 0, 
       interestRate: 0, 
@@ -185,6 +191,7 @@ export default function LoansPage() {
             const updatePromise = isAdminMode
               ? ApiService.updateFinancialLoanForUser(row.id, {
                   lender: row.provider,
+                  type: row.loanName || 'Personal',
                   principal_outstanding: parseFloat(row.amount) || 0,
                   rate: parseFloat(row.interestRate) || 0,
                   emi: parseFloat(row.emi) || 0,
@@ -192,6 +199,7 @@ export default function LoansPage() {
                 }, userId)
               : ApiService.updateFinancialLoan(row.id, {
                   lender: row.provider,
+                  type: row.loanName || 'Personal',
                   principal_outstanding: parseFloat(row.amount) || 0,
                   rate: parseFloat(row.interestRate) || 0,
                   emi: parseFloat(row.emi) || 0,
@@ -214,7 +222,7 @@ export default function LoansPage() {
           
           const loanPayload = {
             lender: row.provider,
-            type: 'Personal',
+            type: row.loanName || 'Personal',
             principal_outstanding: parseFloat(row.amount) || 0,
             rate: parseFloat(row.interestRate) || 0,
             emi: parseFloat(row.emi) || 0,
@@ -254,6 +262,33 @@ export default function LoansPage() {
     }
   };
 
+  const handleReset = () => {
+    loadLoans();
+  };
+
+  const handleExportCsv = () => {
+    const headers = ['Provider', 'Loan Name', 'Amount', 'Interest Rate %', 'EMI', 'Frequency', 'Loan Expiry'];
+    const csvRows = rows.map(row => ([
+      row.provider || '',
+      row.loanName || '',
+      row.amount ?? '',
+      row.interestRate ?? '',
+      row.emi ?? '',
+      row.frequency || '',
+      row.loanExpiry ?? ''
+    ]));
+    const content = [headers, ...csvRows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `loans-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -284,10 +319,16 @@ export default function LoansPage() {
 
   const columns = [
     { field: 'provider', headerName: 'Provider' },
+    { field: 'loanName', headerName: 'Loan Name' },
     { field: 'amount', headerName: 'Amount', type: 'number' },
     { field: 'interestRate', headerName: 'Interest Rate %', type: 'number' },
     { field: 'emi', headerName: 'EMI', type: 'number' },
-    { field: 'frequency', headerName: 'Frequency' },
+    { 
+      field: 'frequency', 
+      headerName: 'Frequency',
+      type: 'select',
+      options: ['Monthly', 'Quarterly', 'Semi-Annually', 'Annually']
+    },
     { field: 'loanExpiry', headerName: 'Loan Expiry', type: 'number' }
   ];
 
@@ -302,89 +343,105 @@ export default function LoansPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <LoansChart loans={rows} />
-      
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="lifemap-page-header">
         <div>
-          <h1 className="text-2xl font-bold">Loans</h1>
-          <p className="text-gray-600">Manage your loan portfolio and EMI schedules</p>
+          <h1 className="lifemap-page-title">Loans</h1>
+          <p className="lifemap-page-subtitle flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-slate-400" />
+            Add or edit your loans here
+          </p>
+        </div>
+        {rows.length === 0 && (
+          <div className="lifemap-alert">
+            <AlertTriangle className="h-4 w-4" />
+            <span>
+              Start adding your first loan in the loan register below to get an output on the
+              chart. You may add as many loans as you want.
+            </span>
+          </div>
+        )}
+      </div>
+
+      <LoansChart loans={rows} />
+
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="text-sm font-semibold text-slate-700">
+          Manage your loan portfolio and EMI schedules
         </div>
         <div className="flex gap-2">
-          <Badge variant="outline" className="text-sm">
+          <span className="px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-xs">
             Total Outstanding: ₹{totalPrincipal.toLocaleString('en-IN')}
-          </Badge>
+          </span>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Outstanding</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              ₹{totalPrincipal.toLocaleString('en-IN')}
-            </div>
-            <p className="text-xs text-gray-500">{rows.length} loans</p>
-          </CardContent>
-        </Card>
+      <div className="lifemap-stat-grid">
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Total Outstanding</p>
+          <div className="lifemap-stat-value text-red-600">
+            ₹{totalPrincipal.toLocaleString('en-IN')}
+          </div>
+          <p className="text-xs text-slate-500">{rows.length} loans</p>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Monthly EMI</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
-              ₹{totalEMI.toLocaleString('en-IN')}
-            </div>
-            <p className="text-xs text-gray-500">Total monthly outflow</p>
-          </CardContent>
-        </Card>
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Monthly EMI</p>
+          <div className="lifemap-stat-value text-orange-600">
+            ₹{totalEMI.toLocaleString('en-IN')}
+          </div>
+          <p className="text-xs text-slate-500">Total monthly outflow</p>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Average Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {averageRate.toFixed(2)}%
-            </div>
-            <p className="text-xs text-gray-500">Weighted average</p>
-          </CardContent>
-        </Card>
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Average Rate</p>
+          <div className="lifemap-stat-value text-blue-600">
+            {averageRate.toFixed(2)}%
+          </div>
+          <p className="text-xs text-slate-500">Weighted Average</p>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Annual Outflow</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              ₹{(totalEMI * 12).toLocaleString('en-IN')}
-            </div>
-            <p className="text-xs text-gray-500">EMI × 12 months</p>
-          </CardContent>
-        </Card>
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Annual Outflow</p>
+          <div className="lifemap-stat-value text-purple-600">
+            ₹{(totalEMI * 12).toLocaleString('en-IN')}
+          </div>
+          <p className="text-xs text-slate-500">EMI x 12 months</p>
+        </div>
       </div>
 
       {/* Loan Register */}
       {columns && Array.isArray(columns) && rows && Array.isArray(rows) ? (
-        <div>
-          <EditableGrid 
-            columns={columns} 
-            rows={rows} 
-            onChange={setRows} 
-            onAdd={addRow} 
-            onDelete={delRow}
-            onCellChange={handleCellChange}
-          />
-          {savingRows.size > 0 && (
-            <div className="mt-2 text-sm text-blue-600">
-              Saving {savingRows.size} row(s)...
+        <div className="lifemap-panel">
+          <div className="lifemap-panel-header">
+            <div className="lifemap-panel-title">
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
+                <CreditCard className="h-4 w-4" />
+              </span>
+              My Loans
             </div>
-          )}
+            <div className="flex items-center gap-2">
+            <Button size="sm" onClick={addRow}>Add Row</Button>
+            <Button size="sm" variant="outline" onClick={handleExportCsv}>Export CSV</Button>
+              <Button size="sm" variant="ghost" className="text-red-500" onClick={handleReset}>Reset</Button>
+            </div>
+          </div>
+          <div className="p-6">
+            <EditableGrid 
+              columns={columns} 
+              rows={rows} 
+              onChange={setRows} 
+              onAdd={addRow} 
+              onDelete={delRow}
+              onCellChange={handleCellChange}
+            />
+            {savingRows.size > 0 && (
+              <div className="mt-2 text-sm text-blue-600">
+                Saving {savingRows.size} row(s)...
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="p-4 text-gray-500">Loading loans...</div>

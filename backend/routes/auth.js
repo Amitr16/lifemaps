@@ -224,7 +224,7 @@ router.put('/profile', authenticateToken, [
     if (email) {
       // Check if email is already taken by another user
       const existingUser = await pool.query(
-        'SELECT id FROM "users" WHERE email = $1 AND id != $2',
+        'SELECT id FROM "user" WHERE email = $1 AND id != $2',
         [email, req.user.id]
       );
 
@@ -241,7 +241,7 @@ router.put('/profile', authenticateToken, [
     }
 
     values.push(req.user.id);
-    const query = `UPDATE "users" SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING id, email, name, created_at, updated_at`;
+    const query = `UPDATE "user" SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramCount} RETURNING id, email, name, created_at, updated_at`;
 
     const result = await pool.query(query, values);
 
@@ -291,7 +291,7 @@ router.post('/change-password', authenticateToken, [
 
     // Get current password hash
     const result = await pool.query(
-      'SELECT password_hash FROM "users" WHERE id = $1',
+      'SELECT password_hash FROM "user" WHERE id = $1',
       [req.user.id]
     );
 

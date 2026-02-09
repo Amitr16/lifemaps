@@ -5,8 +5,8 @@ import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart, Area, Legend } from 'recharts'
-import { TrendingUp, TrendingDown, Calculator, Target, DollarSign, PiggyBank, User, LogOut, Save, RefreshCw, Plus, Trash2, Shield, Users } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart, Area, AreaChart, Legend } from 'recharts'
+import { TrendingUp, TrendingDown, Calculator, Target, DollarSign, PiggyBank, User, Save, RefreshCw, Plus, Trash2, Shield, Users, Briefcase, CreditCard, ShoppingCart, UserCircle, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAdminUser } from '../contexts/AdminUserContext'
@@ -28,6 +28,7 @@ export default function OriginalLifeSheet() {
   const { chartData } = useChart()
   const { updateLifeSheet, addGoal: addStoreGoal, updateGoal: updateStoreGoal, deleteGoal: deleteStoreGoal, addExpense: addStoreExpense, updateExpense: updateStoreExpense, deleteExpense: deleteStoreExpense, addLoan: addStoreLoan, updateLoan: updateStoreLoan, deleteLoan: deleteStoreLoan, setLoans: setStoreLoans, setExpenses: setStoreExpenses, setGoals: setStoreGoals, lifeSheet, setMainInputs, hydrateMainInputs, setSourcePreference, sourcePreferences, loadSourcePreferences } = useLifeSheetStore()
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authModalTab, setAuthModalTab] = useState('login')
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saveStatus, setSaveStatus] = useState('');
@@ -55,6 +56,8 @@ export default function OriginalLifeSheet() {
   // Dynamic goals and expenses
   const [goals, setGoals] = useState([])
   const [expenses, setExpenses] = useState([])
+  const [assets, setAssets] = useState([])
+  const [insurance, setInsurance] = useState([])
   
   // Get calculated values from store (ChatGPT's fix - single source of truth)
   const currentYear = new Date().getFullYear();
@@ -164,12 +167,7 @@ export default function OriginalLifeSheet() {
 
   const [financialProfile, setFinancialProfile] = useState(null)
 
-  // 1. Add a new state for loans with default entries
-  const [loans, setLoans] = useState([
-    { description: 'l1', amount: 500, emi: 500, _tempId: 'default-1', isNew: true },
-    { description: 'l2', amount: 10000, emi: 70, _tempId: 'default-2', isNew: true },
-    { description: 'l3', amount: 10, emi: 15, _tempId: 'default-3', isNew: true }
-  ])
+  const [loans, setLoans] = useState([])
 
   // Calculate values from left pane cells (not chart data)
   const totalLoans = loans.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0);
@@ -515,6 +513,30 @@ export default function OriginalLifeSheet() {
       }).catch(error => {
         console.error('❌ Expenses fetch error:', error)
       })
+
+      // Load assets
+      const loadAssetsPromise = isAdminMode
+        ? ApiService.getFinancialAssetsForUser(effectiveUserId)
+        : ApiService.getFinancialAssets(effectiveUserId);
+      
+      loadAssetsPromise.then(res => {
+        const assetsData = res.assets || [];
+        setAssets(assetsData);
+      }).catch(error => {
+        console.error('❌ Assets fetch error:', error);
+      });
+
+      // Load insurance
+      const loadInsurancePromise = isAdminMode
+        ? ApiService.getFinancialInsuranceForUser(effectiveUserId)
+        : ApiService.getFinancialInsurance(effectiveUserId);
+      
+      loadInsurancePromise.then(res => {
+        const insuranceData = res.insurance || [];
+        setInsurance(insuranceData);
+      }).catch(error => {
+        console.error('❌ Insurance fetch error:', error);
+      });
     }
   }, [effectiveIsAuthenticated, effectiveUserId, isAdminMode])
 
@@ -879,6 +901,37 @@ export default function OriginalLifeSheet() {
       console.error('Error during logout:', error)
     }
   }
+
+  const handleGuestReset = () => {
+    setFormData({
+      age: '',
+      currentAnnualGrossIncome: '',
+      workTenureYears: '',
+      totalAssetGrossMarketValue: '',
+      totalLoanOutstandingValue: '',
+      loanTenureYears: '',
+      lifespanYears: 85,
+      incomeGrowthRate: 0.06,
+      assetGrowthRate: 0.06,
+      inflationRate: 0.06,
+      assetEquitySplit: 0.60,
+      assetEquityGrowthRate: 0.15,
+      assetDebtGrowthRate: 0.07
+    })
+    setGoals([])
+    setExpenses([])
+    setLoans([])
+  }
+
+  React.useEffect(() => {
+    const handler = (event) => {
+      const tab = event?.detail?.tab || 'login'
+      setAuthModalTab(tab)
+      setShowAuthModal(true)
+    }
+    window.addEventListener('openAuthModal', handler)
+    return () => window.removeEventListener('openAuthModal', handler)
+  }, [])
 
   // calculateFinancials now comes from ChartContext (exactly as specified)
 
@@ -1273,8 +1326,88 @@ export default function OriginalLifeSheet() {
     return `${isNegative ? '-' : ''}₹${formatted}`
   }
 
+  // Calculate totals including both detailed data and Quick Calculator values
+  const detailedAssetsTotal = assets.reduce((sum, asset) => sum + (parseFloat(asset.current_value) || 0), 0)
+  const quickCalcAssetsTotal = parseFloat(formData.totalAssetGrossMarketValue) || 0
+  const assetsTotal = detailedAssetsTotal > 0 ? detailedAssetsTotal : quickCalcAssetsTotal
+
+  const detailedLiabilitiesTotal = loans.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0)
+  const quickCalcLiabilitiesTotal = parseFloat(formData.totalLoanOutstandingValue) || 0
+  const liabilitiesTotal = detailedLiabilitiesTotal > 0 ? detailedLiabilitiesTotal : quickCalcLiabilitiesTotal
+
+  // Comprehensive progress calculation based on all modules
+  // Check if growth assumptions are set (at least income growth and inflation rate)
+  const hasGrowthAssumptions = (
+    (formData.incomeGrowthRate !== undefined && formData.incomeGrowthRate !== null && formData.incomeGrowthRate !== '' && parseFloat(formData.incomeGrowthRate) > 0) &&
+    (formData.inflationRate !== undefined && formData.inflationRate !== null && formData.inflationRate !== '' && parseFloat(formData.inflationRate) > 0)
+  )
+
+  // Helper to check if a value is actually filled (not empty string, null, undefined, or 0)
+  const isFilled = (value) => {
+    if (value === null || value === undefined || value === '') return false
+    const num = parseFloat(value)
+    return !isNaN(num) && num > 0
+  }
+
+  const profileSections = [
+    { key: 'profile', label: 'Your Profile', icon: UserCircle, complete: isFilled(formData.age) && isFilled(formData.currentAnnualGrossIncome) && isFilled(formData.workTenureYears) },
+    { key: 'assets', label: 'Assets', icon: PiggyBank, complete: assets.length > 0 || isFilled(formData.totalAssetGrossMarketValue) },
+    { key: 'workAssets', label: 'Work Assets', icon: Briefcase, complete: isFilled(formData.currentAnnualGrossIncome) && isFilled(formData.workTenureYears) },
+    { key: 'goals', label: 'Goals', icon: Target, complete: goals.length > 0 },
+    { key: 'loans', label: 'Loans', icon: CreditCard, complete: loans.length > 0 },
+    { key: 'expenses', label: 'Expenses', icon: ShoppingCart, complete: expenses.length > 0 },
+    { key: 'insurance', label: 'Insurance', icon: Shield, complete: insurance.length > 0 },
+    { key: 'growthAssumptions', label: 'Growth Assumptions', icon: TrendingUp, complete: hasGrowthAssumptions }
+  ]
+
+  const completedSections = profileSections.filter(section => section.complete).length
+  const progressPercent = profileSections.length > 0
+    ? Math.round((completedSections / profileSections.length) * 100)
+    : 0
+
+  // Debug logging (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📊 Progress Calculation:', {
+      completedSections,
+      totalSections: profileSections.length,
+      progressPercent,
+      sections: profileSections.map(s => ({ key: s.key, complete: s.complete }))
+    })
+  }
+
+  const dataSourceItems = [
+    { label: 'Assets', color: 'bg-emerald-500', source: sourcePreferences?.assets === 1 ? 'Assets Page' : 'Quick Calculator' },
+    { label: 'Work Assets', color: 'bg-blue-500', source: sourcePreferences?.income === 1 ? 'Work Assets Page' : 'Quick Calculator' },
+    { label: 'Goals', color: 'bg-purple-500', source: sourcePreferences?.goals === 1 ? 'Goals Page' : 'Quick Calculator' },
+    { label: 'Loans', color: 'bg-red-500', source: sourcePreferences?.loans === 1 ? 'Loans Page' : 'Quick Calculator' },
+    { label: 'Expenses', color: 'bg-orange-500', source: sourcePreferences?.expenses === 1 ? 'Expenses Page' : 'Quick Calculator' },
+    { label: 'Assumptions', color: 'bg-slate-400', source: 'Growth Rate Assumptions' }
+  ]
+
+  // Build liabilities list - use detailed loans if available, otherwise use Quick Calculator value
+  const liabilitiesList = loans.length > 0
+    ? loans.map(loan => ({
+        name: loan.description || loan.provider || loan.lender || 'Liability',
+        amount: parseFloat(loan.amount) || 0
+      }))
+    : (quickCalcLiabilitiesTotal > 0 ? [{ name: 'Total Loans', amount: quickCalcLiabilitiesTotal }] : [])
+
+  // Build assets list - use detailed assets if available, otherwise use Quick Calculator value
+  const assetsList = assets.length > 0
+    ? assets.map(asset => ({
+        name: asset.name || 'Asset',
+        amount: parseFloat(asset.current_value) || 0
+      }))
+    : (quickCalcAssetsTotal > 0 ? [{ name: 'Total Assets', amount: quickCalcAssetsTotal }] : [])
+
+  const maxNetworthRows = Math.max(liabilitiesList.length, assetsList.length, 1)
+  const networthRows = Array.from({ length: maxNetworthRows }).map((_, index) => ({
+    liability: liabilitiesList[index],
+    asset: assetsList[index]
+  }))
+
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6 min-h-screen">
+    <div className="space-y-6">
       {/* Saved status indicator */}
       {saveStatus && (
         <div style={{position: 'fixed', top: 16, right: 24, zIndex: 1000}} className="professional-badge professional-badge-success shadow-lg animate-pulse">
@@ -1288,54 +1421,36 @@ export default function OriginalLifeSheet() {
         </div>
       )}
 
-      {/* Authentication Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="lifemap-page-header">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Life Sheet</h1>
-          <p className="text-gray-600">Financial Planning Calculator</p>
+          <h1 className="lifemap-page-title">
+            {completedSections > 0 ? 'LifeMap' : 'Set up your Financial Profile'}
+          </h1>
+          <p className="lifemap-page-subtitle flex items-center gap-2">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-blue-50 text-blue-600">
+              <Calculator className="h-3.5 w-3.5" />
+            </span>
+            {completedSections > 0
+              ? 'Financial Planning Calculator'
+              : 'Start setting up your profile and financial data to use the calculator'}
+          </p>
         </div>
-        
-        <div className="flex items-center gap-4">
-          {effectiveIsAuthenticated ? (
-            <div className="flex items-center gap-3">
-              {isAdminMode ? (
-                <div className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">
-                    Viewing as Admin
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-700">
-                      {user?.name || user?.email || 'User'}
-                    </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={logout}
-                    className="flex items-center gap-2"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Logout
-                  </Button>
-                </>
-              )}
-            </div>
-          ) : (
-            !isAdminMode && (
-              <Button
-                size="sm"
-                onClick={() => setShowAuthModal(true)}
-                className="flex items-center gap-2"
-              >
-                <User className="h-4 w-4" />
-                Login / Sign Up
-              </Button>
-            )
+        <div className="flex items-center gap-6">
+          <div
+            className="lifemap-progress-circle"
+            style={{ '--progress': `${progressPercent * 3.6}deg` }}
+          >
+            <span>{progressPercent}%</span>
+          </div>
+          {!effectiveIsAuthenticated && !isAdminMode && (
+            <Button
+              size="sm"
+              onClick={() => setShowAuthModal(true)}
+              className="flex items-center gap-2"
+            >
+              <User className="h-4 w-4" />
+              Login / Sign Up
+            </Button>
           )}
         </div>
       </div>
@@ -1349,37 +1464,402 @@ export default function OriginalLifeSheet() {
 
       {/* Admin Login Buttons - Show when not authenticated */}
       {!effectiveIsAuthenticated && !isAdminMode && (
-        <div className="mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <Button
-              onClick={() => navigate('/super-admin/login')}
-              size="lg"
-              className="h-32 flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-white shadow-lg hover:shadow-xl transition-all"
-            >
-              <Shield className="h-12 w-12" />
-              <div className="text-center">
-                <div className="text-2xl font-bold">Super Admin</div>
-                <div className="text-sm opacity-90">Manage admins and users</div>
+        <div className="lifemap-alert">
+          <AlertTriangle className="h-4 w-4" />
+          <span>
+            You're in guest mode. You can use the calculator, but your data will not be
+            saved unless you log in. Scroll down below to find results.
+          </span>
+        </div>
+      )}
+
+      <div className="lifemap-panel">
+        <div className="lifemap-panel-header">
+          <div className="lifemap-panel-title">
+            <Calculator className="h-4 w-4 text-blue-600" />
+            Enter your data
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            *Mandatory fields
+            {!effectiveIsAuthenticated && !isAdminMode && (
+              <button type="button" className="text-red-500" onClick={handleGuestReset}>
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="lifemap-soft-card p-4">
+              <Label htmlFor="age" className="text-xs text-slate-500">Age*</Label>
+              <Input
+                id="age"
+                type="number"
+                value={formData.age}
+                onChange={(e) => handleUserInputChange('age', e.target.value)}
+                onBlur={(e) => saveOnBlur('age', e.target.value)}
+              />
+            </div>
+            <div className="lifemap-soft-card p-4">
+              <Label htmlFor="income" className="text-xs text-slate-500">Current annual gross income*</Label>
+              <Input
+                id="income"
+                type="number"
+                value={formData.currentAnnualGrossIncome}
+                onChange={(e) => handleUserInputChange('currentAnnualGrossIncome', e.target.value)}
+                onBlur={(e) => saveOnBlur('currentAnnualGrossIncome', e.target.value)}
+              />
+            </div>
+            <div className="lifemap-soft-card p-4">
+              <Label htmlFor="tenure" className="text-xs text-slate-500">Current work tenure*</Label>
+              <Input
+                id="tenure"
+                type="number"
+                value={formData.workTenureYears}
+                onChange={(e) => handleUserInputChange('workTenureYears', e.target.value)}
+                onBlur={(e) => saveOnBlur('workTenureYears', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="lifemap-soft-card p-4">
+            <Label htmlFor="assets" className="text-xs text-slate-500">Total Asset Gross Market Value*</Label>
+            <Input
+              id="assets"
+              type="number"
+              value={formData.totalAssetGrossMarketValue}
+              onChange={(e) => handleUserInputChange('totalAssetGrossMarketValue', e.target.value)}
+              onBlur={(e) => saveOnBlur('totalAssetGrossMarketValue', e.target.value)}
+            />
+          </div>
+
+          <div className="lifemap-soft-card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-slate-500">Outstanding loans*</Label>
+              <span className="text-xs text-slate-400">
+                {formatCurrency(loans.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0))}
+              </span>
+            </div>
+            {loans.map((loan, index) => (
+              <div key={loan.id || loan._tempId || index} className="grid grid-cols-3 gap-2 items-center">
+                <Input
+                  placeholder="Loan name"
+                  value={loan.description || ''}
+                  onChange={e => handleLoanChange(loan.id || loan._tempId || index, 'description', e.target.value)}
+                  onBlur={e => saveLoanOnBlur(loan.id || loan._tempId || index, 'description', e.target.value)}
+                />
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  value={loan.amount === "" ? "" : loan.amount}
+                  onChange={e => {
+                    const val = e.target.value;
+                    handleLoanChange(loan.id || loan._tempId || index, 'amount', val === "" ? "" : parseFloat(val));
+                  }}
+                  onBlur={e => {
+                    const val = e.target.value;
+                    saveLoanOnBlur(loan.id || loan._tempId || index, 'amount', val === "" ? "" : parseFloat(val));
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="EMI"
+                    value={loan.emi === "" ? "" : loan.emi}
+                    onChange={e => {
+                      const val = e.target.value;
+                      handleLoanChange(loan.id || loan._tempId || index, 'emi', val === "" ? "" : parseFloat(val));
+                    }}
+                    onBlur={e => {
+                      const val = e.target.value;
+                      saveLoanOnBlur(loan.id || loan._tempId || index, 'emi', val === "" ? "" : parseFloat(val));
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeLoan(index)}
+                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
+            ))}
+            <Button onClick={addLoan} variant="outline" size="sm" className="w-full">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Loan
             </Button>
-            
-            <Button
-              onClick={() => navigate('/admin/login')}
-              size="lg"
-              className="h-32 flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white shadow-lg hover:shadow-xl transition-all"
-            >
-              <Users className="h-12 w-12" />
-              <div className="text-center">
-                <div className="text-2xl font-bold">Admin</div>
-                <div className="text-sm opacity-90">Manage client accounts</div>
+          </div>
+
+          <div className="lifemap-soft-card p-4 space-y-3">
+            <Label className="text-xs text-slate-500">Specific Financial Goals*</Label>
+            {goals.map((goal, index) => (
+              <div key={goal.id || index} className="grid grid-cols-3 gap-2 items-center">
+                <Input
+                  placeholder="Goal"
+                  value={goal.description || ''}
+                  onChange={e => handleGoalChange(index, 'description', e.target.value)}
+                  onBlur={e => saveGoalOnBlur(index, 'description', e.target.value)}
+                />
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  value={goal.amount === "" ? "" : goal.amount}
+                  onChange={e => {
+                    const val = e.target.value;
+                    handleGoalChange(index, 'amount', val === "" ? "" : parseFloat(val));
+                  }}
+                  onBlur={e => {
+                    const val = e.target.value;
+                    saveGoalOnBlur(index, 'amount', val === "" ? "" : parseFloat(val));
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeGoal(index)}
+                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
+            ))}
+            <Button onClick={addGoal} variant="outline" size="sm" className="w-full">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Goal
             </Button>
+          </div>
+
+          <div className="lifemap-soft-card p-4 space-y-3">
+            <Label className="text-xs text-slate-500">All Inclusive Annual Expenses*</Label>
+            {expenses.map((expense, index) => (
+              <div key={expense.id || index} className="grid grid-cols-3 gap-2 items-center">
+                <Input
+                  placeholder="Expense"
+                  value={expense.description || ''}
+                  onChange={e => handleExpenseChange(index, 'description', e.target.value)}
+                  onBlur={e => saveExpenseOnBlur(index, 'description', e.target.value)}
+                />
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  value={expense.amount === "" ? "" : expense.amount}
+                  onChange={e => {
+                    const val = e.target.value;
+                    handleExpenseChange(index, 'amount', val === "" ? "" : parseFloat(val));
+                  }}
+                  onBlur={e => {
+                    const val = e.target.value;
+                    saveExpenseOnBlur(index, 'amount', val === "" ? "" : parseFloat(val));
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeExpense(index)}
+                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+            <Button onClick={addExpense} variant="outline" size="sm" className="w-full">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Expense
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {!effectiveIsAuthenticated && !isAdminMode && (
+        <div className="lifemap-alert">
+          <AlertTriangle className="h-4 w-4" />
+          <div className="flex-1">
+            Your data won’t be saved if you are not registered with us. Also, you won’t be
+            able to use the calculator to its full potential. Create an account with us if
+            you haven’t yet. Log in and use the calculator to its full potential.
+          </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => {
+              setAuthModalTab('login')
+              setShowAuthModal(true)
+            }}>Login</Button>
+            <Button variant="outline" onClick={() => {
+              setAuthModalTab('register')
+              setShowAuthModal(true)
+            }}>Register</Button>
           </div>
         </div>
       )}
 
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        {profileSections.map(section => {
+          const Icon = section.icon
+          return (
+            <div key={section.key} className="lifemap-soft-card p-4 flex items-center gap-3 relative">
+              <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
+                <Icon className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="text-sm font-medium text-slate-700">{section.label}*</div>
+              <span className={`absolute top-2 right-2 h-2.5 w-2.5 rounded-full ${section.complete ? 'bg-emerald-500' : 'bg-red-500'}`} />
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="lifemap-panel">
+        <div className="lifemap-panel-header">
+          <div className="lifemap-panel-title">Net Assets and Liabilities</div>
+          <div className="text-xs bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full text-slate-600 dark:text-slate-300">
+            Surplus: {formatCurrency(Math.abs(calculations.surplusDeficit))}
+          </div>
+        </div>
+        <div className="p-6">
+          {assetsTotal === 0 && liabilitiesTotal === 0 && !isFilled(formData.age) && !isFilled(formData.currentAnnualGrossIncome) && !isFilled(formData.workTenureYears) ? (
+            <div className="lifemap-soft-card p-10 flex flex-col items-center text-center gap-4 text-slate-600">
+              <AlertTriangle className="h-12 w-12 text-red-500" />
+              <div>
+                <div className="text-lg font-semibold text-slate-700">Please set up your financial profile to view results</div>
+              </div>
+            </div>
+          ) : (
+            <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden bg-white dark:bg-slate-800">
+              <div className="grid grid-cols-4 bg-slate-50 dark:bg-slate-700/50 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                <div className="px-4 py-3">Liabilities</div>
+                <div className="px-4 py-3">Amount</div>
+                <div className="px-4 py-3">Assets</div>
+                <div className="px-4 py-3">Amount</div>
+              </div>
+              {networthRows.map((row, idx) => (
+                <div key={`networth-row-${idx}`} className="grid grid-cols-4 text-sm border-t border-slate-100 dark:border-slate-700">
+                  <div className="px-4 py-3 bg-red-50/60 dark:bg-red-900/20 text-slate-700 dark:text-slate-300">{row.liability?.name || ''}</div>
+                  <div className="px-4 py-3 bg-red-50/60 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium">
+                    {row.liability ? formatCurrency(row.liability.amount) : ''}
+                  </div>
+                  <div className="px-4 py-3 bg-emerald-50/60 dark:bg-emerald-900/20 text-slate-700 dark:text-slate-300">{row.asset?.name || ''}</div>
+                  <div className="px-4 py-3 bg-emerald-50/60 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-medium">
+                    {row.asset ? formatCurrency(row.asset.amount) : ''}
+                  </div>
+                </div>
+              ))}
+              <div className="grid grid-cols-4 border-t-2 border-slate-200 dark:border-slate-600 text-sm font-semibold bg-slate-50 dark:bg-slate-700/50">
+                <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 text-slate-700 dark:text-slate-300">Total Liabilities</div>
+                <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400">{formatCurrency(liabilitiesTotal)}</div>
+                <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-900/30 text-slate-700 dark:text-slate-300">Total Assets</div>
+                <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">{formatCurrency(assetsTotal)}</div>
+              </div>
+              <div className="px-4 py-4 border-t border-slate-200 dark:border-slate-700 text-sm font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                Net Worth: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(assetsTotal - liabilitiesTotal)}</span>
+              </div>
+              <div className="px-4 pb-4 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800">
+                Current Networth = Total assets - Total Liabilities
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="lifemap-panel">
+        <div className="lifemap-panel-header">
+          <div className="lifemap-panel-title">
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            Your Networth
+          </div>
+        </div>
+        <div className="p-6 pb-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="lifemap-soft-card p-4">
+              <div className="text-xs text-slate-500 dark:text-slate-400">Total assets as on date*</div>
+              <div className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(assetsTotal)}</div>
+            </div>
+            <div className="lifemap-soft-card p-4">
+              <div className="text-xs text-slate-500 dark:text-slate-400">Total liabilities as on date*</div>
+              <div className="text-lg font-semibold text-rose-600 dark:text-red-400">{formatCurrency(liabilitiesTotal)}</div>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-400">
+            Current Networth = Total assets - Total Liabilities
+            <span className="float-right text-emerald-600 dark:text-emerald-400 font-semibold">
+              {formatCurrency(assetsTotal - liabilitiesTotal)}
+            </span>
+          </div>
+        </div>
+        <div className="p-6">
+          {chartData && chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="networthFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => formatCurrency(value)} />
+                <Tooltip formatter={(value) => formatCurrency(value)} labelFormatter={(label) => `Year: ${label}`} />
+                <Area type="monotone" dataKey="netWorth" stroke="#3b82f6" fill="url(#networthFill)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="lifemap-soft-card p-10 flex flex-col items-center text-center gap-4 text-slate-600">
+              <AlertTriangle className="h-12 w-12 text-red-500" />
+              <div className="text-lg font-semibold text-slate-700">Please set up your financial profile to view results</div>
+            </div>
+          )}
+        </div>
+        <div className="px-6 pb-6">
+          <div className="text-xs text-slate-500 mb-2">Data Sources</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+            {dataSourceItems.map(item => (
+              <div key={item.label} className="flex items-center gap-2 text-slate-500">
+                <span className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
+                <div>
+                  <div className="font-medium text-slate-700">{item.label}</div>
+                  <div className="text-[10px]">{item.source}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="lifemap-panel">
+        <div className="lifemap-panel-header">
+          <div className="lifemap-panel-title">
+            <Calculator className="h-4 w-4 text-blue-600" />
+            Growth Rate Assumptions
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="space-y-2 text-sm text-slate-600">
+            <div className="flex items-center justify-between">
+              <span>Asset Growth Rate</span>
+              <span>{(parseFloat(formData.assetGrowthRate || 0.06) * 100).toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Income Growth Rate</span>
+              <span>{(parseFloat(formData.incomeGrowthRate || 0.06) * 100).toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Expense Inflation Rate</span>
+              <span>{(parseFloat(formData.inflationRate || 0.06) * 100).toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Work Tenure</span>
+              <span>{formData.workTenureYears || 0} years</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Project Horizon</span>
+              <span>{formData.lifespanYears - parseInt(formData.age || 0)} years</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="hidden">
         
         {/* Left Column - Input Form */}
         <div className="lg:col-span-1">
@@ -2077,6 +2557,7 @@ export default function OriginalLifeSheet() {
         <AuthModal
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
+          defaultTab={authModalTab}
         />
       )}
 

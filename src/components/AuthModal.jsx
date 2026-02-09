@@ -9,9 +9,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { X, User, Mail, Lock, UserPlus } from 'lucide-react';
 import ApiService from '../services/api';
 
-const AuthModal = ({ isOpen, onClose }) => {
+const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const { login, register, error, loading, clearError, setUser, setError } = useAuth();
-  const [activeTab, setActiveTab] = useState('login');
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [socialLoading, setSocialLoading] = useState(null);
   
   const [loginForm, setLoginForm] = useState({
@@ -107,6 +107,12 @@ const AuthModal = ({ isOpen, onClose }) => {
       setSocialLoading(null);
     }
   };
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setActiveTab(defaultTab);
+    }
+  }, [isOpen, defaultTab]);
 
   if (!isOpen) return null;
 

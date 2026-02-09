@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -124,6 +124,157 @@
 }
 
 @layer components {
+  .lifemap-shell {
+    @apply min-h-screen bg-slate-50 text-slate-900 flex;
+  }
+
+  .lifemap-sidebar {
+    @apply hidden lg:flex flex-col w-64 bg-white border-r border-slate-200 px-5 py-6;
+  }
+
+  .lifemap-logo {
+    @apply flex items-center gap-3 mb-8;
+  }
+
+  .lifemap-logo-icon {
+    @apply bg-blue-600 p-2 rounded-xl;
+  }
+
+  .lifemap-logo-text {
+    @apply text-lg font-semibold text-slate-900;
+  }
+
+  .lifemap-nav {
+    @apply flex-1 space-y-1;
+  }
+
+  .lifemap-nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition;
+  }
+
+  .lifemap-nav-item-active {
+    @apply bg-blue-50 text-blue-700;
+  }
+
+  .lifemap-sidebar-footer {
+    @apply border-t border-slate-200 dark:border-slate-700 pt-4 mt-4 space-y-2;
+  }
+
+  .lifemap-main {
+    @apply flex-1 flex flex-col min-h-screen;
+  }
+
+  .lifemap-topbar {
+    @apply sticky top-0 z-20 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-end gap-4;
+  }
+
+  .lifemap-search {
+    @apply flex items-center gap-2 bg-slate-100 rounded-full px-4 py-2 w-full max-w-md border border-slate-200;
+  }
+
+  .lifemap-search-input {
+    @apply border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 h-6 text-sm placeholder:text-slate-400;
+  }
+
+  .lifemap-topbar-actions {
+    @apply flex items-center gap-4 text-sm text-slate-600;
+  }
+
+  .lifemap-icon-button {
+    @apply relative inline-flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition;
+  }
+
+  .lifemap-badge {
+    @apply absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-semibold rounded-full px-1;
+  }
+
+  .lifemap-lang {
+    @apply inline-flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-full text-sm text-slate-600;
+  }
+
+  .lifemap-lang-flag {
+    @apply text-base;
+  }
+
+  .lifemap-user {
+    @apply hidden md:flex flex-col items-end gap-1;
+  }
+
+  .lifemap-user-label {
+    @apply text-xs text-slate-500 dark:text-slate-400;
+  }
+
+  .lifemap-user-name-container {
+    @apply flex items-center gap-1;
+  }
+
+  .lifemap-user-name {
+    @apply text-sm font-medium text-slate-900 dark:text-white;
+  }
+
+  .lifemap-content {
+    @apply flex-1 px-6 py-6 bg-slate-50;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .lifemap-footer {
+    @apply mt-10 border-t border-slate-200 px-6 py-4 text-xs text-slate-500 flex items-center justify-between;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .lifemap-footer-links {
+    @apply flex items-center gap-2;
+  }
+
+  .lifemap-page-header {
+    @apply flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4;
+  }
+
+  .lifemap-page-title {
+    @apply text-3xl font-semibold text-slate-900;
+    font-family: 'Playfair Display', 'Inter', serif;
+  }
+
+  .lifemap-page-subtitle {
+    @apply text-sm text-slate-500 mt-1;
+  }
+
+  .lifemap-alert {
+    @apply flex items-center gap-3 bg-orange-100 text-orange-700 rounded-xl px-4 py-3 text-sm shadow-sm border border-orange-200;
+  }
+
+  .lifemap-panel {
+    @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
+  }
+
+  .lifemap-panel-header {
+    @apply px-5 py-4 border-b border-slate-200 flex items-center justify-between;
+  }
+
+  .lifemap-panel-title {
+    @apply text-sm font-semibold text-slate-700 flex items-center gap-2;
+  }
+
+  .lifemap-stat-grid {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-4;
+  }
+
+  .lifemap-stat-card {
+    @apply bg-white rounded-2xl border border-slate-200 px-5 py-4 shadow-sm;
+  }
+
+  .lifemap-stat-title {
+    @apply text-xs font-medium text-slate-500;
+  }
+
+  .lifemap-stat-value {
+    @apply text-2xl font-semibold mt-2;
+  }
+
   .life-sheet-container {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
@@ -157,5 +308,263 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.lifemap-content {
+  background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.12) 1px, transparent 0);
+  background-size: 28px 28px;
+}
+
+.lifemap-nav-item-active {
+  position: relative;
+}
+
+.lifemap-nav-item-active::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 10%;
+  width: 6px;
+  height: 80%;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
+.lifemap-toggle {
+  width: 52px;
+  height: 28px;
+  background: #1d4ed8;
+  border-radius: 999px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px;
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  border: none;
+  overflow: hidden;
+}
+
+.lifemap-toggle svg {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.lifemap-toggle-knob {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border-radius: 999px;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: transform 0.2s ease;
+  z-index: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.lifemap-toggle[data-theme='light'] .lifemap-toggle-knob {
+  transform: translate(24px, -50%);
+}
+
+.lifemap-toggle[data-theme='dark'] .lifemap-toggle-knob {
+  transform: translate(0, -50%);
+}
+
+.dark .lifemap-shell {
+  background: #0b0f14;
+  color: #f8fafc;
+}
+
+.dark .lifemap-sidebar,
+.dark .lifemap-topbar,
+.dark .lifemap-panel,
+.dark .lifemap-stat-card {
+  background: #111827;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.dark .lifemap-content {
+  background-color: #0b0f14;
+  background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.08) 1px, transparent 0);
+}
+
+.dark .lifemap-nav-item {
+  color: rgba(248, 250, 252, 0.72);
+}
+
+.dark .lifemap-nav-item-active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #bfdbfe;
+}
+
+.dark .lifemap-search {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.dark .lifemap-search-input {
+  color: #f8fafc;
+}
+
+.dark .lifemap-panel-header,
+.dark .lifemap-footer {
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+/* Ensure tables inside panels get dark mode */
+.dark .lifemap-panel table,
+.dark .lifemap-panel .overflow-x-auto {
+  background: transparent;
+}
+
+.dark .lifemap-panel .bg-white {
+  background: #111827;
+}
+
+.dark .lifemap-soft-card {
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+/* Dark mode table styles */
+.dark table,
+.dark .overflow-x-auto {
+  background: #111827;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #f8fafc;
+}
+
+.dark table thead {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.dark table thead th {
+  color: rgba(248, 250, 252, 0.9);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.dark table tbody tr {
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.dark table tbody tr:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.dark table tbody td {
+  color: rgba(248, 250, 252, 0.9);
+}
+
+.dark table input,
+.dark table select {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #f8fafc;
+}
+
+.dark table input:focus,
+.dark table select:focus {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(59, 130, 246, 0.5);
+  outline: none;
+}
+
+.dark table input::placeholder {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+.dark select {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #f8fafc;
+}
+
+.dark select option {
+  background: #111827;
+  color: #f8fafc;
+}
+
+.dark select:focus {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(59, 130, 246, 0.5);
+  outline: none;
+}
+
+.dark .border-slate-200 {
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.dark .bg-white {
+  background: #111827;
+}
+
+.dark .bg-slate-50 {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.dark .text-slate-600 {
+  color: rgba(248, 250, 252, 0.7);
+}
+
+.dark .text-slate-500 {
+  color: rgba(248, 250, 252, 0.6);
+}
+
+.dark .hover\:bg-gray-50:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.dark .hover\:text-gray-800:hover {
+  color: rgba(248, 250, 252, 0.9);
+}
+
+.lifemap-tab {
+  @apply inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-medium border border-slate-200;
+}
+
+.lifemap-tab-active {
+  @apply bg-blue-600 text-white border-blue-600;
+}
+
+.lifemap-tab-inactive {
+  @apply bg-white text-slate-600 hover:bg-slate-50;
+}
+
+.lifemap-soft-card {
+  @apply bg-slate-50 border border-slate-200 rounded-2xl;
+}
+
+.lifemap-progress-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: conic-gradient(#1d4ed8 var(--progress, 0deg), #e2e8f0 0);
+}
+
+.lifemap-progress-circle span {
+  width: 40px;
+  height: 40px;
+  background: #fff;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: #1d4ed8;
 }
 

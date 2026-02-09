@@ -5,7 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAdminUser } from '@/contexts/AdminUserContext';
 import ApiService from '@/services/api';
 import { useLifeSheetStore } from '@/store/enhanced-store';
+import { AlertTriangle, Shield } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export default function InsurancePage() {
   const { user } = useAuth();
@@ -331,7 +333,9 @@ export default function InsurancePage() {
         frequency: policy.frequency || 'Yearly',
         provider: policy.provider,
         policyNumber: policy.policy_number,
-        expiryYear: policy.end_date ? parseInt(policy.end_date.split('-')[0]) : '', // Extract year from end_date
+        startDate: policy.start_date || '',
+        endDate: policy.end_date || '',
+        expiryYear: policy.end_date ? parseInt(policy.end_date.split('-')[0]) : '',
         notes: policy.notes,
         user_id: policy.user_id,
         created_at: policy.created_at,
@@ -355,6 +359,8 @@ export default function InsurancePage() {
       frequency: 'Yearly',
       provider: '',
       policyNumber: '',
+      startDate: '',
+      endDate: '',
       expiryYear: new Date().getFullYear() + 10, // Default to 10 years from now
       notes: ''
     };
@@ -397,7 +403,7 @@ export default function InsurancePage() {
           // Update existing row
           if (row.policyType && row.cover && row.premium) {
             setSavingRows(prev => new Set(prev).add(rowIndex));
-            const endDate = row.expiryYear ? `${parseInt(row.expiryYear)}-12-31` : null;
+            const endDate = row.endDate || (row.expiryYear ? `${parseInt(row.expiryYear)}-12-31` : null);
             ApiService.updateFinancialInsurance(row.id, {
               policy_type: row.policyType,
               cover: parseFloat(row.cover) || 0,
@@ -405,6 +411,7 @@ export default function InsurancePage() {
               frequency: row.frequency || 'Yearly',
               provider: row.provider,
               policy_number: row.policyNumber,
+              start_date: row.startDate || null,
               end_date: endDate,
               notes: row.notes
             }).finally(() => {
@@ -418,7 +425,7 @@ export default function InsurancePage() {
         } else if (row.policyType && row.cover && row.premium && row.id.toString().startsWith('temp_')) {
           // Create new row
           setSavingRows(prev => new Set(prev).add(rowIndex));
-          const endDate = row.expiryYear ? `${parseInt(row.expiryYear)}-12-31` : null;
+          const endDate = row.endDate || (row.expiryYear ? `${parseInt(row.expiryYear)}-12-31` : null);
           ApiService.createFinancialInsurance({
             policy_type: row.policyType,
             cover: parseFloat(row.cover) || 0,
@@ -426,6 +433,7 @@ export default function InsurancePage() {
             frequency: row.frequency || 'Yearly',
             provider: row.provider,
             policy_number: row.policyNumber,
+            start_date: row.startDate || null,
             end_date: endDate,
             notes: row.notes
           }).then(newInsurance => {
@@ -444,6 +452,35 @@ export default function InsurancePage() {
     } catch (error) {
       console.error('Error in handleCellChange:', error);
     }
+  };
+
+  const handleReset = () => {
+    loadInsurance();
+  };
+
+  const handleExportCsv = () => {
+    const headers = ['Policy Type', 'Cover Amt.', 'Premium', 'Frequency', 'Provider', 'Policy No.', 'Start Date', 'End Date', 'Notes'];
+    const csvRows = rows.map(row => ([
+      row.policyType || '',
+      row.cover ?? '',
+      row.premium ?? '',
+      row.frequency || '',
+      row.provider || '',
+      row.policyNumber || '',
+      row.startDate || '',
+      row.endDate || '',
+      row.notes || ''
+    ]));
+    const content = [headers, ...csvRows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `insurance-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   // Calculate summary statistics
@@ -469,8 +506,9 @@ export default function InsurancePage() {
     { field: 'premium', headerName: 'Premium', type: 'number' },
     { field: 'frequency', headerName: 'Frequency' },
     { field: 'provider', headerName: 'Provider' },
-    { field: 'policyNumber', headerName: 'Policy Number' },
-    { field: 'expiryYear', headerName: 'Expiry Year', type: 'number' },
+    { field: 'policyNumber', headerName: 'Policy No.' },
+    { field: 'startDate', headerName: 'Start Date', type: 'date' },
+    { field: 'endDate', headerName: 'End Date', type: 'date' },
     { field: 'notes', headerName: 'Notes' }
   ];
 
@@ -485,119 +523,149 @@ export default function InsurancePage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-4">
-      {/* Insurance Calculations Table */}
-      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur w-full">
-        <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-t-lg">
-          <CardTitle className="flex items-center justify-between">
-            <span>Insurance Calculation</span>
-            {insuranceNeeded > 0 && (
-              <span className="text-xl font-bold bg-white/20 px-3 py-1 rounded">
-                Insurance Needed: {formatCurrency(insuranceNeeded)}
-              </span>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
+    <div className="space-y-6">
+      <div className="lifemap-page-header">
+        <div>
+          <h1 className="lifemap-page-title">Insurance</h1>
+          <p className="lifemap-page-subtitle flex items-center gap-2">
+            <Shield className="h-4 w-4 text-slate-400" />
+            Add or edit your insurance policies and coverage
+          </p>
+        </div>
+        {rows.length === 0 && (
+          <div className="lifemap-alert">
+            <AlertTriangle className="h-4 w-4" />
+            <span>
+              Start adding your policies in the insurance register below. You may add as many
+              policies as you want.
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Insurance Calculation Section */}
+      <div className="lifemap-panel">
+        <div className="lifemap-panel-header">
+          <div className="lifemap-panel-title">Insurance Calculation</div>
+          {insuranceNeeded > 0 && (
+            <div className="text-xs bg-red-100 dark:bg-red-900/30 px-3 py-1 rounded-full text-red-600 dark:text-red-400">
+              Insurance Needed: {formatCurrency(insuranceNeeded)}
+            </div>
+          )}
+        </div>
+        <div className="p-6">
           <div className="grid grid-cols-2 gap-6">
             {/* Assets Column */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-600">Total Existing Assets</span>
-                <span className="text-lg font-bold text-green-600">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Existing Assets</span>
+                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                   + {formatCurrency(calculations.totalExistingAssets)}
                 </span>
               </div>
               
-              <div className="border-t pt-4">
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-gray-800">Total</span>
-                  <span className="text-xl font-bold text-green-600">
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Total</span>
+                  <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
                     + {formatCurrency(calculations.totalExistingAssets)}
                   </span>
                 </div>
+              </div>
+              
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Insurance Cover</span>
+                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                  {formatCurrency(totalCover)}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Uncovered Amount</span>
+                <span className={`text-lg font-bold ${uncoveredInsurance > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {formatCurrency(uncoveredInsurance)}
+                </span>
               </div>
             </div>
 
             {/* Liabilities Column */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-600">Total Existing Liabilities</span>
-                <span className="text-lg font-bold text-red-600">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Existing Liabilities</span>
+                <span className="text-lg font-bold text-red-600 dark:text-red-400">
                   - {formatCurrency(calculations.totalExistingLiabilities)}
                 </span>
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-600">Total Future Expense</span>
-                <span className="text-lg font-bold text-red-600">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Future Expense</span>
+                <span className="text-lg font-bold text-red-600 dark:text-red-400">
                   - {formatCurrency(calculations.totalFutureExpenses)}
                 </span>
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-600">Cumulative Financial Goal</span>
-                <span className="text-lg font-bold text-red-600">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Cumulative Financial Goal</span>
+                <span className="text-lg font-bold text-red-600 dark:text-red-400">
                   - {formatCurrency(calculations.totalFinancialGoals)}
                 </span>
               </div>
               
-              <div className="border-t pt-4">
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-gray-800">Total</span>
-                  <span className="text-xl font-bold text-red-600">
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Total</span>
+                  <span className="text-xl font-bold text-red-600 dark:text-red-400">
                     - {formatCurrency(calculations.totalExistingLiabilities + calculations.totalFutureExpenses + calculations.totalFinancialGoals)}
                   </span>
                 </div>
               </div>
             </div>
           </div>
-          
-          {/* Insurance Needed Row (only if negative) */}
-          {netTotal < 0 && (
-            <div className="border-t-2 pt-4 mt-4">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-bold text-gray-900">Insurance Needed</span>
-                <span className="text-2xl font-bold text-red-600">
-                  {formatCurrency(insuranceNeeded)}
-                </span>
-              </div>
-            </div>
-          )}
-          
-          {/* Coverage Summary */}
-          <div className="border-t pt-4 mt-4 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-600">Total Insurance Cover</span>
-              <span className="text-lg font-bold text-blue-600">
-                {formatCurrency(totalCover)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-600">Uncovered Amount</span>
-              <span className={`text-lg font-bold ${uncoveredInsurance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {formatCurrency(uncoveredInsurance)}
-              </span>
+        </div>
+      </div>
+      
+      {/* Insurance Policies Section */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Insurance Policies</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your insurance policies and coverage</p>
+        </div>
+        <div className="lifemap-stat-grid">
+          <div className="lifemap-stat-card">
+            <p className="lifemap-stat-title">Total Coverage</p>
+            <div className="lifemap-stat-value text-blue-600 dark:text-blue-400">
+              {formatCurrency(totalCover)}
             </div>
           </div>
-        </CardContent>
-      </Card>
-      
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Insurance Policies</h1>
-          <p className="text-gray-600">Manage your insurance policies and coverage</p>
+          <div className="lifemap-stat-card">
+            <p className="lifemap-stat-title">Annual Premiums</p>
+            <div className="lifemap-stat-value text-blue-600 dark:text-blue-400">
+              {formatCurrency(totalAnnualPremium)}
+            </div>
+          </div>
         </div>
       </div>
 
-      <EditableGrid 
-        columns={columns} 
-        rows={rows} 
-        onChange={setRows} 
-        onAdd={addRow} 
-        onDelete={delRow}
-        onCellChange={handleCellChange}
-      />
+      <div className="lifemap-panel">
+        <div className="lifemap-panel-header">
+          <div className="lifemap-panel-title">Insurance Policies</div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={addRow}>Add Row</Button>
+            <Button size="sm" variant="outline" onClick={handleExportCsv}>Export CSV</Button>
+            <Button size="sm" variant="ghost" className="text-red-500 dark:text-red-400" onClick={handleReset}>Reset</Button>
+          </div>
+        </div>
+        <div className="p-6">
+          <EditableGrid 
+            columns={columns} 
+            rows={rows} 
+            onChange={setRows} 
+            onAdd={addRow} 
+            onDelete={delRow}
+            onCellChange={handleCellChange}
+          />
+        </div>
+      </div>
 
       {savingRows.size > 0 && (
         <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">

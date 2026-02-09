@@ -139,7 +139,7 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       // Try to logout from server (only if user token exists)
       if (localStorage.getItem('authToken')) {
-        await ApiService.logout();
+      await ApiService.logout();
       }
       setUser(null);
       setAdmin(null);

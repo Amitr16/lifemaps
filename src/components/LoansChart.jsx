@@ -3,6 +3,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TrendingUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLifeSheetStore } from '../store/enhanced-store';
 import { calculateAnnualLoanOutflow, calculateProjectionYears } from '../lib/chartCalculations';
@@ -72,9 +73,15 @@ export default function LoansChart({ loans = [] }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Annual EMI Outflow by Loan</CardTitle>
+    <Card className="lifemap-panel">
+      <CardHeader className="lifemap-panel-header">
+        <div className="flex items-center justify-between w-full">
+          <CardTitle className="lifemap-panel-title">
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            Annual EMI Outflow by Loan
+          </CardTitle>
+          <span className="text-xs text-slate-500">Total Outflow</span>
+        </div>
         <p className="text-sm text-gray-600">How much cash leaves your pocket each year</p>
       </CardHeader>
       <CardContent>
@@ -122,9 +129,9 @@ export default function LoansChart({ loans = [] }) {
         </div>
         
         {/* Chart interpretation */}
-        <div className="mt-4 p-3 bg-orange-50 rounded-lg">
-          <h4 className="text-sm font-medium text-orange-800 mb-2">How to read this chart:</h4>
-          <ul className="text-xs text-orange-700 space-y-1">
+        <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <h4 className="text-sm font-medium text-slate-700 mb-2">How to read this chart:</h4>
+          <ul className="text-xs text-slate-500 space-y-1">
             <li>• <strong>Stacked bars</strong> show each loan's annual EMI contribution</li>
             <li>• <strong>Dashed line</strong> shows total annual outflow across all active loans</li>
             <li>• <strong>Drops</strong> indicate when a loan is paid off and cash burden reduces</li>

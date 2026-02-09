@@ -150,11 +150,11 @@ const EarmarkingInput = ({
   return (
     <>
       <div 
-        className={`min-h-[32px] p-2 border border-gray-200 rounded-md bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors ${className}`}
+        className={`min-h-[32px] p-2 border border-gray-200 dark:border-slate-600 rounded-md bg-gray-50/50 dark:bg-slate-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors ${className}`}
         onClick={handleOpen}
       >
         {earmarks.length === 0 ? (
-          <div className="text-gray-400 text-sm flex items-center justify-center h-6">
+          <div className="text-gray-400 dark:text-slate-300 text-sm flex items-center justify-center h-6">
             Click to earmark
           </div>
         ) : (
@@ -165,7 +165,7 @@ const EarmarkingInput = ({
                 <Badge 
                   key={index} 
                   variant="secondary" 
-                  className="text-xs px-2 py-1 bg-blue-100 text-blue-800"
+                  className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
                 >
                   {earmark.goalName || earmark.goal_name || `Goal ${earmark.goalId}`} ({earmark.percent}%)
                 </Badge>
@@ -178,8 +178,8 @@ const EarmarkingInput = ({
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Manage Goal Earmarks</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="dark:text-white">Manage Goal Earmarks</DialogTitle>
+            <DialogDescription className="dark:text-slate-300">
               Allocate percentages to goals. Total allocation cannot exceed {maxAllocation}%.
             </DialogDescription>
           </DialogHeader>
@@ -187,32 +187,32 @@ const EarmarkingInput = ({
           <div className="space-y-4">
             {/* Current Allocations */}
             <div>
-              <h4 className="text-sm font-medium mb-2">Current Allocations</h4>
+              <h4 className="text-sm font-medium mb-2 dark:text-white">Current Allocations</h4>
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {earmarks.map((earmark, index) => (
-                  <Card key={index} className="p-3">
+                  <Card key={index} className="p-3 dark:bg-slate-800 dark:border-slate-700">
                     <CardContent className="p-0">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs dark:text-white dark:border-slate-600">
                             {earmark.goalName}
                           </Badge>
                           <Input
                             type="number"
                             value={earmark.percent}
                             onChange={(e) => handleUpdatePercent(index, e.target.value)}
-                            className="w-20 h-8"
+                            className="w-20 h-8 dark:text-white dark:bg-slate-700 dark:border-slate-600"
                             min="0"
                             max={maxAllocation}
                             step="0.1"
                           />
-                          <span className="text-sm text-gray-500">%</span>
+                          <span className="text-sm text-gray-500 dark:text-slate-300">%</span>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveEarmark(index)}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -225,15 +225,15 @@ const EarmarkingInput = ({
 
             {/* Add New Allocation */}
             <div>
-              <h4 className="text-sm font-medium mb-2">Add New Allocation</h4>
+              <h4 className="text-sm font-medium mb-2 dark:text-white">Add New Allocation</h4>
               <div className="flex items-center gap-2">
                 <Select value={newGoalId} onValueChange={setNewGoalId}>
-                  <SelectTrigger className="flex-1">
+                  <SelectTrigger className="flex-1 dark:text-white dark:bg-slate-700 dark:border-slate-600">
                     <SelectValue placeholder="Select goal" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="dark:bg-slate-800 dark:border-slate-700">
                     {getAvailableGoals().map((goal) => (
-                      <SelectItem key={goal.id} value={goal.id}>
+                      <SelectItem key={goal.id} value={goal.id} className="dark:text-white dark:hover:bg-slate-700">
                         {goal.name || goal.description || `Goal ${goal.id}`}
                       </SelectItem>
                     ))}
@@ -245,36 +245,36 @@ const EarmarkingInput = ({
                   placeholder="%"
                   value={newPercent}
                   onChange={(e) => setNewPercent(e.target.value)}
-                  className="w-20"
+                  className="w-20 dark:text-white dark:bg-slate-700 dark:border-slate-600"
                   min="0"
                   max={getRemainingAllocation()}
                   step="0.1"
                 />
                 
-                <Button onClick={handleAddEarmark} disabled={!newGoalId || !newPercent}>
+                <Button onClick={handleAddEarmark} disabled={!newGoalId || !newPercent} className="dark:text-white">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
               
               {Object.keys(errors).length > 0 && (
-                <div className="text-sm text-red-600 mt-2">
+                <div className="text-sm text-red-600 dark:text-red-400 mt-2">
                   {Object.values(errors).join(', ')}
                 </div>
               )}
             </div>
 
             {/* Allocation Summary */}
-            <div className="bg-gray-50 p-3 rounded">
-              <div className="flex items-center justify-between text-sm">
-                <span>Total Allocated:</span>
-                <span className="font-medium">{getTotalAllocation().toFixed(1)}%</span>
+            <div className="bg-gray-900 dark:bg-gray-900 p-3 rounded text-white">
+              <div className="flex items-center justify-between text-sm text-white">
+                <span className="text-white">Total Allocated:</span>
+                <span className="font-medium text-white">{getTotalAllocation().toFixed(1)}%</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span>Remaining:</span>
-                <span className="font-medium">{getRemainingAllocation().toFixed(1)}%</span>
+              <div className="flex items-center justify-between text-sm text-white">
+                <span className="text-white">Remaining:</span>
+                <span className="font-medium text-white">{getRemainingAllocation().toFixed(1)}%</span>
               </div>
               {getTotalAllocation() > maxAllocation && (
-                <div className="flex items-center gap-1 text-red-600 text-sm mt-2">
+                <div className="flex items-center gap-1 text-red-400 text-sm mt-2">
                   <AlertTriangle className="h-4 w-4" />
                   <span>Total exceeds maximum allocation</span>
                 </div>
@@ -283,13 +283,13 @@ const EarmarkingInput = ({
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} className="text-white dark:text-white">
               Cancel
             </Button>
             <Button 
               onClick={handleSave}
               disabled={getTotalAllocation() > maxAllocation}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Save className="h-4 w-4 mr-2" />
               Save Changes

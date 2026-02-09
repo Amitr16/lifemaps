@@ -11,6 +11,8 @@ import EnhancedGoalsPage from './pages/EnhancedGoalsPage.jsx'
 import LoansPage from './pages/LoansPage.jsx'
 import ExpensesPage from './pages/ExpensesPage.jsx'
 import InsurancePage from './pages/InsurancePage.jsx'
+import GrowthAssumptionsPage from './pages/GrowthAssumptionsPage.jsx'
+import ProfilePage from './pages/ProfilePage.jsx'
 import SuperAdminPage from './pages/SuperAdminPage.jsx'
 import SuperAdminLoginPage from './pages/SuperAdminLoginPage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
@@ -78,6 +80,20 @@ function App() {
                   <Shell>
                     <ErrorBoundary>
                       <InsurancePage />
+                    </ErrorBoundary>
+                  </Shell>
+                } />
+                <Route path="/growth-assumptions" element={
+                  <Shell>
+                    <ErrorBoundary>
+                      <GrowthAssumptionsPage />
+                    </ErrorBoundary>
+                  </Shell>
+                } />
+                <Route path="/profile" element={
+                  <Shell>
+                    <ErrorBoundary>
+                      <ProfilePage />
                     </ErrorBoundary>
                   </Shell>
                 } />

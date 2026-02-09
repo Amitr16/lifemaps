@@ -3,13 +3,14 @@ import React, { useEffect, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import ExpensesChart from '@/components/ExpensesChart.jsx';
 import ExpenseCategoriesModal from '@/components/ExpenseCategoriesModal.jsx';
-import ExpenseTagSelector from '@/components/ExpenseTagSelector.jsx';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminUser } from '@/contexts/AdminUserContext';
 import { useLifeSheetStore } from '../store/enhanced-store';
 import ApiService from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { Settings2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertTriangle, Settings2, ShoppingCart } from 'lucide-react';
 
 export default function ExpensesPage() {
   const { user } = useAuth();
@@ -23,8 +24,8 @@ export default function ExpensesPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingRows, setSavingRows] = useState(new Set());
-  const [classifyingRows, setClassifyingRows] = useState(new Set());
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('category');
 
   // Event dispatching for live chart updates (following WorkAssetsPage pattern)
   const dispatchExpensesEvent = (updatedExpenses) => {
@@ -123,6 +124,8 @@ export default function ExpensesPage() {
           payment_from: expense.payment_from || '', // Payment From
           expiry: expense.expiry ? (typeof expense.expiry === 'string' ? parseInt(expense.expiry.split('-')[0]) : expense.expiry.getFullYear()) : '', // Expiry year (like loan expiry)
           source: expense.source,
+          personal_inflation: parseFloat(expense.personal_inflation) || 6,
+          notes: expense.notes || '',
           loan_id: expense.loan_id || null, // Link to loan if this is a loan EMI expense
           insurance_id: expense.insurance_id || null, // Link to insurance if this is an insurance premium expense
           user_id: expense.user_id,
@@ -161,7 +164,9 @@ export default function ExpensesPage() {
       lifestyle_level: '', // Lifestyle level
       payment_from: '', // Payment From
       expiry: '', // Expiry date
-      source: ''
+      source: '',
+      personal_inflation: 6,
+      notes: ''
     };
     setRows([...rows, newRow]);
   };
@@ -231,9 +236,10 @@ export default function ExpensesPage() {
         setSavingRows(prev => new Set(prev).add(rowIndex));
         
         const updatePayload = {
-          description: row.description,
+          description: row.description || row.category || '',
           amount: parseFloat(row.amount) || 0,
           frequency: row.frequency || 'Monthly',
+          personal_inflation: parseFloat(row.personal_inflation) / 100 || 0.06,
         };
         
         if (row.category && row.category.trim()) {
@@ -272,6 +278,9 @@ export default function ExpensesPage() {
         if (row.source && row.source.trim()) {
           updatePayload.source = row.source.trim();
         }
+        if (row.notes && row.notes.trim()) {
+          updatePayload.notes = row.notes.trim();
+        }
         
         try {
           const response = await ApiService.updateFinancialExpense(row.id, updatePayload);
@@ -293,7 +302,7 @@ export default function ExpensesPage() {
       setSavingRows(prev => new Set(prev).add(rowIndex));
         
         const createPayload = {
-          description: row.description,
+          description: row.description || row.category || '',
           amount: parseFloat(row.amount) || 0,
           frequency: row.frequency || 'Monthly',
           personal_inflation: parseFloat(row.personal_inflation) / 100 || 0.06,
@@ -354,56 +363,6 @@ export default function ExpensesPage() {
   };
 
   // Handle LLM classification on description blur
-  const handleDescriptionBlur = async (row, rowIndex, value, handleCell) => {
-    if (!value || !value.trim() || !user?.id) return;
-    
-    // Skip if already classifying
-    if (classifyingRows.has(rowIndex)) return;
-    
-    // Always classify when description changes (even if category/subcategory already exist)
-    // This allows re-classification if user changes the description
-    
-    try {
-      setClassifyingRows(prev => new Set(prev).add(rowIndex));
-      
-      const result = await ApiService.classifyExpense(value.trim(), user.id);
-      
-      console.log('Classification result:', result);
-      console.log('Current row before update:', rows[rowIndex]);
-      console.log('Row index:', rowIndex);
-      
-      // Use handleCellChange which properly updates state and triggers re-render
-      if (result.category && result.subcategory) {
-        // Update both fields
-        handleCellChange(rowIndex, 'category', result.category);
-        handleCellChange(rowIndex, 'subcategory', result.subcategory);
-        
-        // Save to DB immediately after classification
-        setTimeout(() => {
-          saveRowToDb(rowIndex);
-        }, 200);
-      } else if (result.category) {
-        handleCellChange(rowIndex, 'category', result.category);
-        setTimeout(() => {
-          saveRowToDb(rowIndex);
-        }, 200);
-      } else if (result.subcategory) {
-        handleCellChange(rowIndex, 'subcategory', result.subcategory);
-        setTimeout(() => {
-          saveRowToDb(rowIndex);
-        }, 200);
-      }
-    } catch (error) {
-      console.error('Error classifying expense:', error);
-      // Don't show error to user, just log it
-    } finally {
-      setClassifyingRows(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(rowIndex);
-        return newSet;
-      });
-    }
-  };
 
   const handleCellChange = async (rowIndex, field, value) => {
     try {
@@ -412,7 +371,11 @@ export default function ExpensesPage() {
       // Use functional update to avoid stale closure issues - do everything in one call
       setRows(prevRows => {
         const updatedRows = [...prevRows];
-        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [field]: value };
+        const nextRow = { ...updatedRows[rowIndex], [field]: value };
+        if (field === 'category' && (!nextRow.description || nextRow.description.trim() === '')) {
+          nextRow.description = value;
+        }
+        updatedRows[rowIndex] = nextRow;
         console.log(`Updated row ${rowIndex}:`, updatedRows[rowIndex]);
         
         // Recalculate annual_budget when amount or frequency changes
@@ -455,195 +418,51 @@ export default function ExpensesPage() {
     }
   };
 
+  const handleReset = () => {
+    loadExpenses();
+  };
+
+  const handleExportCsv = () => {
+    const headers = ['Category', 'Amount', 'Frequency', 'Subcategory', 'Inflation %', 'Source', 'Notes'];
+    const csvRows = rows.map(row => ([
+      row.category || '',
+      row.amount ?? '',
+      row.frequency || '',
+      row.subcategory || '',
+      row.personal_inflation ?? '',
+      row.source || '',
+      row.notes || ''
+    ]));
+    const content = [headers, ...csvRows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `expenses-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Calculate summary statistics
   const totalAnnualExpenses = rows.reduce((sum, expense) => {
     return sum + (parseFloat(expense.annual_budget) || 0);
   }, 0);
 
   const columns = [
-    { 
-      field: 'description', 
-      headerName: 'Specific Goods / Service',
-      onBlur: handleDescriptionBlur
-    },
-    { field: 'amount', headerName: 'Price/Unit', type: 'number' },
+    { field: 'category', headerName: 'Category' },
+    { field: 'amount', headerName: 'Amount (₹)', type: 'number' },
     { 
       field: 'frequency', 
-      headerName: 'Expense Frequency',
+      headerName: 'Frequency',
       type: 'select',
       options: ['Weekly', 'Fortnightly', 'Monthly', 'Quarterly', 'Semi-Annually', 'Annually']
     },
-    { field: 'annual_budget', headerName: 'Annual Budget', type: 'number', render: (row) => (
-      <span className="font-semibold">₹{parseFloat(row.annual_budget || 0).toLocaleString('en-IN')}</span>
-    )},
-    { 
-      field: 'category', 
-      headerName: 'Category',
-      render: (row, onChange) => {
-        const rowIndex = rows.findIndex(r => r.id === row.id);
-        const isClassifying = rowIndex >= 0 && classifyingRows.has(rowIndex);
-        return (
-          <input
-            className={`w-full border rounded px-2 py-1 ${isClassifying ? 'opacity-50 bg-gray-100' : ''}`}
-            type="text"
-            value={isClassifying ? 'Assigning...' : (row.category || '')}
-            onChange={e => onChange(e.target.value)}
-            placeholder={isClassifying ? 'Assigning...' : ''}
-            disabled={isClassifying}
-            onBlur={() => {
-              // Trigger auto-save on blur
-              if (rowIndex >= 0 && row.category) {
-                handleCellChange(rowIndex, 'category', row.category);
-              }
-            }}
-          />
-        );
-      }
-    },
-    { 
-      field: 'subcategory', 
-      headerName: 'Subcategory',
-      render: (row, onChange) => {
-        const rowIndex = rows.findIndex(r => r.id === row.id);
-        const isClassifying = rowIndex >= 0 && classifyingRows.has(rowIndex);
-        return (
-          <input
-            className={`w-full border rounded px-2 py-1 min-w-[120px] ${isClassifying ? 'opacity-50 bg-gray-100' : ''}`}
-            type="text"
-            value={isClassifying ? 'Assigning...' : (row.subcategory || '')}
-            onChange={e => onChange(e.target.value)}
-            placeholder={isClassifying ? 'Assigning...' : ''}
-            disabled={isClassifying}
-            onBlur={() => {
-              // Trigger auto-save on blur
-              if (rowIndex >= 0 && row.subcategory) {
-                handleCellChange(rowIndex, 'subcategory', row.subcategory);
-              }
-            }}
-          />
-        );
-      }
-    },
-    { 
-      field: 'tags', 
-      headerName: 'Tags',
-      render: (row, onChange) => {
-        const rowIndex = rows.findIndex(r => r.id === row.id);
-        const tagValues = {
-          'For': row.tag_for || '',
-          'Lifestyle Level': row.lifestyle_level || '',
-          'Payment From': row.payment_from || ''
-        };
-        
-        return (
-          <div className="min-w-[400px]">
-            <ExpenseTagSelector
-              userId={user?.id}
-              values={tagValues}
-              onChange={(newTagValues) => {
-                // Update each field separately using handleCellChange
-                if (rowIndex >= 0) {
-                  const newTagFor = newTagValues['For'] || '';
-                  const newLifestyleLevel = newTagValues['Lifestyle Level'] || '';
-                  const newPaymentFrom = newTagValues['Payment From'] || '';
-                  
-                  // Update state immediately
-                  if (row.tag_for !== newTagFor) {
-                    handleCellChange(rowIndex, 'tag_for', newTagFor);
-                  }
-                  if (row.lifestyle_level !== newLifestyleLevel) {
-                    handleCellChange(rowIndex, 'lifestyle_level', newLifestyleLevel);
-                  }
-                  if (row.payment_from !== newPaymentFrom) {
-                    handleCellChange(rowIndex, 'payment_from', newPaymentFrom);
-                  }
-                  
-                  // Also update the row object for EditableGrid
-                  onChange({
-                    ...row,
-                    tag_for: newTagFor,
-                    lifestyle_level: newLifestyleLevel,
-                    payment_from: newPaymentFrom
-                  });
-                }
-              }}
-              onBlur={(currentTagValues) => {
-                // Clear any pending debounced saves and save immediately with current tag values
-                if (rowIndex >= 0) {
-                  console.log('💾 Tag blur - saving tags:', {
-                    rowIndex,
-                    rowId: row.id,
-                    currentTagValues,
-                    tag_for: currentTagValues['For'] || '',
-                    lifestyle_level: currentTagValues['Lifestyle Level'] || '',
-                    payment_from: currentTagValues['Payment From'] || ''
-                  });
-                  
-                  const timeoutKey = `expense_row_${rowIndex}`;
-                  clearTimeout(window[timeoutKey]);
-                  
-                  // Update the row state with current tag values
-                  setRows(prevRows => {
-                    const updatedRows = [...prevRows];
-                    if (updatedRows[rowIndex]) {
-                      updatedRows[rowIndex] = {
-                        ...updatedRows[rowIndex],
-                        tag_for: currentTagValues['For'] || '',
-                        lifestyle_level: currentTagValues['Lifestyle Level'] || '',
-                        payment_from: currentTagValues['Payment From'] || ''
-                      };
-                    }
-                    return updatedRows;
-                  });
-                  
-                  // Save immediately with override tags to ensure latest values are saved
-                  saveRowToDb(rowIndex, {
-                    tag_for: currentTagValues['For'] || '',
-                    lifestyle_level: currentTagValues['Lifestyle Level'] || '',
-                    payment_from: currentTagValues['Payment From'] || ''
-                  });
-                }
-              }}
-            />
-          </div>
-        );
-      }
-    },
-    { 
-      field: 'expiry', 
-      headerName: 'Expiry',
-      type: 'number',
-      render: (row, onChange) => {
-        const rowIndex = rows.findIndex(r => r.id === row.id);
-        return (
-          <input
-            type="number"
-            className="w-full border rounded px-2 py-1"
-            placeholder="Year"
-            min={new Date().getFullYear()}
-            max={new Date().getFullYear() + 100}
-            value={row.expiry || ''}
-            onChange={e => {
-              const newValue = e.target.value ? parseInt(e.target.value) : '';
-              onChange(newValue);
-              // Update row state immediately
-              if (rowIndex >= 0) {
-                const updatedRows = [...rows];
-                updatedRows[rowIndex] = { ...updatedRows[rowIndex], expiry: newValue };
-                setRows(updatedRows);
-              }
-            }}
-            onBlur={() => {
-              // Trigger auto-save on blur - convert year to date format (YYYY-12-31)
-              if (rowIndex >= 0 && row.expiry) {
-                const expiryDate = `${parseInt(row.expiry)}-12-31`;
-                handleCellChange(rowIndex, 'expiry', expiryDate);
-              }
-            }}
-          />
-        );
-      }
-    }
+    { field: 'subcategory', headerName: 'Subcategory' },
+    { field: 'personal_inflation', headerName: 'Inflation %', type: 'number' },
+    { field: 'source', headerName: 'Source' },
+    { field: 'notes', headerName: 'Notes' }
   ];
 
   if (loading) {
@@ -657,41 +476,114 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <ExpensesChart />
-      
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="lifemap-page-header">
         <div>
-          <h1 className="text-2xl font-bold">Expenses</h1>
-          <p className="text-gray-600">Track your recurring expenses and their growth</p>
+          <h1 className="lifemap-page-title">Expenses</h1>
+          <p className="lifemap-page-subtitle flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4 text-slate-400" />
+            Add or edit your expenses here
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCategoriesModalOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Settings2 className="h-4 w-4" />
-            Manage Categories
-          </Button>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-red-600">
-              ₹{totalAnnualExpenses.toLocaleString('en-IN')}
+        {rows.length === 0 && (
+          <div className="lifemap-alert">
+            <AlertTriangle className="h-4 w-4" />
+            <span>
+              Start adding your expenses in the expense register below to get an output on
+              the chart. You may add as many expenses as you want.
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'category' 
+              ? 'bg-blue-600 text-white' 
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+          onClick={() => setActiveTab('category')}
+        >
+          Category Mix Over Time
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'nws' 
+              ? 'bg-blue-600 text-white' 
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+          onClick={() => setActiveTab('nws')}
+        >
+          Needs / Wants / Savings
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="text-sm font-semibold text-slate-700">
+            Track your recurring expenses and their growth
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className="px-3 py-1.5 rounded bg-rose-100 text-rose-700 text-sm font-medium">
+              Total Annual Expenses: ₹{totalAnnualExpenses.toLocaleString('en-IN')}
+            </span>
+            <button
+              type="button"
+              className="text-xs text-slate-500 hover:text-slate-700 underline"
+              onClick={handleReset}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div className="lifemap-panel">
+          <div className="lifemap-panel-header">
+            <div className="flex items-center gap-3">
+              <div className="lifemap-panel-title flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
+                  ₹
+                </span>
+                My Expenses
+              </div>
             </div>
-            <p className="text-sm text-gray-500">Total Annual Expenses</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" onClick={addRow}>
+                Add Row
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleExportCsv}>
+                Export CSV
+              </Button>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="mb-4 flex items-center gap-2 flex-wrap">
+              <Input placeholder="Search by keyword" className="h-8 w-44" />
+              <Select defaultValue="all">
+                <SelectTrigger className="h-8 w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tags</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <EditableGrid 
+              columns={columns} 
+              rows={rows} 
+              onChange={setRows} 
+              onAdd={addRow} 
+              onDelete={delRow}
+              onCellChange={handleCellChange}
+            />
           </div>
         </div>
       </div>
 
-      <EditableGrid 
-        columns={columns} 
-        rows={rows} 
-        onChange={setRows} 
-        onAdd={addRow} 
-        onDelete={delRow}
-        onCellChange={handleCellChange}
-      />
+      <ExpensesChart activeView={activeTab} />
 
       {savingRows.size > 0 && (
         <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">

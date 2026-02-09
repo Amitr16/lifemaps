@@ -744,7 +744,7 @@ export const useLifeSheetStore = create(
             await ApiService.updateSourcePreferenceForUser(component, source, userId);
           } else if (!isAdminMode) {
             // Regular user mode
-            await ApiService.updateSourcePreference(component, source);
+          await ApiService.updateSourcePreference(component, source);
           }
           // If admin mode but no userId, just update local state (skip API)
           

@@ -8,12 +8,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLifeSheetStore } from '../store/enhanced-store';
 import { calculateGoalsProgress, calculateGoalsFundingNeed, calculateProjectionYears } from '../lib/chartCalculations';
 
-export default function GoalsChart({ goals = [], assets = [] }) {
+export default function GoalsChart({ goals = [], assets = [], chartType: externalChartType = null }) {
   const { user, isAuthenticated } = useAuth();
   const { lifeSheet } = useLifeSheetStore();
   const [progressData, setProgressData] = useState([]);
   const [fundingData, setFundingData] = useState([]);
-  const [chartType, setChartType] = useState('progress'); // 'progress' or 'funding'
+  const [internalChartType, setInternalChartType] = useState('progress'); // 'progress' or 'funding'
+  const chartType = externalChartType || internalChartType;
+  const showTabs = !externalChartType;
 
   console.log('🎯 GoalsChart received props:', { goals: goals.length, assets: assets.length });
 
@@ -71,29 +73,31 @@ export default function GoalsChart({ goals = [], assets = [] }) {
 
   return (
     <div className="space-y-6">
-      {/* Chart Type Toggle */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setChartType('progress')}
-          className={`px-4 py-2 rounded-md text-sm font-medium ${
-            chartType === 'progress' 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          Progress to Goals
-        </button>
-        <button
-          onClick={() => setChartType('funding')}
-          className={`px-4 py-2 rounded-md text-sm font-medium ${
-            chartType === 'funding' 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          Saving Need Over Time
-        </button>
-      </div>
+      {/* Chart Type Toggle - only show if not controlled externally */}
+      {showTabs && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setInternalChartType('progress')}
+            className={`px-4 py-2 rounded-md text-sm font-medium ${
+              chartType === 'progress' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Progress to Goals
+          </button>
+          <button
+            onClick={() => setInternalChartType('funding')}
+            className={`px-4 py-2 rounded-md text-sm font-medium ${
+              chartType === 'funding' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Saving Need Over Time
+          </button>
+        </div>
+      )}
 
       {/* Progress Chart - Individual Donut Cards */}
       {chartType === 'progress' && (

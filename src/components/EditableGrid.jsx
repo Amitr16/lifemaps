@@ -28,25 +28,25 @@ export default function EditableGrid({ columns, rows, onChange, onAdd, onDelete,
   };
   
   return (
-    <div className="overflow-x-auto border rounded-lg">
+    <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-gray-800">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-50">
+        <thead className="bg-slate-50 dark:bg-gray-700">
           <tr>
             {columns.map(col=>(
-              <th key={col.field} className="px-4 py-2 text-left font-semibold min-w-[120px]">{col.headerName}</th>
+              <th key={col.field} className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-200 min-w-[120px]">{col.headerName}</th>
             ))}
-            <th className="px-4 py-2"></th>
+            <th className="px-4 py-3"></th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row, idx)=>(
-            <tr key={row.id || idx} className="border-t">
+            <tr key={row.id || idx} className="border-t border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-gray-700/50">
               {columns.map(col=>(
-                <td key={col.field} className="px-4 py-2 min-w-[120px]">
+                <td key={col.field} className="px-4 py-2 min-w-[120px] text-slate-900 dark:text-slate-100">
                   {col.render ? col.render(row, (v)=>handleCell(idx, col.field, v)) : 
                    col.type === 'select' && col.options ? (
                     <select
-                      className="w-full border rounded px-2 py-1 min-w-[100px]"
+                      className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 min-w-[100px] text-sm bg-white dark:bg-gray-800 text-slate-900 dark:text-slate-100"
                       value={row[col.field] ?? ''}
                       onChange={e=>handleCell(idx, col.field, e.target.value)}
                       onBlur={col.onBlur ? (e) => col.onBlur(row, idx, e.target.value, handleCell) : undefined}
@@ -60,7 +60,7 @@ export default function EditableGrid({ columns, rows, onChange, onAdd, onDelete,
                     </select>
                   ) : (
                     <input
-                      className="w-full border rounded px-2 py-1 min-w-[100px]"
+                      className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 min-w-[100px] text-sm bg-white dark:bg-gray-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                       type={col.type || 'text'}
                       value={row[col.field] ?? ''}
                       onChange={e=>handleCell(idx, col.field, e.target.value)}
@@ -79,15 +79,21 @@ export default function EditableGrid({ columns, rows, onChange, onAdd, onDelete,
                 </td>
               ))}
               <td className="px-3 py-1">
-                <button className="text-red-600" onClick={()=>onDelete(idx)}>Delete</button>
+                <button className="text-red-500 dark:text-red-400 text-sm hover:text-red-600 dark:hover:text-red-300" onClick={()=>onDelete(idx)}>Delete</button>
               </td>
             </tr>
           ))}
+          <tr className="border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-gray-700/50">
+            <td
+              colSpan={columns.length + 1}
+              className="px-4 py-3 text-sm text-blue-600 dark:text-blue-400 cursor-pointer hover:text-blue-700 dark:hover:text-blue-300"
+              onClick={onAdd}
+            >
+              + Click to add New Row
+            </td>
+          </tr>
         </tbody>
       </table>
-      <div className="p-2">
-        <button className="px-3 py-1 bg-black text-white rounded" onClick={onAdd}>Add Row</button>
-      </div>
     </div>
   );
 }

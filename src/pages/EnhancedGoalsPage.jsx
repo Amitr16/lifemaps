@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import { AlertTriangle, Target } from 'lucide-react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
 import GoalsChart from '@/components/GoalsChart.jsx';
+import GoalDonutChart from '@/components/GoalDonutChart.jsx';
 import LinkedAssetsEditor from '@/components/LinkedAssetsEditor.jsx';
 import { calculateGoalFunding, formatCurrency, syncEarmarkingData } from '@/lib/goalCalculations';
 import { eventBus } from '@/lib/eventBus';
+import { Button } from '@/components/ui/button';
 
 export default function EnhancedGoalsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -14,6 +17,7 @@ export default function EnhancedGoalsPage() {
   const [loading, setLoading] = useState(false);
   const [savingRows, setSavingRows] = useState(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState('progress'); // 'progress' or 'saving'
 
   // Load goals and assets from database
   useEffect(() => {
@@ -342,6 +346,30 @@ export default function EnhancedGoalsPage() {
     }
   };
 
+  const handleReset = () => {
+    loadData();
+  };
+
+  const handleExportCsv = () => {
+    const headers = ['Goal', 'Target Amount (₹)', 'Target Year', 'Linked Assets'];
+    const csvRows = rows.map(row => ([
+      row.description || '',
+      row.amount ?? '',
+      row.targetYear ?? '',
+      JSON.stringify(row.custom_data?.linkedAssets || [])
+    ]));
+    const content = [headers, ...csvRows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `goals-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const columns = [
     { field: 'description', headerName: 'Goal' }, 
     { field: 'amount', headerName: 'Target Amount (₹)', type: 'number' }, 
@@ -445,48 +473,113 @@ export default function EnhancedGoalsPage() {
     );
   }
 
+  // Get first goal for donut chart (or selected goal)
+  const selectedGoal = rows.length > 0 ? rows[0] : null;
+
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-4">
-      <GoalsChart goals={rows} assets={assets} />
-      
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-600">Total Target Amount</h3>
-          <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalTargetAmount)}</p>
+    <div className="space-y-6">
+      <div className="lifemap-page-header">
+        <div>
+          <h1 className="lifemap-page-title">Goals</h1>
+          <p className="lifemap-page-subtitle flex items-center gap-2">
+            <Target className="h-4 w-4 text-slate-400" />
+            Add or edit your goals
+          </p>
         </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-600">Total Funded</h3>
-          <p className="text-2xl font-bold text-green-600">{formatCurrency(totalFundedAmount)}</p>
+        {rows.length === 0 && (
+          <div className="lifemap-alert">
+            <AlertTriangle className="h-4 w-4" />
+            <span>
+              Start adding your first goal in the goal register below. You may add as many
+              goals as you want.
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'progress' 
+              ? 'bg-blue-600 text-white' 
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+          onClick={() => setActiveTab('progress')}
+        >
+          Progress to Goals
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'saving' 
+              ? 'bg-blue-600 text-white' 
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+          onClick={() => setActiveTab('saving')}
+        >
+          Saving Need Over Time
+        </button>
+      </div>
+
+      <div className="lifemap-stat-grid">
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Total Target Amount</p>
+          <div className="lifemap-stat-value text-blue-600">{formatCurrency(totalTargetAmount)}</div>
         </div>
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-600">Overall Progress</h3>
-          <p className="text-2xl font-bold text-purple-600">{overallPercentFunded.toFixed(1)}%</p>
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Total Funded</p>
+          <div className="lifemap-stat-value text-green-600">{formatCurrency(totalFundedAmount)}</div>
+        </div>
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Overall Progress</p>
+          <div className="lifemap-stat-value text-purple-600">{overallPercentFunded.toFixed(1)}%</div>
+          <p className="text-xs text-slate-500 mt-1">Future-value basis, assumes 6% return</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Goals with Asset Linking</h1>
-      </div>
-      
-      {columns && Array.isArray(columns) && rows && Array.isArray(rows) ? (
-        <div key={refreshKey}>
-          <EditableGrid 
-            columns={columns} 
-            rows={rows} 
-            onChange={setRows} 
-            onAdd={addRow} 
-            onDelete={delRow}
-            onCellChange={handleCellChange}
-          />
-          {savingRows.size > 0 && (
-            <div className="mt-2 text-sm text-blue-600">
-              Saving {savingRows.size} row(s)...
-            </div>
-          )}
+      <div className="lifemap-panel">
+        <div className="lifemap-panel-header">
+          <div className="lifemap-panel-title">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
+              <Target className="h-4 w-4" />
+            </span>
+            Goals with Asset Linking
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={addRow}>Add Row</Button>
+            <Button size="sm" variant="outline" onClick={handleExportCsv}>Export CSV</Button>
+            <Button size="sm" variant="ghost" className="text-red-500" onClick={handleReset}>Reset</Button>
+          </div>
         </div>
-      ) : (
-        <div className="p-4 text-gray-500">Loading goals...</div>
+      
+        {columns && Array.isArray(columns) && rows && Array.isArray(rows) ? (
+          <div key={refreshKey} className="p-6">
+            <EditableGrid 
+              columns={columns} 
+              rows={rows} 
+              onChange={setRows} 
+              onAdd={addRow} 
+              onDelete={delRow}
+              onCellChange={handleCellChange}
+            />
+            {savingRows.size > 0 && (
+              <div className="mt-2 text-sm text-blue-600">
+                Saving {savingRows.size} row(s)...
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-4 text-gray-500">Loading goals...</div>
+        )}
+      </div>
+
+      {activeTab === 'progress' && selectedGoal && (
+        <GoalDonutChart goal={selectedGoal} assets={assets} />
+      )}
+
+      {activeTab === 'saving' && (
+        <GoalsChart goals={rows} assets={assets} chartType="funding" />
       )}
     </div>
   );

@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Plus, Trash2, Search, Download, Filter, MoreHorizontal, RefreshCw, GripVertical } from 'lucide-react'
+import { Plus, Trash2, Search, Download, Filter, MoreHorizontal, RefreshCw, GripVertical, PiggyBank } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAdminUser } from '@/contexts/AdminUserContext'
 import { eventBus } from '@/lib/eventBus'
@@ -141,7 +141,14 @@ const NotionStyleAssetRegister = () => {
         ? await ApiService.getFinancialAssetsForUser(effectiveUserId)
         : await ApiService.getFinancialAssets(effectiveUserId)
       console.log('📊 Assets fetch response:', response)
-      setAssets(response.assets || [])
+      const assetsData = response.assets || []
+      setAssets(assetsData)
+      // Dispatch event for AssetsPage to track count
+      try {
+        window.dispatchEvent(new CustomEvent('assetsUpdated', { detail: { assets: assetsData } }))
+      } catch (e) {
+        console.warn('Failed to dispatch assetsUpdated event:', e)
+      }
     } catch (error) {
       console.error('❌ Assets fetch error:', error)
       setError('Failed to load assets')
@@ -859,7 +866,7 @@ const NotionStyleAssetRegister = () => {
 
   const getSortIcon = (key) => {
     if (sortConfig.key !== key) {
-      return <span className="text-gray-400">↕️</span>
+      return <span className="text-gray-400 dark:text-slate-500">↕️</span>
     }
     return sortConfig.direction === 'asc' ? <span className="text-blue-500">↑</span> : <span className="text-blue-500">↓</span>
   }
@@ -1174,11 +1181,11 @@ const NotionStyleAssetRegister = () => {
 
   const getTagColor = (tag) => {
     switch (tag) {
-      case 'Investment': return 'bg-green-100 text-green-800'
-      case 'Personal': return 'bg-blue-100 text-blue-800'
-      case 'Emergency': return 'bg-red-100 text-red-800'
-      case 'Retirement': return 'bg-purple-100 text-purple-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'Investment': return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+      case 'Personal': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+      case 'Emergency': return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+      case 'Retirement': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300'
+      default: return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-slate-200'
     }
   }
 
@@ -1260,58 +1267,49 @@ const NotionStyleAssetRegister = () => {
   })
 
   return (
-    <div className="w-full p-6 space-y-6">
+    <div className="w-full space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Investment Assets</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(investmentValue)}
-            </div>
-            <p className="text-xs text-gray-500">{investmentAssets.length} assets</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Personal Assets</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {formatCurrency(personalValue)}
-            </div>
-            <p className="text-xs text-gray-500">{personalAssets.length} assets</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Assets</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {formatCurrency(totalValue)}
-            </div>
-            <p className="text-xs text-gray-500">{assets.length} total assets</p>
-          </CardContent>
-        </Card>
+      <div className="lifemap-stat-grid">
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Investment Assets</p>
+          <div className="lifemap-stat-value text-emerald-600">
+            {formatCurrency(investmentValue)}
+          </div>
+          <p className="text-xs text-slate-500">{investmentAssets.length} assets</p>
+        </div>
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Personal Assets</p>
+          <div className="lifemap-stat-value text-blue-600">
+            {formatCurrency(personalValue)}
+          </div>
+          <p className="text-xs text-slate-500">{personalAssets.length} assets</p>
+        </div>
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Total Assets</p>
+          <div className="lifemap-stat-value text-purple-600">
+            {formatCurrency(totalValue)}
+          </div>
+          <p className="text-xs text-slate-500">{assets.length} total assets</p>
+        </div>
       </div>
 
       {/* Asset Register */}
-      <Card>
-        <CardHeader>
+      <Card className="lifemap-panel">
+        <CardHeader className="lifemap-panel-header">
           <div className="space-y-4">
             {/* Row 1: Title + Filters */}
             <div className="flex items-center gap-4">
-              <CardTitle>Asset Register</CardTitle>
+              <CardTitle className="lifemap-panel-title">
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
+                  <PiggyBank className="h-4 w-4" />
+                </span>
+                Asset Register
+              </CardTitle>
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 h-4 w-4" />
                   <Input
-                    placeholder="Quick filter..."
+                    placeholder="Search by keyword"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 w-64"
@@ -1346,9 +1344,9 @@ const NotionStyleAssetRegister = () => {
                 <Plus className="h-4 w-4 mr-2" />
                 Add Column
               </Button>
-              <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
+              <Button variant="ghost" onClick={handleRefresh} disabled={isLoading} className="text-red-500">
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                Reset
               </Button>
               <Button variant="outline" onClick={handleExportCSV} disabled={exporting}>
                 <Download className="h-4 w-4 mr-2" />
@@ -1371,11 +1369,11 @@ const NotionStyleAssetRegister = () => {
             <div className="flex items-center justify-center h-32">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-sm text-gray-500">Loading assets...</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Loading assets...</p>
               </div>
             </div>
           ) : filteredAssets.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-slate-400">
               <div className="text-4xl mb-4">📊</div>
               <p className="text-lg font-medium">No assets found</p>
               <p className="text-sm">Add your first asset to get started</p>
@@ -1384,10 +1382,10 @@ const NotionStyleAssetRegister = () => {
             <div className="overflow-x-auto border rounded-lg relative">
               <div className="min-w-max space-y-2">
               {/* Table Header */}
-              <div className="grid gap-4 p-3 bg-gray-50 rounded-lg font-medium text-sm text-gray-600" 
+              <div className="grid gap-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg font-medium text-sm text-gray-600 dark:text-slate-300" 
                    style={{ gridTemplateColumns: `250px 140px 140px ${visibleColumns.map(() => '140px').join(' ')} 80px` }}>
                 <div 
-                  className="flex items-center gap-1 cursor-pointer hover:text-gray-800 select-none"
+                  className="flex items-center gap-1 cursor-pointer hover:text-gray-800 dark:hover:text-slate-200 select-none text-slate-700 dark:text-slate-300"
                   onClick={() => handleSort('name')}
                 >
                   Name {getSortIcon('name')}
@@ -1412,7 +1410,7 @@ const NotionStyleAssetRegister = () => {
                   </Button>
                 </div>
                 <div 
-                  className="flex items-center gap-1 cursor-pointer hover:text-gray-800 select-none"
+                  className="flex items-center gap-1 cursor-pointer hover:text-gray-800 dark:hover:text-slate-200 select-none text-slate-700 dark:text-slate-300"
                   onClick={() => handleSort('current_value')}
                 >
                   Current Value {getSortIcon('current_value')}
@@ -1434,7 +1432,7 @@ const NotionStyleAssetRegister = () => {
                           className="cursor-move opacity-0 group-hover:opacity-100 mr-1"
                           title="Drag to reorder column"
                         >
-                          <GripVertical className="h-3 w-3 text-gray-400" />
+                          <GripVertical className="h-3 w-3 text-gray-400 dark:text-slate-500" />
                         </div>
                       )}
                       <div 
@@ -1475,7 +1473,7 @@ const NotionStyleAssetRegister = () => {
               {sortedAssets.map((asset, index) => {
                 const customData = asset.custom_data || {}
                 return (
-                <div key={asset.id || index} className="grid gap-4 p-3 border rounded-lg hover:bg-gray-50 transition-colors" 
+                <div key={asset.id || index} className="grid gap-4 p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors bg-white dark:bg-gray-800" 
                      style={{ gridTemplateColumns: `250px 140px 140px ${visibleColumns.map(() => '140px').join(' ')} 80px` }}>
                   
                   {/* Fixed Column 1: Name */}
@@ -1498,11 +1496,11 @@ const NotionStyleAssetRegister = () => {
                       />
                     ) : (
                       <div
-                        className="cursor-pointer hover:bg-gray-100 p-1 rounded font-medium"
+                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded font-medium text-slate-900 dark:text-slate-100"
                         onClick={() => handleCellEdit(asset.id, 'name', asset.name || '')}
                       >
                         {asset.name || (
-                          <span className="text-gray-400 text-sm italic">Click to edit</span>
+                          <span className="text-gray-400 dark:text-slate-500 text-sm italic">Click to edit</span>
                         )}
                       </div>
                     )}
@@ -1566,7 +1564,7 @@ const NotionStyleAssetRegister = () => {
                       />
                     ) : (
                       <div
-                        className="cursor-pointer hover:bg-gray-100 p-1 rounded font-medium"
+                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded font-medium text-slate-900 dark:text-slate-100"
                         onClick={() => handleCellEdit(asset.id, 'current_value', asset.current_value || 0)}
                       >
                         {formatCurrency(asset.current_value || 0)}
@@ -1623,7 +1621,7 @@ const NotionStyleAssetRegister = () => {
                             onClick={() => handleCellEdit(asset.id, column.key, customData[column.key] || '')}
                           >
                             {formatCellValue(customData[column.key], column.type) || (
-                              <span className="text-gray-400 text-sm italic">Click to edit</span>
+                              <span className="text-gray-400 dark:text-slate-500 text-sm italic">Click to edit</span>
                             )}
                           </div>
                         )
@@ -1650,7 +1648,7 @@ const NotionStyleAssetRegister = () => {
                             onClick={() => handleCellEdit(asset.id, column.key, customData[column.key] || '')}
                           >
                             {formatCellValue(customData[column.key], column.type) || (
-                              <span className="text-gray-400 text-sm italic">Click to edit</span>
+                              <span className="text-gray-400 dark:text-slate-500 text-sm italic">Click to edit</span>
                             )}
                           </div>
                         )
@@ -1676,7 +1674,7 @@ const NotionStyleAssetRegister = () => {
                           onClick={() => handleCellEdit(asset.id, column.key, customData[column.key] || '')}
                         >
                           {formatCellValue(customData[column.key], column.type) || (
-                            <span className="text-gray-400 text-sm italic">Click to edit</span>
+                            <span className="text-gray-400 dark:text-slate-500 text-sm italic">Click to edit</span>
                           )}
                         </div>
                       )}
@@ -1700,23 +1698,23 @@ const NotionStyleAssetRegister = () => {
 
               {/* Add New Row - Empty Row */}
               <div 
-                className="grid gap-4 p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer group" 
+                className="grid gap-4 p-3 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer group bg-white dark:bg-gray-800" 
                 style={{ gridTemplateColumns: `250px 140px 140px ${visibleColumns.map(() => '140px').join(' ')} 80px` }}
                 onClick={handleAddAsset}
               >
                 {/* Fixed Column 1: Name */}
-                <div className="flex items-center text-gray-500 group-hover:text-blue-600">
+                <div className="flex items-center text-gray-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                   <Plus className="h-4 w-4 mr-2" />
                   <span className="text-sm">Click to add new asset</span>
                 </div>
 
                 {/* Fixed Column 2: Tag */}
-                <div className="flex items-center text-gray-400">
+                <div className="flex items-center text-gray-400 dark:text-slate-500">
                   <span className="text-sm">-</span>
                 </div>
 
                 {/* Fixed Column 3: Current Value */}
-                <div className="flex items-center text-gray-400">
+                <div className="flex items-center text-gray-400 dark:text-slate-500">
                   <span className="text-sm">-</span>
                 </div>
 
@@ -1728,7 +1726,7 @@ const NotionStyleAssetRegister = () => {
                 ))}
 
                 {/* Fixed Column 4: Actions */}
-                <div className="flex items-center text-gray-400">
+                <div className="flex items-center text-gray-400 dark:text-slate-500">
                   <span className="text-sm">-</span>
                 </div>
               </div>
