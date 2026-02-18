@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Progress } from '@/components/ui/progress.jsx'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ComposedChart, Area, AreaChart, Legend } from 'recharts'
 import { TrendingUp, TrendingDown, Calculator, Target, DollarSign, PiggyBank, User, Save, RefreshCw, Plus, Trash2, Shield, Users, Briefcase, CreditCard, ShoppingCart, UserCircle, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useAdminUser } from '../contexts/AdminUserContext'
 import { useChart } from '../contexts/ChartContext'
@@ -1435,18 +1435,18 @@ export default function OriginalLifeSheet() {
               : 'Start setting up your profile and financial data to use the calculator'}
           </p>
           <div className="flex items-center gap-4 mt-2">
-            <a 
-              href="/admin/login" 
+            <Link 
+              to="/admin/login" 
               className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               Admin Login
-            </a>
-            <a 
-              href="/super-admin/login" 
+            </Link>
+            <Link 
+              to="/super-admin/login" 
               className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               Super Admin Login
-            </a>
+            </Link>
           </div>
         </div>
         <div className="flex items-center gap-6">
