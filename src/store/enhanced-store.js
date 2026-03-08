@@ -48,10 +48,11 @@ function pickSources(state) {
     portfolioSeriesType: typeof state.detail?.assets?.portfolioSeries
   });
   
-  const useAssetsDetail = sourcePreferences?.assets === 1 && hasNonEmptySeries(state.detail?.assets?.portfolioSeries);
-  const useIncomeDetail = sourcePreferences?.income === 1 && hasNonEmptySeries(state.detail?.workIncome?.series);
-  const useExpensesDetail = sourcePreferences?.expenses === 1 && hasNonEmptySeries(state.detail?.expenses?.series);
-  const useEmiDetail = sourcePreferences?.loans === 1 && hasNonEmptySeries(state.detail?.loans?.series);
+  // Always use combined (detailed + unassigned) if series exists - no source preference checks
+  const useAssetsDetail = hasNonEmptySeries(state.detail?.assets?.portfolioSeries);
+  const useIncomeDetail = hasNonEmptySeries(state.detail?.workIncome?.series);
+  const useExpensesDetail = hasNonEmptySeries(state.detail?.expenses?.series);
+  const useEmiDetail = hasNonEmptySeries(state.detail?.loans?.series);
 
   console.log('[pickSources] Debug:', {
     sourcePreferences,
@@ -489,6 +490,9 @@ export const useLifeSheetStore = create(
         } else {
           console.log('🔄 Store: Using Quick Calculator portfolio');
           // Fallback: Quick Calculator portfolio only
+          // NOTE: This fallback is rarely triggered now because updatePortfolioSeriesFromFpCalculator
+          // creates portfolioSeries when totalAssetGrossMarketValue is entered. This fallback is only
+          // used when totalAssetGrossMarketValue is 0/empty or user hasn't entered any assets yet.
           let A = Number(main.initialAssets) || 0;
           for (let i = 0; i < yearsArray.length; i++) {
             const y = yearsArray[i];

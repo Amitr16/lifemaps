@@ -121,7 +121,10 @@ export const calculateGoalsProgress = (goals, assets, currentYear = new Date().g
         const customData = asset.custom_data || {};
         const sipAmount = parseFloat(customData.sipAmount) || 0;
         const sipFrequency = customData.sipFrequency || 'Monthly';
-        const expectedReturn = parseFloat(customData.expectedReturn) || 5;
+        // Get assetGrowthRate from Growth Assumptions as default
+        const quickCalcAssumptions = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}') : {};
+        const defaultAssetGrowthRate = (quickCalcAssumptions.assetGrowthRate || 0.06) * 100; // Convert to percentage
+        const expectedReturn = parseFloat(customData.expectedReturn) || defaultAssetGrowthRate;
         const sipExpiryDate = customData.sipExpiryDate || '';
         
         // Calculate earmarked amount first (same as goalCalculations.js)
@@ -209,7 +212,10 @@ export const calculateGoalsFundingNeed = (goals, assets, currentYear = new Date(
         const customData = asset.custom_data || {};
         const sipAmount = parseFloat(customData.sipAmount) || 0;
         const sipFrequency = customData.sipFrequency || 'Monthly';
-        const expectedReturn = parseFloat(customData.expectedReturn) || 5;
+        // Get assetGrowthRate from Growth Assumptions as default
+        const quickCalcAssumptions = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}') : {};
+        const defaultAssetGrowthRate = (quickCalcAssumptions.assetGrowthRate || 0.06) * 100; // Convert to percentage
+        const expectedReturn = parseFloat(customData.expectedReturn) || defaultAssetGrowthRate;
         const sipExpiryDate = customData.sipExpiryDate || '';
         
         // Calculate earmarked amount first

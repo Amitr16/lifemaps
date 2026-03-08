@@ -26,6 +26,7 @@ export default function OriginalLifeSheet() {
   const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null)
   const effectiveIsAuthenticated = isAdminMode || isAuthenticated
   const { chartData } = useChart()
+  const { setDetailAssets } = useLifeSheetStore()
   const { updateLifeSheet, addGoal: addStoreGoal, updateGoal: updateStoreGoal, deleteGoal: deleteStoreGoal, addExpense: addStoreExpense, updateExpense: updateStoreExpense, deleteExpense: deleteStoreExpense, addLoan: addStoreLoan, updateLoan: updateStoreLoan, deleteLoan: deleteStoreLoan, setLoans: setStoreLoans, setExpenses: setStoreExpenses, setGoals: setStoreGoals, lifeSheet, setMainInputs, hydrateMainInputs, setSourcePreference, sourcePreferences, loadSourcePreferences } = useLifeSheetStore()
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authModalTab, setAuthModalTab] = useState('login')
@@ -47,6 +48,7 @@ export default function OriginalLifeSheet() {
     // Calculation assumptions
     lifespanYears: 85,
     incomeGrowthRate: 0.06,  // Income growth rate (editable)
+    assetGrowthRate: 0.06,   // Asset growth rate (editable)
     inflationRate: 0.06,     // Inflation rate for discounting
     assetEquitySplit: 0.60,  // 60% equity, 40% debt
     assetEquityGrowthRate: 0.15,  // 15% equity growth
@@ -69,12 +71,8 @@ export default function OriginalLifeSheet() {
     
     // Set source preference to main page (0) when user edits main inputs
     // Map fields to their corresponding source components
-    if (field === 'currentAnnualGrossIncome' || field === 'workTenureYears' || field === 'incomeGrowthRate') {
-      setSourcePreference('income', 0); // Work Assets
-    }
-    if (field === 'totalAssetGrossMarketValue' || field === 'assetGrowthRate') {
-      setSourcePreference('assets', 0); // Assets
-    }
+    // No longer using source preference - always use combined (detailed + unassigned)
+    // No longer using source preference for assets - always use combined (detailed + unassigned)
     
     // Map form fields to store fields and update with user origin
     // Note: inflationRate, assetEquitySplit, assetEquityGrowthRate, assetDebtGrowthRate are frontend-only
@@ -112,22 +110,22 @@ export default function OriginalLifeSheet() {
     }
   }
 
-  // Handle loan changes - set source preference to Quick Calculator
+  // Handle loan changes
   const handleLoanChange = (index, field, value) => {
     updateLoan(index, field, value);
-    setSourcePreference('loans', 0); // Set to Quick Calculator
+    // No longer using source preference - always use combined (detailed + unassigned)
   }
 
-  // Handle expense changes - set source preference to Quick Calculator  
+  // Handle expense changes
   const handleExpenseChange = (index, field, value) => {
     updateExpense(index, field, value);
-    setSourcePreference('expenses', 0); // Set to Quick Calculator
+    // No longer using source preference - always use combined (detailed + unassigned)
   }
 
-  // Handle goal changes - set source preference to Quick Calculator
+  // Handle goal changes
   const handleGoalChange = (index, field, value) => {
     updateGoal(index, field, value);
-    setSourcePreference('goals', 0); // Set to Quick Calculator
+    // No longer using source preference - always use combined (detailed + unassigned)
   }
   
 
@@ -177,12 +175,14 @@ export default function OriginalLifeSheet() {
   // Calculate values (Quick Calculator or Detailed based on source preferences)
   const calculateQuickCalculatorValues = () => {
     const { detail, sourcePreferences } = useLifeSheetStore.getState();
-    const useDetailedAssets = sourcePreferences?.assets === 1 && detail?.assets?.portfolioSeries;
-    const useDetailedIncome = sourcePreferences?.income === 1 && detail?.workIncome?.series;
-    const useDetailedExpenses = sourcePreferences?.expenses === 1 && detail?.expenses?.series;
+    // Always use combined (detailed + unassigned) if series exists - no source preference checks
+    const useDetailedIncome = detail?.workIncome?.series;
+    const useDetailedExpenses = detail?.expenses?.series;
+    const useDetailedAssets = detail?.assets?.portfolioSeries;
+    const useDetailedLoans = detail?.loans?.series;
     
     // If using detailed calculations, use them with inflation discounting
-    if (useDetailedAssets || useDetailedIncome || useDetailedExpenses) {
+    if (useDetailedIncome || useDetailedExpenses || useDetailedAssets || useDetailedLoans) {
       return calculateDetailedValues();
     }
     
@@ -256,6 +256,80 @@ export default function OriginalLifeSheet() {
     };
   };
   
+  // Update portfolio series when totalAssetGrossMarketValue changes in FP calculator
+  // This ensures unassigned assets are calculated even if user hasn't visited Assets page
+  const updatePortfolioSeriesFromFpCalculator = async (fpCalculatorValue) => {
+    console.log('🔄 FP Calculator: updatePortfolioSeriesFromFpCalculator called with value:', fpCalculatorValue);
+    try {
+      // Load current detailed assets from API (if any exist)
+      let detailedAssets = [];
+      try {
+        const assetsResponse = isAdminMode
+          ? await ApiService.getFinancialAssetsForUser(effectiveUserId)
+          : await ApiService.getFinancialAssets(effectiveUserId);
+        detailedAssets = assetsResponse.assets || [];
+      } catch (error) {
+        console.warn('No detailed assets found or error loading:', error);
+      }
+      
+      // Calculate current value of detailed assets
+      const detailedAssetsCurrentValue = detailedAssets.reduce((sum, asset) => sum + (parseFloat(asset.current_value) || 0), 0);
+      
+      // Calculate unassigned assets = FP calculator value - detailed assets current value
+      const unassignedAssetsValue = Math.max(0, fpCalculatorValue - detailedAssetsCurrentValue);
+      
+      // Get growth assumptions
+      const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+      const assetEquitySplit = parseFloat(quickCalcAssumptions.assetEquitySplit) || 0.60;
+      const assetEquityGrowthRate = parseFloat(quickCalcAssumptions.assetEquityGrowthRate) || 0.15;
+      const assetDebtGrowthRate = parseFloat(quickCalcAssumptions.assetDebtGrowthRate) || 0.07;
+      const defaultAssetGrowthRate = (quickCalcAssumptions.assetGrowthRate || 0.06) * 100; // Convert to percentage
+      
+      // Calculate portfolio series for each year
+      const currentYear = new Date().getFullYear();
+      const portfolioSeries = {};
+      
+      for (let yearOffset = 0; yearOffset <= 50; yearOffset++) {
+        const year = currentYear + yearOffset;
+        let totalAssets = 0;
+        
+        // 1. Add detailed assets (with individual expectedReturn)
+        detailedAssets.forEach(asset => {
+          const value = parseFloat(asset.current_value) || 0;
+          const customData = asset.custom_data || {};
+          const expectedReturn = parseFloat(customData.expectedReturn) || defaultAssetGrowthRate;
+          const growthRate = expectedReturn / 100;
+          
+          // Simple compound growth (no SIP for now, can be enhanced later)
+          const grownValue = value * Math.pow(1 + growthRate, yearOffset);
+          totalAssets += grownValue;
+        });
+        
+        // 2. Add unassigned assets (with 60:40 split and equity/debt growth rates)
+        if (unassignedAssetsValue > 0) {
+          const equityPortion = unassignedAssetsValue * assetEquitySplit;
+          const debtPortion = unassignedAssetsValue * (1 - assetEquitySplit);
+          
+          // Project equity portion
+          const equityGrown = equityPortion * Math.pow(1 + assetEquityGrowthRate, yearOffset);
+          // Project debt portion
+          const debtGrown = debtPortion * Math.pow(1 + assetDebtGrowthRate, yearOffset);
+          
+          totalAssets += equityGrown + debtGrown;
+        }
+        
+        portfolioSeries[year] = Math.round(totalAssets);
+      }
+      
+      console.log('🔄 FP Calculator: Updating store with portfolio series:', portfolioSeries);
+      console.log('🔄 FP Calculator: Detailed assets:', detailedAssets.length, 'Unassigned:', unassignedAssetsValue);
+      setDetailAssets(portfolioSeries);
+      
+    } catch (error) {
+      console.error('❌ Error updating portfolio series from FP calculator:', error);
+    }
+  };
+
   // Calculate using detailed data with inflation discounting
   const calculateDetailedValues = () => {
     const { detail, sourcePreferences, main } = useLifeSheetStore.getState();
@@ -268,48 +342,32 @@ export default function OriginalLifeSheet() {
     const projectionYears = Math.max(0, targetAge - age);
     const workTenure = parseInt(formData.workTenureYears) || 0;
     
-    // Assets: Use detailed if available, otherwise quick calculator
+    // Assets: Always use both detailed assets + unassigned assets (from FP calculator)
     let totalProjectedAssets = 0;
-    if (sourcePreferences?.assets === 1 && detail?.assets?.portfolioSeries) {
-      // Use detailed assets: portfolioSeries contains NOMINAL (projected) values
-      // portfolioSeries[currentYear] = starting assets (nominal)
-      // portfolioSeries[currentYear + workTenure] = assets at end of work tenure (nominal, projected)
-      // For table: show present value of assets at end of work tenure
-      // If growth > inflation, this should be > starting value
-      const startingAssetsNominal = detail.assets.portfolioSeries[currentYear] || parseFloat(formData.totalAssetGrossMarketValue) || 0;
+    
+    // 1. Calculate detailed assets (if available)
+    let detailedAssetsProjected = 0;
+    if (detail?.assets?.portfolioSeries) {
+      // portfolioSeries contains NOMINAL (projected) values
+      const startingAssetsNominal = detail.assets.portfolioSeries[currentYear] || 0;
       const finalYear = currentYear + workTenure;
       const assetsNominal = detail.assets.portfolioSeries[finalYear] || startingAssetsNominal;
       
       // Discount the nominal value at end of work tenure back to present value
-      // Formula: PV = FV / (1 + inflation)^workTenure
-      // If assets grow faster than inflation, PV will be > starting value
-      // Example: 10L grows at 11.8% for 10 years = 10L * 1.118^10 = 30.5L (nominal)
-      // Discount at 6%: 30.5L / 1.06^10 = 17.0L (present value) > 10L ✓
-      totalProjectedAssets = assetsNominal / Math.pow(1 + inflation, workTenure);
-      
-      // Debug: Verify calculation
-      if (assetsNominal > 0 && startingAssetsNominal > 0) {
-        const impliedGrowthRate = Math.pow(assetsNominal / startingAssetsNominal, 1 / workTenure) - 1;
-        const realGrowthRate = impliedGrowthRate - inflation;
-        console.log('📊 Detailed Assets Calculation:', {
-          startingAssetsNominal,
-          finalYear,
-          assetsNominal,
-          impliedGrowthRate: (impliedGrowthRate * 100).toFixed(2) + '%',
-          inflation: (inflation * 100).toFixed(2) + '%',
-          realGrowthRate: (realGrowthRate * 100).toFixed(2) + '%',
-          workTenure,
-          totalProjectedAssets,
-          shouldBeGreater: totalProjectedAssets > startingAssetsNominal ? 'YES ✓' : 'NO ✗ (growth <= inflation)'
-        });
-      }
-    } else {
-      // Quick calculator assets (already calculated above)
-      const totalAssets = parseFloat(formData.totalAssetGrossMarketValue) || 0;
+      detailedAssetsProjected = assetsNominal / Math.pow(1 + inflation, workTenure);
+    }
+    
+    // 2. Calculate unassigned assets (FP calculator value - detailed assets current value)
+    const fpCalculatorValue = parseFloat(formData.totalAssetGrossMarketValue) || 0;
+    const detailedAssetsCurrentValue = detail?.assets?.portfolioSeries?.[currentYear] || 0;
+    const unassignedAssetsValue = Math.max(0, fpCalculatorValue - detailedAssetsCurrentValue);
+    
+    // Project unassigned assets with 60:40 split
+    if (unassignedAssetsValue > 0) {
       const equitySplit = (formData.assetEquitySplit !== undefined && formData.assetEquitySplit !== null && formData.assetEquitySplit !== '') 
         ? parseFloat(formData.assetEquitySplit) : 0.60;
-      const equityPortion = totalAssets * equitySplit;
-      const debtPortion = totalAssets * (1 - equitySplit);
+      const equityPortion = unassignedAssetsValue * equitySplit;
+      const debtPortion = unassignedAssetsValue * (1 - equitySplit);
       const equityGrowth = (formData.assetEquityGrowthRate !== undefined && formData.assetEquityGrowthRate !== null && formData.assetEquityGrowthRate !== '') 
         ? parseFloat(formData.assetEquityGrowthRate) : 0.15;
       const debtGrowth = (formData.assetDebtGrowthRate !== undefined && formData.assetDebtGrowthRate !== null && formData.assetDebtGrowthRate !== '') 
@@ -323,12 +381,15 @@ export default function OriginalLifeSheet() {
         projectedEquity /= (1 + inflation);
         projectedDebt /= (1 + inflation);
       }
-      totalProjectedAssets = projectedEquity + projectedDebt;
+      const unassignedAssetsProjected = projectedEquity + projectedDebt;
+      totalProjectedAssets = detailedAssetsProjected + unassignedAssetsProjected;
+    } else {
+      totalProjectedAssets = detailedAssetsProjected;
     }
     
-    // Human Capital: Use detailed if available
+    // Human Capital: Always use combined (detailed + unassigned) if available
     let totalHumanCapital = 0;
-    if (sourcePreferences?.income === 1 && detail?.workIncome?.series) {
+    if (detail?.workIncome?.series) {
       // Sum detailed income over work tenure, discount by inflation
       for (let yearOffset = 0; yearOffset < workTenure; yearOffset++) {
         const year = currentYear + yearOffset;
@@ -348,10 +409,10 @@ export default function OriginalLifeSheet() {
       }
     }
     
-    // Expenses: Use detailed if available (already includes EMIs)
+    // Expenses: Always use combined (detailed + unassigned) if available (already includes EMIs)
     const remainingLife = Math.max(0, (parseInt(formData.lifespanYears) || 85) - age);
     let totalFutureExpenses = 0;
-    if (sourcePreferences?.expenses === 1 && detail?.expenses?.series) {
+    if (detail?.expenses?.series) {
       // Detailed expenses are stored as NOMINAL (projected forward with personal_inflation)
       // We discount them once to convert to PRESENT VALUE (real terms)
       // Note: Detailed expenses already include EMIs, so don't add EMIs from loans
@@ -398,22 +459,61 @@ export default function OriginalLifeSheet() {
     console.log('🔄 OriginalLifeSheet: Full chartData:', chartData);
   }, [calculations, chartData]);
 
-  // Load Quick Calculator assumptions from localStorage on mount
+  // Update portfolio series when totalAssetGrossMarketValue changes
   useEffect(() => {
-    try {
-      const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
-      if (Object.keys(quickCalcAssumptions).length > 0) {
-        setFormData(prev => ({
-          ...prev,
-          inflationRate: quickCalcAssumptions.inflationRate !== undefined ? quickCalcAssumptions.inflationRate : prev.inflationRate,
-          assetEquitySplit: quickCalcAssumptions.assetEquitySplit !== undefined ? quickCalcAssumptions.assetEquitySplit : prev.assetEquitySplit,
-          assetEquityGrowthRate: quickCalcAssumptions.assetEquityGrowthRate !== undefined ? quickCalcAssumptions.assetEquityGrowthRate : prev.assetEquityGrowthRate,
-          assetDebtGrowthRate: quickCalcAssumptions.assetDebtGrowthRate !== undefined ? quickCalcAssumptions.assetDebtGrowthRate : prev.assetDebtGrowthRate
-        }));
+    if (effectiveIsAuthenticated && effectiveUserId && formData.totalAssetGrossMarketValue) {
+      const fpValue = parseFloat(formData.totalAssetGrossMarketValue);
+      if (fpValue > 0) {
+        updatePortfolioSeriesFromFpCalculator(fpValue);
       }
-    } catch (e) {
-      console.warn('Failed to load Quick Calculator assumptions from localStorage:', e);
     }
+  }, [formData.totalAssetGrossMarketValue, effectiveIsAuthenticated, effectiveUserId]);
+
+  // Load Quick Calculator assumptions from localStorage on mount and when it changes
+  useEffect(() => {
+    const loadAssumptions = () => {
+      try {
+        const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+        if (Object.keys(quickCalcAssumptions).length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            assetGrowthRate: quickCalcAssumptions.assetGrowthRate !== undefined ? quickCalcAssumptions.assetGrowthRate : prev.assetGrowthRate,
+            incomeGrowthRate: quickCalcAssumptions.incomeGrowthRate !== undefined ? quickCalcAssumptions.incomeGrowthRate : prev.incomeGrowthRate,
+            inflationRate: quickCalcAssumptions.inflationRate !== undefined ? quickCalcAssumptions.inflationRate : prev.inflationRate,
+            lifespanYears: quickCalcAssumptions.lifespanYears !== undefined ? quickCalcAssumptions.lifespanYears : prev.lifespanYears,
+            assetEquitySplit: quickCalcAssumptions.assetEquitySplit !== undefined ? quickCalcAssumptions.assetEquitySplit : prev.assetEquitySplit,
+            lifespanYears: quickCalcAssumptions.lifespanYears !== undefined ? quickCalcAssumptions.lifespanYears : prev.lifespanYears,
+            assetEquityGrowthRate: quickCalcAssumptions.assetEquityGrowthRate !== undefined ? quickCalcAssumptions.assetEquityGrowthRate : prev.assetEquityGrowthRate,
+            assetDebtGrowthRate: quickCalcAssumptions.assetDebtGrowthRate !== undefined ? quickCalcAssumptions.assetDebtGrowthRate : prev.assetDebtGrowthRate
+          }));
+        }
+      } catch (e) {
+        console.warn('Failed to load Quick Calculator assumptions from localStorage:', e);
+      }
+    };
+
+    // Load on mount
+    loadAssumptions();
+
+    // Listen for storage changes (when Growth Assumptions page saves)
+    const handleStorageChange = (e) => {
+      if (e.key === 'quickCalcAssumptions' || e.key === null) {
+        loadAssumptions();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom event (for same-tab updates)
+    const handleCustomStorageChange = () => {
+      loadAssumptions();
+    };
+    window.addEventListener('quickCalcAssumptionsUpdated', handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('quickCalcAssumptionsUpdated', handleCustomStorageChange);
+    };
   }, []);
 
   // Load user's financial data when authenticated or in admin mode
@@ -506,7 +606,31 @@ export default function OriginalLifeSheet() {
       
       loadExpensesPromise.then(res => {
         console.log('💰 Expenses fetch response:', res)
-        const expensesData = res.expenses || [];
+        const expensesData = (res.expenses || []).map(expense => {
+          // Convert expenses to annual amounts for front page display
+          // If annual_budget exists, use it; otherwise calculate from amount * frequency
+          let annualAmount = parseFloat(expense.amount) || 0;
+          const frequency = expense.frequency || 'Monthly';
+          
+          // If annual_budget is stored, use it (for expenses from Expenses page)
+          if (expense.annual_budget !== undefined && expense.annual_budget !== null) {
+            annualAmount = parseFloat(expense.annual_budget) || 0;
+          } else {
+            // Calculate annual amount from frequency
+            if (frequency === 'Weekly') annualAmount = annualAmount * 52;
+            else if (frequency === 'Fortnightly') annualAmount = annualAmount * 26;
+            else if (frequency === 'Monthly') annualAmount = annualAmount * 12;
+            else if (frequency === 'Quarterly') annualAmount = annualAmount * 4;
+            else if (frequency === 'Semi-Annually') annualAmount = annualAmount * 2;
+            // If frequency is 'Annually', amount is already annual
+          }
+          
+          return {
+            ...expense,
+            amount: annualAmount, // Store annual amount for front page
+            frequency: 'Annually' // Front page always shows annual
+          };
+        });
         setExpenses(expensesData);
         dispatchExpensesEvent(expensesData);
         setStoreExpenses(expensesData);
@@ -577,7 +701,7 @@ export default function OriginalLifeSheet() {
         horizonYears: horizonYears,
         r_assets: parseFloat(formData.assetGrowthRate) || 0.06,
         g_income: parseFloat(formData.incomeGrowthRate) || 0.06,
-        i_expenses: 0.06, // Fixed expense inflation
+        i_expenses: parseFloat(formData.inflationRate) || 0.06, // Use expense inflation rate from Growth Assumptions
         workTenureYears: parseInt(formData.workTenureYears) || 35,
         income0: parseFloat(formData.currentAnnualGrossIncome) || 0,
         expenses0: totalExpenses, // Calculate from expenses array
@@ -675,7 +799,7 @@ export default function OriginalLifeSheet() {
         : await ApiService.getFinancialProfile(effectiveUserId)
       if (response && response.profile) {
         const profile = response.profile
-        // Load from database, but preserve Quick Calculator assumptions from localStorage
+        // Load from database, but prioritize Quick Calculator assumptions from localStorage
         const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
         setFormData(prev => ({
           age: profile.age || '',
@@ -685,10 +809,12 @@ export default function OriginalLifeSheet() {
           totalLoanOutstandingValue: profile.total_loan_outstanding_value || '',
           loanTenureYears: profile.loan_tenure_years || '',
           lifespanYears: profile.lifespan_years || 85,
-          incomeGrowthRate: profile.income_growth_rate || 0.06,
-          assetGrowthRate: profile.asset_growth_rate || 0.06,
+          // Prioritize localStorage values over database values for growth rates
+          incomeGrowthRate: quickCalcAssumptions.incomeGrowthRate !== undefined ? quickCalcAssumptions.incomeGrowthRate : (profile.income_growth_rate || 0.06),
+          assetGrowthRate: quickCalcAssumptions.assetGrowthRate !== undefined ? quickCalcAssumptions.assetGrowthRate : (profile.asset_growth_rate || 0.06),
           // Quick Calculator assumptions (frontend-only, not in DB)
           inflationRate: quickCalcAssumptions.inflationRate !== undefined ? quickCalcAssumptions.inflationRate : (prev.inflationRate || 0.06),
+          lifespanYears: quickCalcAssumptions.lifespanYears !== undefined ? quickCalcAssumptions.lifespanYears : (profile.lifespan_years || 85),
           assetEquitySplit: quickCalcAssumptions.assetEquitySplit !== undefined ? quickCalcAssumptions.assetEquitySplit : (prev.assetEquitySplit || 0.60),
           assetEquityGrowthRate: quickCalcAssumptions.assetEquityGrowthRate !== undefined ? quickCalcAssumptions.assetEquityGrowthRate : (prev.assetEquityGrowthRate || 0.15),
           assetDebtGrowthRate: quickCalcAssumptions.assetDebtGrowthRate !== undefined ? quickCalcAssumptions.assetDebtGrowthRate : (prev.assetDebtGrowthRate || 0.07)
@@ -954,8 +1080,7 @@ export default function OriginalLifeSheet() {
     updatedGoals[index] = { ...updatedGoals[index], [field]: value }
     setGoals(updatedGoals)
     dispatchGoalsEvent(updatedGoals)
-    // Set source preference to Quick Calculator when user edits goals
-    setSourcePreference('goals', 0);
+    // No longer using source preference - always use combined (detailed + unassigned)
   }
 
   const saveGoalOnBlur = async (index, field, value) => {
@@ -1047,8 +1172,7 @@ export default function OriginalLifeSheet() {
     updatedExpenses[index] = { ...updatedExpenses[index], [field]: value }
     setExpenses(updatedExpenses)
     dispatchExpensesEvent(updatedExpenses)
-    // Set source preference to Quick Calculator when user edits expenses
-    setSourcePreference('expenses', 0);
+    // No longer using source preference - always use combined (detailed + unassigned)
   }
 
   const saveExpenseOnBlur = async (index, field, value) => {
@@ -1067,7 +1191,7 @@ export default function OriginalLifeSheet() {
           profile_id: financialProfile?.id,
           description: expense.description || 'General',
           amount: expense.amount || 0,
-          frequency: expense.frequency || 'Monthly',
+          frequency: 'Annually', // Front page expenses are always annual
           personal_inflation: 0.06,
           source: 'manual',
           notes: null
@@ -1109,8 +1233,7 @@ export default function OriginalLifeSheet() {
     // This ensures Expenses page is not affected
     console.log('🗑️ Main page: Removing expense from local state only (not from database)');
     
-    // Set source preference to Quick Calculator when deleting from main page
-    setSourcePreference('expenses', 0);
+    // No longer using source preference - always use combined (detailed + unassigned)
     
     const updatedExpenses = expenses.filter((_, i) => i !== index);
     setExpenses(updatedExpenses);
@@ -1172,8 +1295,7 @@ export default function OriginalLifeSheet() {
       dispatchLoansEvent(updatedLoans);
       return updatedLoans;
     });
-    // Set source preference to Quick Calculator when user edits loans
-    setSourcePreference('loans', 0);
+    // No longer using source preference - always use combined (detailed + unassigned)
   }
 
   const saveLoanOnBlur = async (loanKey, field, value) => {
@@ -1264,8 +1386,7 @@ export default function OriginalLifeSheet() {
     // This ensures Loans page is not affected
     console.log('🗑️ Main page: Removing loan from local state only (not from database)');
     
-    // Set source preference to Quick Calculator when deleting from main page
-    setSourcePreference('loans', 0);
+    // No longer using source preference - always use combined (detailed + unassigned)
     
     setLoans(loans => {
       const updatedLoans = loans.filter((_, idx) => idx !== loanIndex);
@@ -1376,11 +1497,11 @@ export default function OriginalLifeSheet() {
   }
 
   const dataSourceItems = [
-    { label: 'Assets', color: 'bg-emerald-500', source: sourcePreferences?.assets === 1 ? 'Assets Page' : 'Quick Calculator' },
-    { label: 'Work Assets', color: 'bg-blue-500', source: sourcePreferences?.income === 1 ? 'Work Assets Page' : 'Quick Calculator' },
-    { label: 'Goals', color: 'bg-purple-500', source: sourcePreferences?.goals === 1 ? 'Goals Page' : 'Quick Calculator' },
-    { label: 'Loans', color: 'bg-red-500', source: sourcePreferences?.loans === 1 ? 'Loans Page' : 'Quick Calculator' },
-    { label: 'Expenses', color: 'bg-orange-500', source: sourcePreferences?.expenses === 1 ? 'Expenses Page' : 'Quick Calculator' },
+    { label: 'Assets', color: 'bg-emerald-500', source: 'Combined (Assets Page + Unassigned)' },
+    { label: 'Work Assets', color: 'bg-blue-500', source: 'Combined (Work Assets Page + Unassigned)' },
+    { label: 'Goals', color: 'bg-purple-500', source: 'Goals Page' },
+    { label: 'Loans', color: 'bg-red-500', source: 'Combined (Loans Page + Unassigned)' },
+    { label: 'Expenses', color: 'bg-orange-500', source: 'Expenses Page' },
     { label: 'Assumptions', color: 'bg-slate-400', source: 'Growth Rate Assumptions' }
   ]
 
@@ -1711,12 +1832,11 @@ export default function OriginalLifeSheet() {
         {profileSections.map(section => {
           const Icon = section.icon
           return (
-            <div key={section.key} className="lifemap-soft-card p-4 flex items-center gap-3 relative">
+            <div key={section.key} className="lifemap-soft-card p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center">
                 <Icon className="h-5 w-5 text-blue-600" />
               </div>
               <div className="text-sm font-medium text-slate-700">{section.label}*</div>
-              <span className={`absolute top-2 right-2 h-2.5 w-2.5 rounded-full ${section.complete ? 'bg-emerald-500' : 'bg-red-500'}`} />
             </div>
           )
         })}
@@ -1726,7 +1846,7 @@ export default function OriginalLifeSheet() {
         <div className="lifemap-panel-header">
           <div className="lifemap-panel-title">Net Assets and Liabilities</div>
           <div className="text-xs bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full text-slate-600 dark:text-slate-300">
-            Surplus: {formatCurrency(Math.abs(calculations.surplusDeficit))}
+            Surplus: {formatCurrency(((parseFloat(formData.totalAssetGrossMarketValue) || 0) + ((parseFloat(formData.currentAnnualGrossIncome) || 0) * (parseInt(formData.workTenureYears) || 0))) - (calculations.totalExistingLiabilities + calculations.totalFutureExpenses + calculations.totalFinancialGoals))}
           </div>
         </div>
         <div className="p-6">
@@ -1739,35 +1859,65 @@ export default function OriginalLifeSheet() {
             </div>
           ) : (
             <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden bg-white dark:bg-slate-800">
-              <div className="grid grid-cols-4 bg-slate-50 dark:bg-slate-700/50 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                <div className="px-4 py-3">Liabilities</div>
-                <div className="px-4 py-3">Amount</div>
-                <div className="px-4 py-3">Assets</div>
-                <div className="px-4 py-3">Amount</div>
-              </div>
-              {networthRows.map((row, idx) => (
-                <div key={`networth-row-${idx}`} className="grid grid-cols-4 text-sm border-t border-slate-100 dark:border-slate-700">
-                  <div className="px-4 py-3 bg-red-50/60 dark:bg-red-900/20 text-slate-700 dark:text-slate-300">{row.liability?.name || ''}</div>
-                  <div className="px-4 py-3 bg-red-50/60 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium">
-                    {row.liability ? formatCurrency(row.liability.amount) : ''}
+              <div className="grid grid-cols-2 gap-6 p-6">
+                {/* Assets Column */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600 dark:text-slate-300">Total Existing Assets</span>
+                    <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                      + {formatCurrency(parseFloat(formData.totalAssetGrossMarketValue) || 0)}
+                    </span>
                   </div>
-                  <div className="px-4 py-3 bg-emerald-50/60 dark:bg-emerald-900/20 text-slate-700 dark:text-slate-300">{row.asset?.name || ''}</div>
-                  <div className="px-4 py-3 bg-emerald-50/60 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-medium">
-                    {row.asset ? formatCurrency(row.asset.amount) : ''}
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600 dark:text-slate-300">Total Human Capital</span>
+                    <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                      + {formatCurrency((parseFloat(formData.currentAnnualGrossIncome) || 0) * (parseInt(formData.workTenureYears) || 0))}
+                    </span>
+                  </div>
+                  
+                  <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">Total</span>
+                      <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                        + {formatCurrency((parseFloat(formData.totalAssetGrossMarketValue) || 0) + ((parseFloat(formData.currentAnnualGrossIncome) || 0) * (parseInt(formData.workTenureYears) || 0)))}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              ))}
-              <div className="grid grid-cols-4 border-t-2 border-slate-200 dark:border-slate-600 text-sm font-semibold bg-slate-50 dark:bg-slate-700/50">
-                <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 text-slate-700 dark:text-slate-300">Total Liabilities</div>
-                <div className="px-4 py-3 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400">{formatCurrency(liabilitiesTotal)}</div>
-                <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-900/30 text-slate-700 dark:text-slate-300">Total Assets</div>
-                <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">{formatCurrency(assetsTotal)}</div>
-              </div>
-              <div className="px-4 py-4 border-t border-slate-200 dark:border-slate-700 text-sm font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                Net Worth: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(assetsTotal - liabilitiesTotal)}</span>
-              </div>
-              <div className="px-4 pb-4 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800">
-                Current Networth = Total assets - Total Liabilities
+
+                {/* Liabilities/Expenses Column */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600 dark:text-slate-300">Total Existing Liabilities</span>
+                    <span className="text-lg font-bold text-red-600 dark:text-red-400">
+                      - {formatCurrency(calculations.totalExistingLiabilities)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600 dark:text-slate-300">Total Future Expense</span>
+                    <span className="text-lg font-bold text-red-600 dark:text-red-400">
+                      - {formatCurrency(calculations.totalFutureExpenses)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600 dark:text-slate-300">Cumulative Financial Goal</span>
+                    <span className="text-lg font-bold text-red-600 dark:text-red-400">
+                      - {formatCurrency(calculations.totalFinancialGoals)}
+                    </span>
+                  </div>
+                  
+                  <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">Total</span>
+                      <span className="text-lg font-bold text-red-600 dark:text-red-400">
+                        - {formatCurrency(calculations.totalExistingLiabilities + calculations.totalFutureExpenses + calculations.totalFinancialGoals)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1782,18 +1932,7 @@ export default function OriginalLifeSheet() {
           </div>
         </div>
         <div className="p-6 pb-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="lifemap-soft-card p-4">
-              <div className="text-xs text-slate-500 dark:text-slate-400">Total assets as on date*</div>
-              <div className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(assetsTotal)}</div>
-            </div>
-            <div className="lifemap-soft-card p-4">
-              <div className="text-xs text-slate-500 dark:text-slate-400">Total liabilities as on date*</div>
-              <div className="text-lg font-semibold text-rose-600 dark:text-red-400">{formatCurrency(liabilitiesTotal)}</div>
-            </div>
-          </div>
           <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-400">
-            Current Networth = Total assets - Total Liabilities
             <span className="float-right text-emerald-600 dark:text-emerald-400 font-semibold">
               {formatCurrency(assetsTotal - liabilitiesTotal)}
             </span>
@@ -2296,7 +2435,7 @@ export default function OriginalLifeSheet() {
               <CardTitle className="flex items-center justify-between">
                 <span>Life Sheet</span>
                 <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                  Surplus: {formatCurrency(Math.abs(calculations.surplusDeficit))}
+                  Surplus: {formatCurrency(assetsTotal - liabilitiesTotal)}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -2426,41 +2565,41 @@ export default function OriginalLifeSheet() {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${sourcePreferences?.assets === 1 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   <div>
                     <p className="text-sm font-medium">Assets</p>
                     <p className="text-xs text-gray-600">
-                      {sourcePreferences?.assets === 1 ? 'Detailed (Assets Page)' : 'Quick Calculator'}
+                      Combined (Assets Page + Unassigned)
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${sourcePreferences?.income === 1 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   <div>
                     <p className="text-sm font-medium">Work Assets</p>
                     <p className="text-xs text-gray-600">
-                      {sourcePreferences?.income === 1 ? 'Detailed (Work Assets Page)' : 'Quick Calculator'}
+                      Combined (Work Assets Page + Unassigned)
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${sourcePreferences?.loans === 1 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   <div>
                     <p className="text-sm font-medium">Liabilities</p>
                     <p className="text-xs text-gray-600">
-                      {sourcePreferences?.loans === 1 ? 'Detailed (Loans Page)' : 'Quick Calculator'}
+                      Combined (Loans Page + Unassigned)
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${sourcePreferences?.expenses === 1 ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
                   <div>
                     <p className="text-sm font-medium">Expenses</p>
                     <p className="text-xs text-gray-600">
-                      {sourcePreferences?.expenses === 1 ? 'Detailed (Expenses Page)' : 'Quick Calculator'}
+                      Detailed (Expenses Page)
                     </p>
                   </div>
                 </div>
@@ -2482,12 +2621,12 @@ export default function OriginalLifeSheet() {
             </CardContent>
           </Card>
 
-          {/* Growth Rate Assumptions & Calculation Logic */}
+          {/* Growth Rate Assumptions */}
           <Card className="mt-4 shadow-lg border-0 bg-white/80 backdrop-blur">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Calculator className="w-5 h-5 text-blue-600" />
-                <span>Growth Rate Assumptions & Net Worth Calculation</span>
+                <span>Growth Rate Assumptions</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -2506,7 +2645,7 @@ export default function OriginalLifeSheet() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Expense Inflation Rate:</span>
-                      <span className="font-medium">6.0%</span>
+                      <span className="font-medium">{(parseFloat(formData.inflationRate || 0.06) * 100).toFixed(1)}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Work Tenure:</span>
@@ -2515,25 +2654,6 @@ export default function OriginalLifeSheet() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Projection Horizon:</span>
                       <span className="font-medium">{formData.lifespanYears - parseInt(formData.age)} years</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Net Worth Calculation Logic */}
-                <div>
-                  <h4 className="font-semibold text-gray-800 mb-3">Net Worth Calculation</h4>
-                  <div className="text-sm space-y-2">
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="font-medium text-gray-700 mb-2">Formula for each year:</p>
-                      <p className="text-gray-600">
-                        <strong>Net Worth<sub>t</sub> = Net Worth<sub>t-1</sub> × (1 + Asset Growth) + Income<sub>t</sub> - Expenses<sub>t</sub> - EMIs<sub>t</sub></strong>
-                      </p>
-                    </div>
-                    <div className="space-y-1 text-xs text-gray-600">
-                      <p>• <strong>Income<sub>t</sub></strong> = Current Income × (1 + Income Growth)<sup>t-1</sup> (only while working)</p>
-                      <p>• <strong>Expenses<sub>t</sub></strong> = Base Expenses × (1 + Inflation)<sup>t-1</sup></p>
-                      <p>• <strong>EMIs<sub>t</sub></strong> = Sum of active loan EMIs for year t</p>
-                      <p>• <strong>Asset Growth</strong> = Applied to total net worth each year</p>
                     </div>
                   </div>
                 </div>

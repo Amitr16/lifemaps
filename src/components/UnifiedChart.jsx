@@ -103,6 +103,7 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
   const [dependants, setDependants] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [enabledData, setEnabledData] = useState(defaultEnabled);
+  const [fpCalculatorAssets, setFpCalculatorAssets] = useState(0);
   
   // Check if we're in admin mode
   const isAdminMode = !!adminUser?.userId;
@@ -116,8 +117,24 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
       loadWorkAssets();
       loadInsurance();
       loadDependants();
+      loadFpCalculatorAssets();
     }
   }, [effectiveIsAuthenticated, effectiveUserId]);
+
+  const loadFpCalculatorAssets = async () => {
+    if (!effectiveUserId) return;
+    try {
+      const response = isAdminMode
+        ? await ApiService.getFinancialProfileForUser(effectiveUserId)
+        : await ApiService.getFinancialProfile(effectiveUserId);
+      if (response && response.profile) {
+        const fpValue = parseFloat(response.profile.total_asset_gross_market_value) || 0;
+        setFpCalculatorAssets(fpValue);
+      }
+    } catch (error) {
+      console.error('Error loading financial profile for chart:', error);
+    }
+  };
 
   const loadAssets = async () => {
     if (!effectiveUserId) return;
@@ -166,22 +183,23 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
           dependants: 0
         };
 
-        // Calculate Assets
+        // Calculate Assets (includes detailed assets + unassigned assets)
         if (enabledData.includes('assets')) {
           console.log('🔍 Calculating assets for year', year, 'with', assets.length, 'assets');
-          const totalAssets = assets.reduce((sum, asset) => {
+          // Get assetGrowthRate from Growth Assumptions as default
+          const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+          const defaultAssetGrowthRate = (quickCalcAssumptions.assetGrowthRate || 0.06) * 100; // Convert to percentage
+          const assetEquitySplit = parseFloat(quickCalcAssumptions.assetEquitySplit) || 0.60;
+          const assetEquityGrowthRate = parseFloat(quickCalcAssumptions.assetEquityGrowthRate) || 0.15;
+          const assetDebtGrowthRate = parseFloat(quickCalcAssumptions.assetDebtGrowthRate) || 0.07;
+          
+          // 1. Calculate detailed assets
+          const detailedAssetsTotal = assets.reduce((sum, asset) => {
             const value = parseFloat(asset.current_value) || 0;
             const customData = asset.custom_data || {};
-            const expectedReturn = parseFloat(customData.expectedReturn) || 5; // Default 5%
-            console.log('🔍 Asset', asset.name, 'expectedReturn raw:', customData.expectedReturn, 'parsed:', expectedReturn);
+            const expectedReturn = parseFloat(customData.expectedReturn) || defaultAssetGrowthRate;
             const growthRate = expectedReturn / 100;
             
-            // Calculate SIP contributions and compound growth
-            const sipAmount = parseFloat(customData.sipAmount) || 0;
-            const sipFrequency = customData.sipFrequency || '';
-            const sipExpiryDate = customData.sipExpiryDate || '';
-            
-            // Use the improved SIP projection logic
             const grownValue = calculateSIPProjection({
               initial: value,
               sipAmount: parseFloat(customData.sipAmount) || 0,
@@ -191,11 +209,27 @@ const UnifiedChart = ({ defaultEnabled = ['assets', 'workAssets'] }) => {
               sipExpiryDate: customData.sipExpiryDate || ''
             });
             
-            console.log('🔍 Asset', asset.name, 'value:', value, 'SIP Amount:', sipAmount, 'SIP Frequency:', sipFrequency, 'SIP Expiry:', sipExpiryDate, 'expectedReturn:', expectedReturn, 'yearOffset:', yearOffset, 'grown to:', grownValue);
             return sum + grownValue;
           }, 0);
-          yearData.assets = Math.round(totalAssets);
-          console.log('🔍 Total assets for year', year, ':', yearData.assets);
+          
+          // 2. Calculate unassigned assets (FP calculator value - sum of detailed assets)
+          const detailedAssetsCurrentValue = assets.reduce((sum, asset) => sum + (parseFloat(asset.current_value) || 0), 0);
+          const unassignedAssetsValue = Math.max(0, fpCalculatorAssets - detailedAssetsCurrentValue);
+          
+          let unassignedAssetsGrown = 0;
+          if (unassignedAssetsValue > 0) {
+            // Project unassigned assets with 60:40 split
+            const equityPortion = unassignedAssetsValue * assetEquitySplit;
+            const debtPortion = unassignedAssetsValue * (1 - assetEquitySplit);
+            
+            const equityGrown = equityPortion * Math.pow(1 + assetEquityGrowthRate, yearOffset);
+            const debtGrown = debtPortion * Math.pow(1 + assetDebtGrowthRate, yearOffset);
+            
+            unassignedAssetsGrown = equityGrown + debtGrown;
+          }
+          
+          yearData.assets = Math.round(detailedAssetsTotal + unassignedAssetsGrown);
+          console.log('🔍 Total assets for year', year, ':', yearData.assets, '(detailed:', detailedAssetsTotal, ', unassigned:', unassignedAssetsGrown, ')');
         }
 
         // Calculate Work Assets

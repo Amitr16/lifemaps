@@ -12,6 +12,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, Settings2, ShoppingCart } from 'lucide-react';
 
+const formatCurrency = (value) => {
+  if (value === null || value === undefined || isNaN(value)) return '₹0';
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (num >= 10000000) {
+    return `₹${(num / 10000000).toFixed(2)}Cr`;
+  } else if (num >= 100000) {
+    return `₹${(num / 100000).toFixed(2)}L`;
+  } else {
+    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  }
+};
+
 export default function ExpensesPage() {
   const { user } = useAuth();
   const adminUser = useAdminUser();
@@ -66,8 +78,7 @@ export default function ExpensesPage() {
       
       // Update store with detailed expenses data
       setDetailExpenses(expensesSeries);
-      // Set source preference to detailed (1) when Expenses data is calculated
-      setSourcePreference('expenses', 1, { isAdminMode, userId: effectiveUserId });
+      // No longer using source preference for expenses - always use detailed expenses
       console.log('🔄 Expenses: setDetailExpenses called successfully');
       console.log('🔄 Expenses: Source preference set to detailed (1)');
       
@@ -521,15 +532,23 @@ export default function ExpensesPage() {
         </button>
       </div>
 
+      {/* Summary Cards */}
+      <div className="lifemap-stat-grid">
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Total Annual Expenses</p>
+          <div className="lifemap-stat-value text-emerald-600">
+            {formatCurrency(totalAnnualExpenses)}
+          </div>
+          <p className="text-xs text-slate-500">{rows.length} expense entries</p>
+        </div>
+      </div>
+
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="text-sm font-semibold text-slate-700">
             Track your recurring expenses and their growth
           </div>
           <div className="flex flex-col items-end gap-1">
-            <span className="px-3 py-1.5 rounded bg-rose-100 text-rose-700 text-sm font-medium">
-              Total Annual Expenses: ₹{totalAnnualExpenses.toLocaleString('en-IN')}
-            </span>
             <button
               type="button"
               className="text-xs text-slate-500 hover:text-slate-700 underline"

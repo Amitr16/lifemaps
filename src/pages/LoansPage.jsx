@@ -9,6 +9,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertTriangle, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+const formatCurrency = (value) => {
+  if (value === null || value === undefined || isNaN(value)) return '₹0';
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (num >= 10000000) {
+    return `₹${(num / 10000000).toFixed(2)}Cr`;
+  } else if (num >= 100000) {
+    return `₹${(num / 100000).toFixed(2)}L`;
+  } else {
+    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  }
+};
+
 export default function LoansPage() {
   const { user, isAuthenticated } = useAuth();
   const adminUser = useAdminUser();
@@ -16,10 +28,32 @@ export default function LoansPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [savingRows, setSavingRows] = useState(new Set());
+  const [fpCalculatorLoans, setFpCalculatorLoans] = useState(0);
   
   // Determine if we're in admin mode and get the correct userId
   const isAdminMode = !!adminUser?.userId;
   const userId = isAdminMode ? adminUser.userId : (user?.id || null);
+  const effectiveIsAuthenticated = isAdminMode || isAuthenticated;
+
+  // Load FP calculator loans (totalLoanOutstandingValue)
+  useEffect(() => {
+    const loadFpCalculatorLoans = async () => {
+      if (effectiveIsAuthenticated && userId) {
+        try {
+          const response = isAdminMode
+            ? await ApiService.getFinancialProfileForUser(userId)
+            : await ApiService.getFinancialProfile(userId);
+          if (response && response.profile) {
+            const fpValue = parseFloat(response.profile.total_loan_outstanding_value) || 0;
+            setFpCalculatorLoans(fpValue);
+          }
+        } catch (error) {
+          console.error('❌ Error loading financial profile:', error);
+        }
+      }
+    };
+    loadFpCalculatorLoans();
+  }, [effectiveIsAuthenticated, userId, isAdminMode]);
 
   // Event dispatching for live chart updates (following WorkAssetsPage pattern)
   const dispatchLoansEvent = (updatedLoans) => {
@@ -32,49 +66,65 @@ export default function LoansPage() {
   };
 
   // Calculate EMI time series and update store
+  // Now includes unassigned loans (from FP calculator)
   const updateStoreWithEmiTimeSeries = (loansData) => {
     console.log('🔄 Loans: updateStoreWithEmiTimeSeries called with loans:', loansData.length);
     try {
       const currentYear = new Date().getFullYear();
       const emiSeries = {};
       
+      // Calculate current detailed loans total outstanding
+      const detailedLoansTotal = loansData.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0);
+      
+      // Calculate unassigned loans = FP calculator value - detailed loans total
+      const unassignedLoansValue = Math.max(0, fpCalculatorLoans - detailedLoansTotal);
+      
+      // For unassigned loans, estimate annual EMI based on typical loan terms
+      // Use average interest rate and remaining tenure from FP calculator or defaults
+      const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+      const defaultLoanRate = 0.10; // 10% default
+      const defaultLoanTenure = 10; // 10 years default
+      let unassignedAnnualEmi = 0;
+      if (unassignedLoansValue > 0) {
+        // Calculate EMI using standard formula: EMI = P * r * (1+r)^n / ((1+r)^n - 1)
+        const monthlyRate = defaultLoanRate / 12;
+        const numMonths = defaultLoanTenure * 12;
+        const emi = unassignedLoansValue * monthlyRate * Math.pow(1 + monthlyRate, numMonths) / (Math.pow(1 + monthlyRate, numMonths) - 1);
+        unassignedAnnualEmi = emi * 12;
+      }
+      
       // For each year, calculate total EMI payments
       for (let yearOffset = 0; yearOffset <= 50; yearOffset++) {
         const year = currentYear + yearOffset;
         let totalEmi = 0;
         
+        // 1. Add detailed loans EMI
         loansData.forEach(loan => {
           const principal = parseFloat(loan.amount) || 0;
           const emi = parseFloat(loan.emi) || 0;
           const loanExpiry = parseInt(loan.loanExpiry) || 0;
           
-          console.log('🔄 Loans: Processing loan:', { 
-            provider: loan.provider, 
-            emi, 
-            loanExpiry, 
-            year, 
-            yearOffset 
-          });
-          
           // Only include EMI if the loan is still active (before expiry year)
           if (loanExpiry > 0 && year <= loanExpiry && emi > 0) {
             totalEmi += emi * 12; // Convert monthly EMI to annual
-            console.log('🔄 Loans: Adding EMI for year', year, ':', emi * 12);
           }
         });
+        
+        // 2. Add unassigned loans EMI (only for remaining loan tenure)
+        if (unassignedAnnualEmi > 0 && yearOffset < defaultLoanTenure) {
+          totalEmi += unassignedAnnualEmi;
+        }
         
         emiSeries[year] = totalEmi;
       }
       
-      console.log('🔄 Loans: Calculated EMI series for first 5 years:', 
+      console.log('🔄 Loans: Calculated EMI series (includes unassigned):', 
         Object.keys(emiSeries).slice(0, 5).map(y => [y, emiSeries[y]]));
+      console.log('🔄 Loans: Unassigned loans value:', unassignedLoansValue, 'Annual EMI:', unassignedAnnualEmi);
       
-      // Update store with detailed EMI data
+      // Update store with combined EMI data (no source preference needed)
       setDetailEmi(emiSeries);
-      // Set source preference to detailed (1) when Loans data is calculated
-      setSourcePreference('loans', 1, { isAdminMode, userId: effectiveUserId });
       console.log('🔄 Loans: setDetailEmi called successfully');
-      console.log('🔄 Loans: Source preference set to detailed (1)');
       
     } catch (error) {
       console.error('❌ Error updating store with EMI time series:', error);
@@ -302,6 +352,10 @@ export default function LoansPage() {
   // Calculate summary statistics
   const totalPrincipal = rows.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0)
   const totalEMI = rows.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0), 0)
+  const totalOutstanding = totalPrincipal
+  const totalMonthlyEmi = totalEMI
+  const totalAnnualEmi = totalEMI * 12
+  const unassignedLoans = Math.max(0, fpCalculatorLoans - totalPrincipal)
   // Calculate weighted average interest rate based on loan amounts
   const averageRate = (() => {
     if (rows.length === 0) return 0;
@@ -379,21 +433,33 @@ export default function LoansPage() {
       {/* Summary Cards */}
       <div className="lifemap-stat-grid">
         <div className="lifemap-stat-card">
-          <p className="lifemap-stat-title">Total Outstanding</p>
-          <div className="lifemap-stat-value text-red-600">
-            ₹{totalPrincipal.toLocaleString('en-IN')}
+          <p className="lifemap-stat-title">Detailed Loans</p>
+          <div className="lifemap-stat-value text-emerald-600">
+            {formatCurrency(totalPrincipal)}
           </div>
           <p className="text-xs text-slate-500">{rows.length} loans</p>
         </div>
-
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Unassigned Loans</p>
+          <div className="lifemap-stat-value text-orange-600">
+            {formatCurrency(unassignedLoans)}
+          </div>
+          <p className="text-xs text-slate-500">From FP Calculator</p>
+        </div>
+        <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Total Outstanding</p>
+          <div className="lifemap-stat-value text-red-600">
+            {formatCurrency(Math.max(fpCalculatorLoans, totalPrincipal))}
+          </div>
+          <p className="text-xs text-slate-500">{rows.length} detailed + unassigned</p>
+        </div>
         <div className="lifemap-stat-card">
           <p className="lifemap-stat-title">Monthly EMI</p>
           <div className="lifemap-stat-value text-orange-600">
-            ₹{totalEMI.toLocaleString('en-IN')}
+            {formatCurrency(totalMonthlyEmi)}
           </div>
           <p className="text-xs text-slate-500">Total monthly outflow</p>
         </div>
-
         <div className="lifemap-stat-card">
           <p className="lifemap-stat-title">Average Rate</p>
           <div className="lifemap-stat-value text-blue-600">
@@ -401,11 +467,10 @@ export default function LoansPage() {
           </div>
           <p className="text-xs text-slate-500">Weighted Average</p>
         </div>
-
         <div className="lifemap-stat-card">
           <p className="lifemap-stat-title">Annual Outflow</p>
           <div className="lifemap-stat-value text-purple-600">
-            ₹{(totalEMI * 12).toLocaleString('en-IN')}
+            {formatCurrency(totalAnnualEmi)}
           </div>
           <p className="text-xs text-slate-500">EMI x 12 months</p>
         </div>

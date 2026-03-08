@@ -9,17 +9,52 @@ import { useLifeSheetStore } from '../store/enhanced-store';
 import ApiService from '../services/api';
 import UnifiedChart from '@/components/UnifiedChart.jsx';
 
+const formatCurrency = (value) => {
+  if (value === null || value === undefined || isNaN(value)) return '₹0';
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (num >= 10000000) {
+    return `₹${(num / 10000000).toFixed(2)}Cr`;
+  } else if (num >= 100000) {
+    return `₹${(num / 100000).toFixed(2)}L`;
+  } else {
+    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  }
+};
+
 export default function WorkAssetsPage() {
   const { user, isAuthenticated } = useAuth();
   const adminUser = useAdminUser();
   const { lifeSheet, updateWorkAssets, setDetailIncome, setSourcePreference } = useLifeSheetStore();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [fpCalculatorWorkAssets, setFpCalculatorWorkAssets] = useState(0);
   
   // Check if we're in admin mode
   const isAdminMode = !!adminUser?.userId;
   const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null);
   const effectiveIsAuthenticated = isAdminMode || isAuthenticated;
+
+  // Load FP calculator work assets (currentAnnualGrossIncome * workTenureYears)
+  useEffect(() => {
+    const loadFpCalculatorWorkAssets = async () => {
+      if (effectiveIsAuthenticated && effectiveUserId) {
+        try {
+          const response = isAdminMode
+            ? await ApiService.getFinancialProfileForUser(effectiveUserId)
+            : await ApiService.getFinancialProfile(effectiveUserId);
+          if (response && response.profile) {
+            const income = parseFloat(response.profile.current_annual_gross_income) || 0;
+            const tenure = parseInt(response.profile.work_tenure_years) || 0;
+            const fpValue = income * tenure;
+            setFpCalculatorWorkAssets(fpValue);
+          }
+        } catch (error) {
+          console.error('❌ Error loading financial profile:', error);
+        }
+      }
+    };
+    loadFpCalculatorWorkAssets();
+  }, [effectiveIsAuthenticated, effectiveUserId, isAdminMode]);
   
   
 
@@ -34,17 +69,41 @@ export default function WorkAssetsPage() {
   };
 
   // Calculate work income time series and update store
+  // Now includes unassigned work assets (from FP calculator)
   const updateStoreWithWorkIncomeTimeSeries = (workAssetsData) => {
     console.log('🔄 Work Assets: updateStoreWithWorkIncomeTimeSeries called with work assets:', workAssetsData.length);
     try {
       const currentYear = new Date().getFullYear();
       const incomeSeries = {};
       
+      // Calculate current year detailed work assets annual total
+      const detailedWorkAssetsAnnualTotal = workAssetsData.reduce((sum, asset) => {
+        const ageInYear = currentAge;
+        const startAge = currentAge;
+        const endAge = parseInt(asset.endAge) || 65;
+        if (ageInYear >= startAge && ageInYear <= endAge) {
+          return sum + (parseFloat(asset.amount) || 0);
+        }
+        return sum;
+      }, 0);
+      
+      // Calculate unassigned work assets annual income
+      // FP calculator: currentAnnualGrossIncome (annual) * workTenureYears = Total Human Capital
+      // Unassigned annual = FP calculator annual - detailed annual
+      const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+      const incomeGrowthRate = parseFloat(quickCalcAssumptions.incomeGrowthRate) || 0.06;
+      
+      // Get FP calculator annual income
+      const workTenure = parseInt(lifeSheet.workTenureYears) || 1;
+      const fpAnnualIncome = fpCalculatorWorkAssets > 0 ? fpCalculatorWorkAssets / workTenure : 0;
+      const unassignedAnnualIncome = Math.max(0, fpAnnualIncome - detailedWorkAssetsAnnualTotal);
+      
       // For each year, calculate total work income
       for (let yearOffset = 0; yearOffset <= 50; yearOffset++) {
         const year = currentYear + yearOffset;
         let totalIncome = 0;
         
+        // 1. Add detailed work assets
         workAssetsData.forEach(asset => {
           const startAge = currentAge;
           const endAge = parseInt(asset.endAge) || 65;
@@ -60,18 +119,23 @@ export default function WorkAssetsPage() {
           }
         });
         
+        // 2. Add unassigned work assets (from FP calculator)
+        // Project unassigned annual income with growth rate, only for remaining work tenure
+        if (unassignedAnnualIncome > 0 && yearOffset < workTenure) {
+          const unassignedIncome = unassignedAnnualIncome * Math.pow(1 + incomeGrowthRate, yearOffset);
+          totalIncome += unassignedIncome;
+        }
+        
         incomeSeries[year] = totalIncome;
       }
       
-      console.log('🔄 Work Assets: Calculated income series for first 5 years:', 
+      console.log('🔄 Work Assets: Calculated income series (includes unassigned):', 
         Object.keys(incomeSeries).slice(0, 5).map(y => [y, incomeSeries[y]]));
+      console.log('🔄 Work Assets: Unassigned annual income:', unassignedAnnualIncome);
       
-      // Update store with detailed income data
+      // Update store with combined income data (no source preference needed)
       setDetailIncome(incomeSeries);
-      // Set source preference to detailed (1) when Work Assets data is calculated
-      setSourcePreference('income', 1, { isAdminMode, userId: effectiveUserId });
       console.log('🔄 Work Assets: setDetailIncome called successfully');
-      console.log('🔄 Work Assets: Source preference set to detailed (1)');
       
     } catch (error) {
       console.error('❌ Error updating store with work income time series:', error);
@@ -273,6 +337,50 @@ export default function WorkAssetsPage() {
       </div>
 
       <UnifiedChart defaultEnabled={['workAssets']} />
+
+      {/* Summary Cards */}
+      {(() => {
+        const workTenure = parseInt(lifeSheet.workTenureYears) || 1;
+        const detailedWorkAssetsAnnualTotal = rows.reduce((sum, row) => {
+          const ageInYear = currentAge;
+          const startAge = currentAge;
+          const endAge = parseInt(row.endAge) || 65;
+          if (ageInYear >= startAge && ageInYear <= endAge) {
+            return sum + (parseFloat(row.amount) || 0);
+          }
+          return sum;
+        }, 0);
+        const detailedWorkAssetsTotal = detailedWorkAssetsAnnualTotal * workTenure;
+        const fpAnnualIncome = fpCalculatorWorkAssets > 0 ? fpCalculatorWorkAssets / workTenure : 0;
+        const unassignedAnnualIncome = Math.max(0, fpAnnualIncome - detailedWorkAssetsAnnualTotal);
+        const unassignedWorkAssets = unassignedAnnualIncome * workTenure;
+        
+        return (
+          <div className="lifemap-stat-grid">
+            <div className="lifemap-stat-card">
+              <p className="lifemap-stat-title">Detailed Work Assets</p>
+              <div className="lifemap-stat-value text-emerald-600">
+                {formatCurrency(detailedWorkAssetsTotal)}
+              </div>
+              <p className="text-xs text-slate-500">{rows.length} income streams</p>
+            </div>
+            <div className="lifemap-stat-card">
+              <p className="lifemap-stat-title">Unassigned Work Assets</p>
+              <div className="lifemap-stat-value text-orange-600">
+                {formatCurrency(unassignedWorkAssets)}
+              </div>
+              <p className="text-xs text-slate-500">From FP Calculator</p>
+            </div>
+            <div className="lifemap-stat-card">
+              <p className="lifemap-stat-title">Total Work Assets</p>
+              <div className="lifemap-stat-value text-purple-600">
+                {formatCurrency(detailedWorkAssetsTotal + unassignedWorkAssets)}
+              </div>
+              <p className="text-xs text-slate-500">{rows.length} detailed + unassigned</p>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="lifemap-panel">
         <div className="lifemap-panel-header">

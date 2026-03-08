@@ -38,13 +38,18 @@ export function buildChartSeries({formData={}, totals={}, years=40, loans=[], ex
   const incomeGrowth = parseFloat(formData.incomeGrowthRate || 0.06);
   const inflation = parseFloat(formData.inflationRate || 0.06);
   
-  // Asset assumptions
-  const assetEquitySplit = parseFloat(formData.assetEquitySplit || 0.60);
-  const equityGrowth = parseFloat(formData.assetEquityGrowthRate || 0.15);
-  const debtGrowth = parseFloat(formData.assetDebtGrowthRate || 0.07);
-  
-  // Calculate weighted average asset growth rate
-  const assetGrowth = (assetEquitySplit * equityGrowth) + ((1 - assetEquitySplit) * debtGrowth);
+  // Asset growth: Use direct assetGrowthRate if set (from Growth Assumptions page), 
+  // otherwise calculate weighted average from equity/debt split
+  let assetGrowth;
+  if (formData.assetGrowthRate !== undefined && formData.assetGrowthRate !== null && formData.assetGrowthRate !== '') {
+    assetGrowth = parseFloat(formData.assetGrowthRate);
+  } else {
+    // Calculate weighted average asset growth rate from equity/debt split
+    const assetEquitySplit = parseFloat(formData.assetEquitySplit || 0.60);
+    const equityGrowth = parseFloat(formData.assetEquityGrowthRate || 0.15);
+    const debtGrowth = parseFloat(formData.assetDebtGrowthRate || 0.07);
+    assetGrowth = (assetEquitySplit * equityGrowth) + ((1 - assetEquitySplit) * debtGrowth);
+  }
 
   // Start with current net worth (Assets - Liabilities, unadjusted for inflation)
   const initialLiabilities = totals.totalExistingLiabilities || 0;

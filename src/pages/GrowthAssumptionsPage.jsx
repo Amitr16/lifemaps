@@ -8,8 +8,9 @@ const DEFAULTS = {
   assetGrowthRate: 0.06,
   incomeGrowthRate: 0.06,
   expenseInflationRate: 0.06,
-  workTenureYears: 35,
-  projectHorizonYears: 50
+  lifespanYears: 85,
+  assetEquityGrowthRate: 0.15,
+  assetDebtGrowthRate: 0.07
 };
 
 const toPercent = (value) => {
@@ -36,10 +37,9 @@ export default function GrowthAssumptionsPage() {
         assetGrowthRate: stored.assetGrowthRate ?? prev.assetGrowthRate,
         incomeGrowthRate: stored.incomeGrowthRate ?? prev.incomeGrowthRate,
         expenseInflationRate: stored.inflationRate ?? prev.expenseInflationRate,
-        workTenureYears: lifeSheet?.workTenureYears || prev.workTenureYears,
-        projectHorizonYears: (lifeSheet?.lifespanYears && lifeSheet?.age)
-          ? Math.max(0, parseInt(lifeSheet.lifespanYears) - parseInt(lifeSheet.age || 0))
-          : prev.projectHorizonYears
+        lifespanYears: stored.lifespanYears ?? (lifeSheet?.lifespanYears || prev.lifespanYears),
+        assetEquityGrowthRate: stored.assetEquityGrowthRate ?? prev.assetEquityGrowthRate,
+        assetDebtGrowthRate: stored.assetDebtGrowthRate ?? prev.assetDebtGrowthRate
       }));
     } catch (error) {
       console.warn('Failed to load growth assumptions from localStorage:', error);
@@ -52,14 +52,19 @@ export default function GrowthAssumptionsPage() {
       const payload = {
         inflationRate: values.expenseInflationRate,
         assetGrowthRate: values.assetGrowthRate,
-        incomeGrowthRate: values.incomeGrowthRate
+        incomeGrowthRate: values.incomeGrowthRate,
+        lifespanYears: values.lifespanYears,
+        assetEquityGrowthRate: values.assetEquityGrowthRate,
+        assetDebtGrowthRate: values.assetDebtGrowthRate
       };
       localStorage.setItem('quickCalcAssumptions', JSON.stringify(payload));
       setMainInputs({
         g_income: values.incomeGrowthRate,
-        r_assets: values.assetGrowthRate,
-        workTenureYears: values.workTenureYears
+        r_assets: values.assetGrowthRate
       }, { origin: 'user' });
+      
+      // Dispatch custom event to notify other components (like main page) of the update
+      window.dispatchEvent(new Event('quickCalcAssumptionsUpdated'));
     } finally {
       setIsSaving(false);
     }
@@ -93,8 +98,9 @@ export default function GrowthAssumptionsPage() {
               { label: 'Asset Growth Rate', value: toPercent(values.assetGrowthRate), onChange: (v) => setValues(prev => ({ ...prev, assetGrowthRate: fromPercent(v) })), suffix: '%' },
               { label: 'Income Growth Rate', value: toPercent(values.incomeGrowthRate), onChange: (v) => setValues(prev => ({ ...prev, incomeGrowthRate: fromPercent(v) })), suffix: '%' },
               { label: 'Expense Inflation Rate', value: toPercent(values.expenseInflationRate), onChange: (v) => setValues(prev => ({ ...prev, expenseInflationRate: fromPercent(v) })), suffix: '%' },
-              { label: 'Work Tenure', value: values.workTenureYears, onChange: (v) => setValues(prev => ({ ...prev, workTenureYears: parseInt(v || 0) })), suffix: 'years' },
-              { label: 'Project Horizon', value: values.projectHorizonYears, onChange: (v) => setValues(prev => ({ ...prev, projectHorizonYears: parseInt(v || 0) })), suffix: 'years' }
+              { label: 'Equity Growth Rate', value: toPercent(values.assetEquityGrowthRate), onChange: (v) => setValues(prev => ({ ...prev, assetEquityGrowthRate: fromPercent(v) })), suffix: '%' },
+              { label: 'Debt Growth Rate', value: toPercent(values.assetDebtGrowthRate), onChange: (v) => setValues(prev => ({ ...prev, assetDebtGrowthRate: fromPercent(v) })), suffix: '%' },
+              { label: 'Life Expectancy', value: values.lifespanYears, onChange: (v) => setValues(prev => ({ ...prev, lifespanYears: parseInt(v || 85) })), suffix: 'years' }
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
                 <span className="text-sm text-slate-600">{item.label}</span>

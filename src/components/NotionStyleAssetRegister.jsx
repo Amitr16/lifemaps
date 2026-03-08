@@ -345,7 +345,14 @@ const NotionStyleAssetRegister = () => {
           units: 0,
           costBasis: 0,
           notes: '',
-          expectedReturn: 5,
+          expectedReturn: (() => {
+            try {
+              const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+              return (quickCalcAssumptions.assetGrowthRate || 0.06) * 100; // Convert to percentage
+            } catch {
+              return 6; // Default 6% if localStorage fails
+            }
+          })(),
           sipExpiryDate: ''
         }
       }
@@ -428,28 +435,39 @@ const NotionStyleAssetRegister = () => {
   };
 
   // Calculate detailed asset time series and update store (using same logic as UnifiedChart)
+  // Now includes unassigned assets (from FP calculator) with 60:40 split
   const updateStoreWithAssetTimeSeries = (assetsData) => {
     console.log('🔄 Assets: updateStoreWithAssetTimeSeries called with assets:', assetsData.length);
     try {
-      const { setDetailAssets, setSourcePreference } = useLifeSheetStore.getState();
+      const { setDetailAssets } = useLifeSheetStore.getState();
       console.log('🔄 Assets: setDetailAssets function:', typeof setDetailAssets);
       
-      // Calculate portfolio series for each year using the same logic as UnifiedChart
+      // Get unassigned assets (FP calculator value - sum of detailed assets)
+      const detailedAssetsTotal = assetsData.reduce((sum, asset) => sum + (parseFloat(asset.current_value) || 0), 0);
+      const unassignedAssetsValue = Math.max(0, fpCalculatorAssets - detailedAssetsTotal);
+      
+      // Get growth assumptions
+      const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+      const assetEquitySplit = parseFloat(quickCalcAssumptions.assetEquitySplit) || 0.60;
+      const assetEquityGrowthRate = parseFloat(quickCalcAssumptions.assetEquityGrowthRate) || 0.15;
+      const assetDebtGrowthRate = parseFloat(quickCalcAssumptions.assetDebtGrowthRate) || 0.07;
+      const defaultAssetGrowthRate = (quickCalcAssumptions.assetGrowthRate || 0.06) * 100; // Convert to percentage
+      
+      // Calculate portfolio series for each year
       const currentYear = new Date().getFullYear();
       const portfolioSeries = {};
       
-      // For each year, calculate total asset value using SIP projection logic
       for (let yearOffset = 0; yearOffset <= 50; yearOffset++) {
         const year = currentYear + yearOffset;
         let totalAssets = 0;
         
+        // 1. Add detailed assets (with individual expectedReturn)
         assetsData.forEach(asset => {
           const value = parseFloat(asset.current_value) || 0;
           const customData = asset.custom_data || {};
-          const expectedReturn = parseFloat(customData.expectedReturn) || 5; // Default 5%
+          const expectedReturn = parseFloat(customData.expectedReturn) || defaultAssetGrowthRate;
           const growthRate = expectedReturn / 100;
           
-          // Use the same SIP projection logic as UnifiedChart
           const grownValue = calculateSIPProjection({
             initial: value,
             sipAmount: parseFloat(customData.sipAmount) || 0,
@@ -462,21 +480,31 @@ const NotionStyleAssetRegister = () => {
           totalAssets += grownValue;
         });
         
+        // 2. Add unassigned assets (with 60:40 split and equity/debt growth rates)
+        if (unassignedAssetsValue > 0) {
+          const equityPortion = unassignedAssetsValue * assetEquitySplit;
+          const debtPortion = unassignedAssetsValue * (1 - assetEquitySplit);
+          
+          // Project equity portion
+          const equityGrown = equityPortion * Math.pow(1 + assetEquityGrowthRate, yearOffset);
+          // Project debt portion
+          const debtGrown = debtPortion * Math.pow(1 + assetDebtGrowthRate, yearOffset);
+          
+          totalAssets += equityGrown + debtGrown;
+        }
+        
         portfolioSeries[year] = Math.round(totalAssets);
       }
       
-      console.log('🔄 Assets: Updating store with portfolio series:', portfolioSeries);
+      console.log('🔄 Assets: Updating store with portfolio series (includes unassigned):', portfolioSeries);
+      console.log('🔄 Assets: Unassigned assets value:', unassignedAssetsValue);
       console.log('🔄 Assets: Sample values:', {
         year2025: portfolioSeries[2025],
         year2030: portfolioSeries[2030],
         year2035: portfolioSeries[2035]
       });
       setDetailAssets(portfolioSeries);
-      // Set source preference to detailed (1) when Assets data is calculated
-      setSourcePreference('assets', 1);
       console.log('🔄 Assets: setDetailAssets called successfully');
-      console.log('🔄 Assets: Full portfolioSeries sent to store:', portfolioSeries);
-      console.log('🔄 Assets: Source preference set to detailed (1)');
       
     } catch (error) {
       console.error('❌ Error updating store with asset time series:', error);
@@ -1222,31 +1250,38 @@ const NotionStyleAssetRegister = () => {
   // Use all assets for summary calculations (not filtered or sorted)
   const totalValue = assets.reduce((sum, asset) => sum + (parseFloat(asset.current_value) || 0), 0)
 
-  // Update financial profile when total assets value changes
+  // Get totalAssetGrossMarketValue from financial profile (FP calculator value)
+  const [fpCalculatorAssets, setFpCalculatorAssets] = useState(0)
+  
   useEffect(() => {
-    if (isAuthenticated && user && totalValue > 0) {
-      const updateFinancialProfile = async () => {
+    const loadFpCalculatorAssets = async () => {
+      if (effectiveIsAuthenticated && effectiveUserId) {
         try {
-          // First get the profile to get the profile ID
           const response = isAdminMode
             ? await ApiService.getFinancialProfileForUser(effectiveUserId)
             : await ApiService.getFinancialProfile(effectiveUserId)
-          if (response && response.profile && response.profile.id) {
-            await ApiService.updateFinancialProfile(response.profile.id, {
-              total_asset_gross_market_value: totalValue
-            })
-            console.log('✅ Updated financial profile with total assets:', totalValue)
+          if (response && response.profile) {
+            const fpValue = parseFloat(response.profile.total_asset_gross_market_value) || 0
+            setFpCalculatorAssets(fpValue)
           }
         } catch (error) {
-          console.error('❌ Error updating financial profile:', error)
+          console.error('❌ Error loading financial profile:', error)
         }
       }
-      
-      // Debounce the update to avoid too many API calls
-      const timeoutId = setTimeout(updateFinancialProfile, 1000)
-      return () => clearTimeout(timeoutId)
     }
-  }, [totalValue, isAuthenticated, user])
+    loadFpCalculatorAssets()
+  }, [effectiveIsAuthenticated, effectiveUserId, isAdminMode])
+
+  // Calculate unassigned assets = FP calculator value - sum of detailed assets
+  // Floor to zero (don't show negative)
+  const unassignedAssets = Math.max(0, fpCalculatorAssets - totalValue)
+
+  // Update store when assets or fpCalculatorAssets change
+  useEffect(() => {
+    if (hasLoaded && assets.length >= 0) {
+      updateStoreWithAssetTimeSeries(assets);
+    }
+  }, [assets, fpCalculatorAssets, hasLoaded])
   const investmentAssets = assets.filter(asset => asset.tag === 'Investment')
   const personalAssets = assets.filter(asset => asset.tag === 'Personal')
   const investmentValue = investmentAssets.reduce((sum, asset) => sum + (parseFloat(asset.current_value) || 0), 0)
@@ -1285,11 +1320,18 @@ const NotionStyleAssetRegister = () => {
           <p className="text-xs text-slate-500">{personalAssets.length} assets</p>
         </div>
         <div className="lifemap-stat-card">
+          <p className="lifemap-stat-title">Unassigned Assets</p>
+          <div className="lifemap-stat-value text-orange-600">
+            {formatCurrency(unassignedAssets)}
+          </div>
+          <p className="text-xs text-slate-500">From FP Calculator</p>
+        </div>
+        <div className="lifemap-stat-card">
           <p className="lifemap-stat-title">Total Assets</p>
           <div className="lifemap-stat-value text-purple-600">
-            {formatCurrency(totalValue)}
+            {formatCurrency(totalValue + unassignedAssets)}
           </div>
-          <p className="text-xs text-slate-500">{assets.length} total assets</p>
+          <p className="text-xs text-slate-500">{assets.length} detailed + unassigned</p>
         </div>
       </div>
 
