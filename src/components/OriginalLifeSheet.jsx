@@ -34,6 +34,7 @@ export default function OriginalLifeSheet() {
   const [loading, setLoading] = useState(false)
   const [saveStatus, setSaveStatus] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [heroOpen, setHeroOpen] = useState(false);
   
   
   // Core financial data based on Excel analysis
@@ -1527,8 +1528,26 @@ export default function OriginalLifeSheet() {
     asset: assetsList[index]
   }))
 
+  const currentAgeNum = parseInt(formData.age) || 0
+  const workTillAge = currentAgeNum + (parseInt(formData.workTenureYears) || 0)
+  const lifeToAge = parseInt(formData.lifespanYears) || 85
+  const chartStartYear = parseInt(chartData?.[0]?.year) || new Date().getFullYear()
+  const workStopYear = chartStartYear + (parseInt(formData.workTenureYears) || 0)
+  const lastChartPoint = chartData?.[chartData.length - 1]
+  const freedomPoint = (chartData || []).find((d) => parseInt(d.year) >= workStopYear && (d.netWorth || 0) > 0)
+  const freedomReached = Boolean(freedomPoint && lastChartPoint && (lastChartPoint.netWorth || 0) > 0)
+  const freedomAge = freedomReached
+    ? currentAgeNum + (parseInt(freedomPoint.year) - chartStartYear)
+    : null
+  const yearsToFreedom = freedomAge && currentAgeNum ? Math.max(0, freedomAge - currentAgeNum) : null
+  const salary = parseFloat(formData.currentAnnualGrossIncome) || 0
+  const annualExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0)
+  const annualEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0), 0) * 12
+  const currentSurplus = salary - annualExpenses - annualEmi
+  const surplusRatio = salary > 0 ? (currentSurplus / salary) * 100 : 0
+
   return (
-    <div className="space-y-6">
+    <div>
       {/* Saved status indicator */}
       {saveStatus && (
         <div style={{position: 'fixed', top: 16, right: 24, zIndex: 1000}} className="professional-badge professional-badge-success shadow-lg animate-pulse">
@@ -1542,73 +1561,101 @@ export default function OriginalLifeSheet() {
         </div>
       )}
 
-      <div className="lifemap-page-header">
-        <div>
-          <h1 className="lifemap-page-title">
-            {completedSections > 0 ? 'LifeMap' : 'Set up your Financial Profile'}
+      <section className="lm-hero" id="top">
+        <div className="lm-hero-glow" />
+        <div className="lm-wrap">
+          <div className="lm-eyebrow">Financial freedom</div>
+          <h1>
+            When could work become optional?
+            <button
+              type="button"
+              className="lm-pmore"
+              aria-expanded={heroOpen}
+              aria-label="What this chart shows"
+              onClick={() => setHeroOpen((v) => !v)}
+            />
           </h1>
-          <p className="lifemap-page-subtitle flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-blue-50 text-blue-600">
-              <Calculator className="h-3.5 w-3.5" />
+          <div className={`lm-pdesc ${heroOpen ? 'open' : ''}`}>
+            <p className="sub">If you carry on earning, spending and investing roughly as you do now, this shows when salary could become optional. Your salary still continues in the projection until the working age you choose below.</p>
+          </div>
+
+          <div className="lm-ffgrid">
+            <div className="lm-panel">
+              <div className="lm-chead">
+                <span className="lbl">Financial assets against the corpus you'd need</span>
+                <span className="lm-legend">
+                  <span className="lm-lg"><i style={{ background: 'var(--lm-teal)' }} />Projected net worth</span>
+                  <span className="lm-lg"><i style={{ background: '#8fb8ea' }} />Expenses</span>
+                </span>
+              </div>
+              {chartData && chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="networthFillHero" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#75cfc2" stopOpacity={0.45} />
+                        <stop offset="100%" stopColor="#75cfc2" stopOpacity={0.04} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="rgba(255,255,255,0.09)" strokeDasharray="3 4" />
+                    <XAxis dataKey="year" tick={{ fontSize: 11, fill: '#7d93b7' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#7d93b7' }} axisLine={false} tickLine={false} tickFormatter={(value) => formatCurrency(value)} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 11, border: '1px solid #e2e8f2' }}
+                      formatter={(value) => formatCurrency(value)}
+                      labelFormatter={(label) => `Year: ${label}`}
+                    />
+                    <Area type="monotone" dataKey="netWorth" stroke="#75cfc2" fill="url(#networthFillHero)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="expenses" stroke="#8fb8ea" fill="none" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ color: '#8fa6c9', padding: '48px 0', textAlign: 'center' }}>
+                  Enter your details below to see the freedom chart.
+                </div>
+              )}
+            </div>
+
+            <div className="lm-panel" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="lm-ffbig">Estimated financial-freedom age</div>
+              <div className={`lm-ffage ${freedomAge ? '' : 'none'}`}>
+                {freedomAge ? `Age ${freedomAge}` : 'Not reached'}
+              </div>
+              <div className="lm-ffsub">
+                {freedomAge
+                  ? `${yearsToFreedom} year${yearsToFreedom === 1 ? '' : 's'} from now`
+                  : 'Add income, assets and expenses to estimate when salary could become optional.'}
+              </div>
+              <div className="lm-ffrange">
+                <div className="k">Planning range</div>
+                <div className="v">Age {currentAgeNum || '—'} → {lifeToAge}</div>
+              </div>
+              <div className="lm-ffrows">
+                <div className="lm-ffrow"><span>Net worth then</span><b>{formatCurrency(freedomPoint?.netWorth || 0)}</b></div>
+                <div className="lm-ffrow"><span>Financial assets then</span><b>{formatCurrency(freedomPoint?.assets || freedomPoint?.portfolio || 0)}</b></div>
+                <div className="lm-ffrow"><span>Salary included until</span><b>Age {workTillAge || '—'}</b></div>
+                <div className="lm-ffrow"><span>Financial assets at age {lifeToAge}</span><b>{formatCurrency(lastChartPoint?.assets || lastChartPoint?.netWorth || 0)}</b></div>
+              </div>
+              <div className="lm-ffcav">This is an estimate, not a promise. Financial freedom means salary has become optional; the projection may still include salary until your selected working age.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {!effectiveIsAuthenticated && !isAdminMode && (
+        <div className="lm-body" style={{ paddingBottom: 0 }}>
+          <div className="lm-alert">
+            <AlertTriangle className="h-4 w-4" />
+            <span>
+              You're in guest mode. You can use the calculator, but your data will not be
+              saved unless you log in.
             </span>
-            {completedSections > 0
-              ? 'Financial Planning Calculator'
-              : 'Start setting up your profile and financial data to use the calculator'}
-          </p>
-          <div className="flex items-center gap-4 mt-2">
-            <Link 
-              to="/admin/login" 
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Admin Login
-            </Link>
-            <Link 
-              to="/super-admin/login" 
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Super Admin Login
-            </Link>
           </div>
-        </div>
-        <div className="flex items-center gap-6">
-          <div
-            className="lifemap-progress-circle"
-            style={{ '--progress': `${progressPercent * 3.6}deg` }}
-          >
-            <span>{progressPercent}%</span>
-          </div>
-          {!effectiveIsAuthenticated && !isAdminMode && (
-            <Button
-              size="sm"
-              onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-2"
-            >
-              <User className="h-4 w-4" />
-              Login / Sign Up
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Show warning if not authenticated (but not in admin mode) */}
-      {!effectiveIsAuthenticated && !isAdminMode && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded mb-6">
-          <p>You are not logged in. You can use the calculator, but your data will not be saved unless you log in.</p>
         </div>
       )}
 
-      {/* Admin Login Buttons - Show when not authenticated */}
-      {!effectiveIsAuthenticated && !isAdminMode && (
-        <div className="lifemap-alert">
-          <AlertTriangle className="h-4 w-4" />
-          <span>
-            You're in guest mode. You can use the calculator, but your data will not be
-            saved unless you log in. Scroll down below to find results.
-          </span>
-        </div>
-      )}
-
-      <div className="lifemap-panel">
+      <div className="lm-body" style={{ paddingTop: 36 }}>
+      <div id="inputs" className="lifemap-panel">
         <div className="lifemap-panel-header">
           <div className="lifemap-panel-title">
             <Calculator className="h-4 w-4 text-blue-600" />
@@ -1842,9 +1889,9 @@ export default function OriginalLifeSheet() {
         })}
       </div>
 
-      <div className="lifemap-panel">
+      <div id="today" className="lifemap-panel">
         <div className="lifemap-panel-header">
-          <div className="lifemap-panel-title">Net Assets and Liabilities</div>
+          <div className="lifemap-panel-title">Where you stand today</div>
           <div className="text-xs bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full text-slate-600 dark:text-slate-300">
             Surplus: {formatCurrency(((parseFloat(formData.totalAssetGrossMarketValue) || 0) + ((parseFloat(formData.currentAnnualGrossIncome) || 0) * (parseInt(formData.workTenureYears) || 0))) - (calculations.totalExistingLiabilities + calculations.totalFutureExpenses + calculations.totalFinancialGoals))}
           </div>
@@ -2010,6 +2057,71 @@ export default function OriginalLifeSheet() {
           </div>
         </div>
       </div>
+      </div>
+
+      <section className="lm-wall" id="register">
+        <div className="lm-wrap">
+          <div className="lm-wallcard">
+            <div>
+              <h2>{effectiveIsAuthenticated ? 'The next layer is unlocked' : 'The next layer is locked'}</h2>
+              <p>
+                {effectiveIsAuthenticated
+                  ? 'Replace the rough totals above with asset-by-asset, goal-by-goal and expense-by-expense detail. Each page feeds this chart.'
+                  : 'Your freedom age rests on a handful of rough numbers. A free account lets you replace each one with the real detail — and LifeMap starts answering questions instead of just adding up.'}
+              </p>
+              <ul className="lm-unlocks">
+                <li><b>Asset-by-asset register</b><span>Tag each holding and set a return per asset class</span></li>
+                <li><b>Goals linked to assets</b><span>See which goal is funded and what each one needs</span></li>
+                <li><b>Protection gap</b><span>How much life cover you actually need</span></li>
+                <li><b>Saved and shareable</b><span>Come back any time; pick up where you left off</span></li>
+              </ul>
+              <div className="lm-wallcta">
+                {effectiveIsAuthenticated ? (
+                  <>
+                    <Link className="lm-btn" to="/assets">Open Assets</Link>
+                    <Link className="lm-btn lm-btn-ghost" to="/goals">Open Goals</Link>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" className="lm-btn" onClick={() => { setAuthModalTab('register'); setShowAuthModal(true) }}>Create a free account</button>
+                    <button type="button" className="lm-btn lm-btn-ghost" onClick={() => { setAuthModalTab('login'); setShowAuthModal(true) }}>I already have one</button>
+                    <small>Takes about 30 seconds. Your numbers carry over.</small>
+                  </>
+                )}
+              </div>
+              <div style={{ marginTop: 18 }}>
+                <Link to="/admin/login" className="lm-tlink" style={{ padding: 0 }}>Admin Login</Link>
+                <span style={{ color: 'var(--lm-slate)', margin: '0 8px' }}>·</span>
+                <Link to="/super-admin/login" className="lm-tlink" style={{ padding: 0 }}>Super Admin Login</Link>
+              </div>
+            </div>
+            <div className="lm-preview" aria-hidden="true">
+              <div className="stack">
+                <div className="lm-pv">
+                  <div className="t">Goal funding</div>
+                  <div className="b"><b>{progressPercent}%</b><span style={{ color: 'var(--lm-muted)', fontSize: 13 }}>of your profile is filled</span></div>
+                  <div className="lm-bars">
+                    <i style={{ height: '40%' }} />
+                    <i style={{ height: '55%' }} />
+                    <i style={{ height: '72%' }} />
+                    <i style={{ height: '100%', background: 'var(--lm-teal)' }} />
+                  </div>
+                </div>
+                <div className="lm-pv">
+                  <div className="t">This year&apos;s surplus</div>
+                  <div className="b">
+                    <b>{formatCurrency(currentSurplus)}</b>
+                    <span style={{ color: surplusRatio < 10 ? 'var(--lm-coral)' : 'var(--lm-green)', fontSize: 13 }}>{surplusRatio.toFixed(0)}% of salary</span>
+                  </div>
+                </div>
+              </div>
+              {!effectiveIsAuthenticated && (
+                <div className="lm-lockover"><span className="lm-lockpill">LOCKED — FREE ACCOUNT REQUIRED</span></div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Main Content */}
       <div className="hidden">

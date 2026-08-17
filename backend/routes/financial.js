@@ -15,6 +15,43 @@ const checkUserAccess = (req, userId) => {
   return req.user && req.user.id === parseInt(userId);
 };
 
+const DEFAULT_ASSET_TAGS = ['Investment', 'Personal', 'Emergency', 'Retirement'];
+const EXPENSE_FREQUENCIES = ['Monthly', 'Quarterly', 'Yearly', 'Annually', 'Half-yearly', 'Semi-Annually', 'Weekly', 'Fortnightly'];
+
+const asDecimalRate = (value, fallback = 0.06) => {
+  if (value === null || value === undefined || value === '') return fallback;
+  const n = parseFloat(value);
+  if (!Number.isFinite(n)) return fallback;
+  return n > 1 ? n / 100 : n;
+};
+
+const latestProfileId = async (userId) => {
+  const result = await pool.query(
+    'SELECT id FROM financial_profile WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+    [userId]
+  );
+  return result.rows[0]?.id || null;
+};
+
+const ensureAssetTag = async (userId, tag) => {
+  if (!tag) return;
+  await pool.query(
+    `INSERT INTO user_tags (user_id, tag_name, tag_order)
+     SELECT $1, $2, 0
+     WHERE NOT EXISTS (SELECT 1 FROM user_tags WHERE user_id = $1 AND tag_name = $2)`,
+    [userId, tag]
+  );
+};
+
+const isAllowedAssetTag = async (userId, tag) => {
+  if (DEFAULT_ASSET_TAGS.includes(tag)) return true;
+  const userTags = await pool.query(
+    'SELECT tag_name FROM user_tags WHERE user_id = $1',
+    [userId]
+  );
+  return userTags.rows.some((row) => row.tag_name === tag);
+};
+
 // Source preference management
 router.get('/source-preferences', async (req, res) => {
   try {
@@ -65,12 +102,16 @@ router.post('/source-preferences', [
 router.post('/profile', [
   body('age').isInt({ min: 18, max: 100 }),
   body('current_annual_gross_income').optional().isFloat({ min: 0 }),
-  body('work_tenure_years').optional().isInt({ min: 0, max: 50 }),
+  body('work_tenure_years').optional().isInt({ min: 0, max: 80 }),
   body('total_asset_gross_market_value').optional().isFloat({ min: 0 }),
   body('total_loan_outstanding_value').optional().isFloat({ min: 0 }),
   body('lifespan_years').optional().isInt({ min: 50, max: 120 }),
   body('income_growth_rate').optional().isFloat({ min: 0, max: 1 }),
-  body('asset_growth_rate').optional().isFloat({ min: 0, max: 1 })
+  body('asset_growth_rate').optional().isFloat({ min: 0, max: 1 }),
+  body('inflation_rate').optional().isFloat({ min: 0, max: 1 }),
+  body('equity_growth_rate').optional().isFloat({ min: 0, max: 1 }),
+  body('debt_growth_rate').optional().isFloat({ min: 0, max: 1 }),
+  body('personal_asset_value').optional().isFloat({ min: 0 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -85,7 +126,8 @@ router.post('/profile', [
 
     const { age, current_annual_gross_income, work_tenure_years,
       total_asset_gross_market_value, total_loan_outstanding_value,
-      lifespan_years, income_growth_rate, asset_growth_rate
+      lifespan_years, income_growth_rate, asset_growth_rate,
+      inflation_rate, equity_growth_rate, debt_growth_rate, personal_asset_value
     } = filteredBody;
 
     const fields = [];
@@ -101,6 +143,10 @@ router.post('/profile', [
     if (lifespan_years !== undefined) { fields.push('lifespan_years'); values.push(lifespan_years); }
     if (income_growth_rate !== undefined) { fields.push('income_growth_rate'); values.push(income_growth_rate); }
     if (asset_growth_rate !== undefined) { fields.push('asset_growth_rate'); values.push(asset_growth_rate); }
+    if (inflation_rate !== undefined) { fields.push('inflation_rate'); values.push(inflation_rate); }
+    if (equity_growth_rate !== undefined) { fields.push('equity_growth_rate'); values.push(equity_growth_rate); }
+    if (debt_growth_rate !== undefined) { fields.push('debt_growth_rate'); values.push(debt_growth_rate); }
+    if (personal_asset_value !== undefined) { fields.push('personal_asset_value'); values.push(personal_asset_value); }
     fields.push('created_at'); values.push('NOW()');
 
     const placeholders = fields.map((_, index) => `$${index + 1}`).join(', ');
@@ -173,12 +219,16 @@ router.get('/profile/:userId', async (req, res) => {
 router.put('/profile/:profileId', [
   body('age').optional().isInt({ min: 18, max: 100 }),
   body('current_annual_gross_income').optional().isFloat({ min: 0 }),
-  body('work_tenure_years').optional().isInt({ min: 0, max: 50 }),
+  body('work_tenure_years').optional().isInt({ min: 0, max: 80 }),
   body('total_asset_gross_market_value').optional().isFloat({ min: 0 }),
   body('total_loan_outstanding_value').optional().isFloat({ min: 0 }),
   body('lifespan_years').optional().isInt({ min: 50, max: 120 }),
   body('income_growth_rate').optional().isFloat({ min: 0, max: 1 }),
-  body('asset_growth_rate').optional().isFloat({ min: 0, max: 1 })
+  body('asset_growth_rate').optional().isFloat({ min: 0, max: 1 }),
+  body('inflation_rate').optional().isFloat({ min: 0, max: 1 }),
+  body('equity_growth_rate').optional().isFloat({ min: 0, max: 1 }),
+  body('debt_growth_rate').optional().isFloat({ min: 0, max: 1 }),
+  body('personal_asset_value').optional().isFloat({ min: 0 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -205,9 +255,14 @@ router.put('/profile/:profileId', [
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Build dynamic update query
+    const allowed = new Set([
+      'age', 'current_annual_gross_income', 'work_tenure_years',
+      'total_asset_gross_market_value', 'total_loan_outstanding_value',
+      'lifespan_years', 'income_growth_rate', 'asset_growth_rate',
+      'inflation_rate', 'equity_growth_rate', 'debt_growth_rate', 'personal_asset_value'
+    ]);
     Object.entries(req.body).forEach(([key, value]) => {
-      if (value !== undefined) {
+      if (value !== undefined && allowed.has(key)) {
         updates.push(`${key} = $${paramCount}`);
         values.push(value);
         paramCount++;
@@ -242,7 +297,13 @@ router.post('/goal', [
   body('recommended_allocation').optional().trim(),
   body('funding_source').optional().trim(),
   body('on_track').optional().isBoolean(),
-  body('custom_data').optional().isObject()
+  body('custom_data').optional().isObject(),
+  body('category').optional().trim(),
+  body('flexibility').optional().trim(),
+  body('span_years').optional().isInt({ min: 0 }),
+  body('inflation_pct').optional().isFloat({ min: 0 }),
+  body('target_age').optional().isInt({ min: 0, max: 120 }),
+  body('notes').optional().trim()
 ], async (req, res) => {
   try {
     console.log('🎯 Goal creation request body:', req.body);
@@ -295,6 +356,12 @@ router.post('/goal', [
     if (funding_source !== null && funding_source !== undefined) { fields.push('funding_source'); values.push(funding_source); }
     if (on_track !== null && on_track !== undefined) { fields.push('on_track'); values.push(on_track); }
     if (req.body.custom_data !== null && req.body.custom_data !== undefined) { fields.push('custom_data'); values.push(req.body.custom_data); }
+    if (req.body.category != null) { fields.push('category'); values.push(req.body.category); }
+    if (req.body.flexibility != null) { fields.push('flexibility'); values.push(req.body.flexibility); }
+    if (req.body.span_years != null) { fields.push('span_years'); values.push(req.body.span_years); }
+    if (req.body.inflation_pct != null) { fields.push('inflation_pct'); values.push(req.body.inflation_pct); }
+    if (req.body.target_age != null) { fields.push('target_age'); values.push(req.body.target_age); }
+    if (req.body.notes != null) { fields.push('notes'); values.push(req.body.notes); }
 
     const placeholders = fields.map((_, index) => `$${index + 1}`).join(', ');
     const query = `INSERT INTO financial_goal (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -331,11 +398,21 @@ router.get('/goal/:userId', async (req, res) => {
 
     // Map database fields to frontend field names
     const mappedGoals = result.rows.map(goal => ({
+      ...goal,
       id: goal.id,
-      description: goal.name, // Map name to description
-      amount: goal.target_amount, // Map target_amount to amount
-      targetYear: goal.target_year, // Map target_year to targetYear
-      custom_data: goal.custom_data || {}, // Include custom_data field
+      name: goal.name,
+      description: goal.name,
+      amount: goal.target_amount,
+      target_amount: goal.target_amount,
+      targetYear: goal.target_year,
+      target_year: goal.target_year,
+      custom_data: goal.custom_data || {},
+      category: goal.category,
+      flexibility: goal.flexibility,
+      span_years: goal.span_years,
+      inflation_pct: goal.inflation_pct,
+      target_age: goal.target_age,
+      notes: goal.notes,
       user_id: goal.user_id,
       created_at: goal.created_at,
       updated_at: goal.updated_at
@@ -356,7 +433,13 @@ router.put('/goal/:goalId', [
   body('recommended_allocation').optional().trim(),
   body('funding_source').optional().trim(),
   body('on_track').optional().isBoolean(),
-  body('custom_data').optional().isObject()
+  body('custom_data').optional().isObject(),
+  body('category').optional().trim(),
+  body('flexibility').optional().trim(),
+  body('span_years').optional().isInt({ min: 0 }),
+  body('inflation_pct').optional().isFloat({ min: 0 }),
+  body('target_age').optional().isInt({ min: 0, max: 120 }),
+  body('notes').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -384,24 +467,23 @@ router.put('/goal/:goalId', [
     }
 
     // Build dynamic update query with field mapping
+    const goalColumns = new Set([
+      'name', 'target_amount', 'target_date', 'target_year', 'term',
+      'recommended_allocation', 'funding_source', 'on_track', 'custom_data',
+      'category', 'flexibility', 'span_years', 'inflation_pct', 'target_age', 'notes'
+    ]);
     const usedColumns = new Set();
     Object.entries(req.body).forEach(([key, value]) => {
-      if (value !== undefined) {
-        // Map frontend field names to database column names for goals
-        let dbColumn = key;
-        if (key === 'description') dbColumn = 'name';
-        if (key === 'amount') dbColumn = 'target_amount';
-        if (key === 'targetYear') dbColumn = 'target_year';
-        // custom_data should be passed through as-is
-        
-        // Only add if we haven't already used this column
-        if (!usedColumns.has(dbColumn)) {
-          updates.push(`${dbColumn} = $${paramCount}`);
-          values.push(value);
-          usedColumns.add(dbColumn);
-          paramCount++;
-        }
-      }
+      if (value === undefined) return;
+      let dbColumn = key;
+      if (key === 'description') dbColumn = 'name';
+      if (key === 'amount') dbColumn = 'target_amount';
+      if (key === 'targetYear') dbColumn = 'target_year';
+      if (!goalColumns.has(dbColumn) || usedColumns.has(dbColumn)) return;
+      updates.push(`${dbColumn} = $${paramCount}`);
+      values.push(value);
+      usedColumns.add(dbColumn);
+      paramCount++;
     });
     
     console.log('🎯 Goal update - updates:', updates);
@@ -464,18 +546,21 @@ router.post('/expense', [
     return typeof value === 'string' && value.trim().length >= 1;
   }),
   body('subcategory').optional().trim(),
-  body('frequency').optional().isIn(['Monthly', 'Quarterly', 'Yearly']),
+  body('frequency').optional().isIn(EXPENSE_FREQUENCIES),
   body('amount').optional().custom((value) => {
     if (value === null || value === undefined || value === '') return true;
     return !isNaN(parseFloat(value)) && parseFloat(value) >= 0;
   }),
-  body('personal_inflation').optional().isFloat({ min: 0, max: 1 }),
+  body('personal_inflation').optional().isFloat({ min: 0, max: 100 }),
   body('tag_for').optional().trim(),
   body('lifestyle_level').optional().trim(),
   body('payment_from').optional().trim(),
   body('source').optional().trim(),
   body('notes').optional().trim(),
-  body('expiry').optional().isISO8601()
+  body('expiry').optional().isISO8601(),
+  body('start_age').optional().isInt({ min: 0, max: 120 }),
+  body('end_age').optional().isInt({ min: 0, max: 120 }),
+  body('need_type').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -489,13 +574,16 @@ router.post('/expense', [
     const subcategory = req.body.subcategory ?? req.body.expense_type ?? null;
     const frequency = req.body.frequency ?? 'Monthly';
     const amount = req.body.amount ?? null;
-    const personal_inflation = req.body.personal_inflation ?? 0.06;
-    const tag_for = req.body.tag_for ?? null;
+    const personal_inflation = req.body.personal_inflation != null ? asDecimalRate(req.body.personal_inflation, 0.06) : 0.06;
+    const tag_for = req.body.tag_for ?? req.body.need_type ?? null;
     const lifestyle_level = req.body.lifestyle_level ?? null;
     const payment_from = req.body.payment_from ?? null;
     const source = req.body.source ?? null;
     const notes = req.body.notes ?? null;
     const expiry = req.body.expiry ?? null;
+    const start_age = req.body.start_age ?? null;
+    const end_age = req.body.end_age ?? null;
+    const need_type = req.body.need_type ?? req.body.tag_for ?? null;
 
     // Build dynamic query for expense creation
     const fields = ['user_id'];
@@ -530,6 +618,9 @@ router.post('/expense', [
     if (source !== null && source !== undefined) { fields.push('source'); values.push(source); }
     if (notes !== null && notes !== undefined) { fields.push('notes'); values.push(notes); }
     if (expiry !== null && expiry !== undefined) { fields.push('expiry'); values.push(expiry); }
+    if (start_age !== null && start_age !== undefined) { fields.push('start_age'); values.push(start_age); }
+    if (end_age !== null && end_age !== undefined) { fields.push('end_age'); values.push(end_age); }
+    if (need_type !== null && need_type !== undefined) { fields.push('need_type'); values.push(need_type); }
 
     const placeholders = fields.map((_, index) => `$${index + 1}`).join(', ');
     const query = `INSERT INTO financial_expense (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -570,15 +661,18 @@ router.put('/expense/:expenseId', [
   body('description').optional().trim(),
   body('category').optional().trim().isLength({ min: 1 }),
   body('subcategory').optional().trim(),
-  body('frequency').optional().isIn(['Monthly', 'Quarterly', 'Yearly']),
+  body('frequency').optional().isIn(EXPENSE_FREQUENCIES),
   body('amount').optional().isFloat({ min: 0 }),
-  body('personal_inflation').optional().isFloat({ min: 0, max: 1 }),
+  body('personal_inflation').optional().isFloat({ min: 0, max: 100 }),
   body('tag_for').optional().trim(),
   body('lifestyle_level').optional().trim(),
   body('payment_from').optional().trim(),
   body('source').optional().trim(),
   body('notes').optional().trim(),
-  body('expiry').optional().isISO8601()
+  body('expiry').optional().isISO8601(),
+  body('start_age').optional().isInt({ min: 0, max: 120 }),
+  body('end_age').optional().isInt({ min: 0, max: 120 }),
+  body('need_type').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -618,17 +712,27 @@ router.put('/expense/:expenseId', [
       'payment_from': 'payment_from',
       'source': 'source',
       'notes': 'notes',
-      'expiry': 'expiry'
+      'expiry': 'expiry',
+      'start_age': 'start_age',
+      'end_age': 'end_age',
+      'need_type': 'need_type'
     };
     
     const usedColumns = new Set();
     Object.entries(req.body).forEach(([key, value]) => {
       if (value !== undefined && fieldMap[key]) {
         const dbColumn = fieldMap[key];
-        // Only add if we haven't already used this column
+        let nextValue = value;
+        if (dbColumn === 'personal_inflation') nextValue = asDecimalRate(value, 0.06);
+        if (key === 'tag_for' && req.body.need_type == null && !usedColumns.has('need_type')) {
+          updates.push(`need_type = $${paramCount}`);
+          values.push(value);
+          usedColumns.add('need_type');
+          paramCount++;
+        }
         if (!usedColumns.has(dbColumn)) {
           updates.push(`${dbColumn} = $${paramCount}`);
-          values.push(value);
+          values.push(nextValue);
           usedColumns.add(dbColumn);
           paramCount++;
         }
@@ -768,7 +872,9 @@ router.post('/loan', [
   }),
   body('emi_day').optional().isInt({ min: 1, max: 31 }),
   body('prepay_allowed').optional().isBoolean(),
-  body('notes').optional().trim()
+  body('notes').optional().trim(),
+  body('name').optional().trim(),
+  body('frequency').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -776,8 +882,7 @@ router.post('/loan', [
       return res.status(400).json({ error: 'Validation failed', details: errors.array() });
     }
 
-    // Map Life Sheet fields to LifeMaps schema
-    const lender = req.body.lender ?? req.body.provider ?? req.body.name ?? req.body.description ?? null;
+    const lender = req.body.lender ?? req.body.provider ?? null;
     const type = req.body.type ?? null;
     const start_date = req.body.start_date ?? null;
     const end_date = req.body.end_date ?? null;
@@ -787,6 +892,8 @@ router.post('/loan', [
     const emi_day = req.body.emi_day ?? null;
     const prepay_allowed = req.body.prepay_allowed ?? null;
     const notes = req.body.notes ?? null;
+    const name = req.body.name ?? req.body.loanName ?? null;
+    const frequency = req.body.frequency ?? 'Monthly';
 
     // Build dynamic query for loan creation
     const fields = ['user_id'];
@@ -819,6 +926,8 @@ router.post('/loan', [
     if (emi_day !== null && emi_day !== undefined) { fields.push('emi_day'); values.push(emi_day); }
     if (prepay_allowed !== null && prepay_allowed !== undefined) { fields.push('prepay_allowed'); values.push(prepay_allowed); }
     if (notes !== null && notes !== undefined) { fields.push('notes'); values.push(notes); }
+    if (name !== null && name !== undefined) { fields.push('name'); values.push(name); }
+    if (frequency !== null && frequency !== undefined) { fields.push('frequency'); values.push(frequency); }
 
     const placeholders = fields.map((_, index) => `$${index + 1}`).join(', ');
     const query = `INSERT INTO financial_loan (${fields.join(', ')}) VALUES (${placeholders}) RETURNING *`;
@@ -915,13 +1024,21 @@ router.get('/loan/:userId', async (req, res) => {
       console.log('🔍 Calculated loanExpiry:', loanExpiry);
       
       return {
+        ...loan,
         id: loan.id,
-        provider: loan.lender, // Map lender to provider
-        amount: loan.principal_outstanding, // Map principal_outstanding to amount
-        interestRate: loan.rate ? parseFloat(loan.rate).toFixed(2) : 0, // Keep as number
+        provider: loan.lender,
+        lender: loan.lender,
+        name: loan.name,
+        loanName: loan.name,
+        type: loan.type,
+        amount: loan.principal_outstanding,
+        principal_outstanding: loan.principal_outstanding,
+        interestRate: loan.rate ? parseFloat(loan.rate).toFixed(2) : 0,
+        rate: loan.rate,
         emi: loan.emi,
-        frequency: 'Monthly', // Default frequency
-        loanExpiry: loanExpiry, // Map end_date to loan expiry year
+        frequency: loan.frequency || 'Monthly',
+        notes: loan.notes,
+        loanExpiry: loanExpiry,
         user_id: loan.user_id,
         created_at: loan.created_at,
         updated_at: loan.updated_at
@@ -946,7 +1063,9 @@ router.put('/loan/:loanId', [
   body('emi').optional().isFloat({ min: 0 }),
   body('emi_day').optional().isInt({ min: 1, max: 31 }),
   body('prepay_allowed').optional().isBoolean(),
-  body('notes').optional().trim()
+  body('notes').optional().trim(),
+  body('name').optional().trim(),
+  body('frequency').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -974,28 +1093,25 @@ router.put('/loan/:loanId', [
     }
 
     // Build dynamic update query with field mapping
+    const loanColumns = new Set([
+      'lender', 'type', 'start_date', 'end_date', 'principal_outstanding',
+      'rate', 'emi', 'emi_day', 'prepay_allowed', 'notes', 'name', 'frequency'
+    ]);
     const usedColumns = new Set();
-    Object.entries(req.body).forEach(([key, value]) => {
-      if (value !== undefined) {
-        // Map frontend field names to database column names for loans
-        let dbColumn = key;
-        let value = req.body[key];
-        
-        if (key === 'provider') dbColumn = 'lender';
-        if (key === 'amount') dbColumn = 'principal_outstanding';
-        if (key === 'interestRate') {
-          dbColumn = 'rate';
-        }
-        if (key === 'endAge') dbColumn = 'end_date';
-        
-        // Only add if we haven't already used this column
-        if (!usedColumns.has(dbColumn)) {
-          updates.push(`${dbColumn} = $${paramCount}`);
-          values.push(value);
-          usedColumns.add(dbColumn);
-          paramCount++;
-        }
-      }
+    Object.entries(req.body).forEach(([key, raw]) => {
+      if (raw === undefined) return;
+      let dbColumn = key;
+      let value = raw;
+      if (key === 'provider') dbColumn = 'lender';
+      if (key === 'amount') dbColumn = 'principal_outstanding';
+      if (key === 'interestRate') dbColumn = 'rate';
+      if (key === 'endAge') dbColumn = 'end_date';
+      if (key === 'loanName') dbColumn = 'name';
+      if (!loanColumns.has(dbColumn) || usedColumns.has(dbColumn)) return;
+      updates.push(`${dbColumn} = $${paramCount}`);
+      values.push(value);
+      usedColumns.add(dbColumn);
+      paramCount++;
     });
 
     if (updates.length === 0) {
@@ -1225,25 +1341,19 @@ router.post('/asset', [
 
     const { name, tag, current_value, custom_data } = req.body;
 
-    // Validate tag - check if it exists in user's tags
-    const userTags = await pool.query(
-      'SELECT tag_name FROM user_tags WHERE user_id = $1',
-      [req.user.id]
-    );
-    const validTags = userTags.rows.map(row => row.tag_name);
-    
-    if (!validTags.includes(tag)) {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: [{ 
-          type: 'field', 
-          value: tag, 
-          msg: 'Invalid tag. Must be one of: ' + validTags.join(', '), 
-          path: 'tag', 
-          location: 'body' 
-        }] 
+    if (!(await isAllowedAssetTag(req.user.id, tag))) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: [{
+          type: 'field',
+          value: tag,
+          msg: 'Invalid tag. Must be one of: ' + DEFAULT_ASSET_TAGS.join(', ') + ' or a saved custom tag',
+          path: 'tag',
+          location: 'body'
+        }]
       });
     }
+    await ensureAssetTag(req.user.id, tag);
 
     // Get profile_id if provided, otherwise get the latest profile
     const profileId = req.body.profile_id || req.body.profileId;
@@ -1262,8 +1372,24 @@ router.post('/asset', [
     }
 
     const result = await pool.query(
-      'INSERT INTO assets (user_id, profile_id, name, tag, current_value, custom_data) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [req.user.id, finalProfileId, name, tag, current_value || 0, custom_data || {}]
+      `INSERT INTO assets (
+         user_id, profile_id, name, tag, current_value, custom_data,
+         category, sip_amount, sip_frequency, sip_expiry_date, expected_return, notes
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [
+        req.user.id,
+        finalProfileId,
+        name,
+        tag,
+        current_value || 0,
+        custom_data || {},
+        req.body.category || null,
+        req.body.sip_amount ?? 0,
+        req.body.sip_frequency || 'Monthly',
+        req.body.sip_expiry_date || null,
+        req.body.expected_return ?? null,
+        req.body.notes || null
+      ]
     );
 
     res.status(201).json({
@@ -1318,26 +1444,21 @@ router.put('/asset/:assetId', [
     console.log('🔍 Custom_data stringified:', JSON.stringify(custom_data));
     console.log('🔍 Custom_data parsed:', custom_data);
 
-    // Validate tag if provided - check if it exists in user's tags
+    // Validate tag if provided - default LifeMap tags always allowed
     if (tag) {
-      const userTags = await pool.query(
-        'SELECT tag_name FROM user_tags WHERE user_id = $1',
-        [req.user.id]
-      );
-      const validTags = userTags.rows.map(row => row.tag_name);
-      
-      if (!validTags.includes(tag)) {
+      if (!(await isAllowedAssetTag(req.user.id, tag))) {
         return res.status(400).json({ 
           error: 'Validation failed', 
           details: [{ 
             type: 'field', 
             value: tag, 
-            msg: 'Invalid tag. Must be one of: ' + validTags.join(', '), 
+            msg: 'Invalid tag. Must be one of: ' + DEFAULT_ASSET_TAGS.join(', ') + ' or a saved custom tag', 
             path: 'tag', 
             location: 'body' 
           }] 
         });
       }
+      await ensureAssetTag(req.user.id, tag);
     }
 
     // Check ownership
@@ -1379,6 +1500,14 @@ router.put('/asset/:assetId', [
       values.push(custom_data);
       paramCount++;
     }
+    const extraAssetFields = ['category', 'sip_amount', 'sip_frequency', 'sip_expiry_date', 'expected_return', 'notes'];
+    extraAssetFields.forEach((key) => {
+      if (req.body[key] !== undefined) {
+        updates.push(`${key} = $${paramCount}`);
+        values.push(req.body[key]);
+        paramCount++;
+      }
+    });
 
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
@@ -1847,7 +1976,7 @@ router.delete('/asset-columns/:columnId', (req, res, next) => {
 // Create work asset
 router.post('/work-asset', async (req, res) => {
   try {
-    const { stream, amount, growthRate, endAge } = req.body;
+    const { stream, amount, growthRate, endAge, notes, color } = req.body;
     
     // Get user's profile_id
     const profileResult = await pool.query(
@@ -1862,8 +1991,8 @@ router.post('/work-asset', async (req, res) => {
     const profileId = profileResult.rows[0].id;
     
     const result = await pool.query(
-      'INSERT INTO work_assets (user_id, profile_id, stream, amount, growth_rate, end_age) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [req.user.id, profileId, stream, amount, growthRate || 0.03, endAge]
+      'INSERT INTO work_assets (user_id, profile_id, stream, amount, growth_rate, end_age, notes, color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [req.user.id, profileId, stream, amount, growthRate || 0.03, endAge, notes || null, color || null]
     );
     
     // Map database fields to frontend field names
@@ -1873,6 +2002,8 @@ router.post('/work-asset', async (req, res) => {
       amount: result.rows[0].amount,
       growthRate: result.rows[0].growth_rate,
       endAge: result.rows[0].end_age,
+      notes: result.rows[0].notes,
+      color: result.rows[0].color,
       user_id: result.rows[0].user_id,
       profile_id: result.rows[0].profile_id,
       created_at: result.rows[0].created_at,
@@ -1905,8 +2036,10 @@ router.get('/work-assets/:userId', async (req, res) => {
       id: asset.id,
       stream: asset.stream,
       amount: asset.amount,
-      growthRate: asset.growth_rate, // Map growth_rate to growthRate
-      endAge: asset.end_age, // Map end_age to endAge
+      growthRate: asset.growth_rate,
+      endAge: asset.end_age,
+      notes: asset.notes,
+      color: asset.color,
       user_id: asset.user_id,
       profile_id: asset.profile_id,
       created_at: asset.created_at,
@@ -1924,7 +2057,7 @@ router.get('/work-assets/:userId', async (req, res) => {
 router.put('/work-asset/:assetId', async (req, res) => {
   try {
     const { assetId } = req.params;
-    const { stream, amount, growthRate, endAge } = req.body;
+    const { stream, amount, growthRate, endAge, notes, color } = req.body;
     
     // Check ownership
     const ownershipResult = await pool.query(
@@ -1964,6 +2097,16 @@ router.put('/work-asset/:assetId', async (req, res) => {
       values.push(endAge);
       paramCount++;
     }
+    if (notes !== undefined) {
+      updates.push(`notes = $${paramCount}`);
+      values.push(notes);
+      paramCount++;
+    }
+    if (color !== undefined) {
+      updates.push(`color = $${paramCount}`);
+      values.push(color);
+      paramCount++;
+    }
     
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
@@ -1981,6 +2124,8 @@ router.put('/work-asset/:assetId', async (req, res) => {
       amount: result.rows[0].amount,
       growthRate: result.rows[0].growth_rate,
       endAge: result.rows[0].end_age,
+      notes: result.rows[0].notes,
+      color: result.rows[0].color,
       user_id: result.rows[0].user_id,
       profile_id: result.rows[0].profile_id,
       created_at: result.rows[0].created_at,
@@ -2020,6 +2165,113 @@ router.delete('/work-asset/:assetId', async (req, res) => {
     console.error('Work asset deletion error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+const plannedLoanFields = (body) => ({
+  lender: body.lender ?? body.prov ?? null,
+  name: body.name ?? null,
+  type: body.type ?? body.cat ?? null,
+  principal: body.principal ?? body.bal ?? body.principal_outstanding ?? 0,
+  rate: body.rate ?? 0,
+  emi: body.emi ?? 0,
+  frequency: body.frequency ?? body.freq ?? 'Monthly',
+  start_year: body.start_year ?? body.start ?? null,
+  notes: body.notes ?? null
+});
+
+router.post('/planned-loan', async (req, res) => {
+  try {
+    const profileId = req.body.profile_id || req.body.profileId || await latestProfileId(req.user.id);
+    const row = plannedLoanFields(req.body);
+    const result = await pool.query(
+      `INSERT INTO planned_loan
+        (user_id, profile_id, lender, name, type, principal, rate, emi, frequency, start_year, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [req.user.id, profileId, row.lender, row.name, row.type, row.principal, row.rate, row.emi, row.frequency, row.start_year, row.notes]
+    );
+    res.status(201).json({ plannedLoan: result.rows[0] });
+  } catch (error) {
+    console.error('Planned loan create error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/planned-loans/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!checkUserAccess(req, userId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const result = await pool.query(
+      'SELECT * FROM planned_loan WHERE user_id = $1 ORDER BY start_year NULLS LAST, created_at DESC',
+      [userId]
+    );
+    res.json({ plannedLoans: result.rows });
+  } catch (error) {
+    console.error('Planned loans fetch error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.put('/planned-loan/:loanId', async (req, res) => {
+  try {
+    const { loanId } = req.params;
+    const ownership = await pool.query('SELECT user_id FROM planned_loan WHERE id = $1', [loanId]);
+    if (ownership.rows.length === 0) return res.status(404).json({ error: 'Planned loan not found' });
+    if (ownership.rows[0].user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' });
+
+    const allowed = ['lender', 'name', 'type', 'principal', 'rate', 'emi', 'frequency', 'start_year', 'notes', 'prov', 'cat', 'bal', 'freq', 'start'];
+    const map = { prov: 'lender', cat: 'type', bal: 'principal', freq: 'frequency', start: 'start_year' };
+    const updates = [];
+    const values = [];
+    let n = 1;
+    const used = new Set();
+    for (const [key, value] of Object.entries(req.body)) {
+      if (!allowed.includes(key) || value === undefined) continue;
+      const col = map[key] || key;
+      if (used.has(col)) continue;
+      updates.push(`${col} = $${n++}`);
+      values.push(value);
+      used.add(col);
+    }
+    if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
+    values.push(loanId);
+    const result = await pool.query(
+      `UPDATE planned_loan SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${n} RETURNING *`,
+      values
+    );
+    res.json({ plannedLoan: result.rows[0] });
+  } catch (error) {
+    console.error('Planned loan update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/planned-loan/:loanId', async (req, res) => {
+  try {
+    const { loanId } = req.params;
+    const ownership = await pool.query('SELECT user_id FROM planned_loan WHERE id = $1', [loanId]);
+    if (ownership.rows.length === 0) return res.status(404).json({ error: 'Planned loan not found' });
+    if (ownership.rows[0].user_id !== req.user.id) return res.status(403).json({ error: 'Access denied' });
+    await pool.query('DELETE FROM planned_loan WHERE id = $1', [loanId]);
+    res.json({ message: 'Planned loan deleted successfully' });
+  } catch (error) {
+    console.error('Planned loan delete error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/planned-loans', (req, res, next) => {
+  req.url = '/planned-loan';
+  router.handle(req, res, next);
+});
+router.put('/planned-loans/:loanId', (req, res, next) => {
+  req.url = `/planned-loan/${req.params.loanId}`;
+  router.handle(req, res, next);
+});
+router.delete('/planned-loans/:loanId', (req, res, next) => {
+  req.url = `/planned-loan/${req.params.loanId}`;
+  router.handle(req, res, next);
 });
 
 // Insurance routes (singular)

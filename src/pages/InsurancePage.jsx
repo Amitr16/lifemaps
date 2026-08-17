@@ -5,9 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAdminUser } from '@/contexts/AdminUserContext';
 import ApiService from '@/services/api';
 import { useLifeSheetStore } from '@/store/enhanced-store';
-import { AlertTriangle, Shield } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { AlertTriangle } from 'lucide-react';
+import PageHeader from '@/components/PageHeader.jsx';
+import PagePager from '@/components/PagePager.jsx';
 
 export default function InsurancePage() {
   const { user } = useAuth();
@@ -244,7 +244,10 @@ export default function InsurancePage() {
             workTenureYears: profile.work_tenure_years || '',
             totalAssetGrossMarketValue: profile.total_asset_gross_market_value || '',
             totalLoanOutstandingValue: profile.total_loan_outstanding_value || '',
-            lifespanYears: profile.lifespan_years || 85
+            lifespanYears: profile.lifespan_years || 85,
+            inflationRate: profile.inflation_rate != null ? parseFloat(profile.inflation_rate) : prev.inflationRate,
+            assetEquityGrowthRate: profile.equity_growth_rate != null ? parseFloat(profile.equity_growth_rate) : prev.assetEquityGrowthRate,
+            assetDebtGrowthRate: profile.debt_growth_rate != null ? parseFloat(profile.debt_growth_rate) : prev.assetDebtGrowthRate
           }));
         }
       }).catch(error => {
@@ -514,153 +517,106 @@ export default function InsurancePage() {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto p-4 space-y-4">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading insurance...</div>
+      <div className="lm-body">
+        <div className="lm-card" style={{ padding: 48, textAlign: 'center', color: 'var(--lm-muted)' }}>
+          Loading insurance…
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="lifemap-page-header">
-        <div>
-          <h1 className="lifemap-page-title">Insurance</h1>
-          <p className="lifemap-page-subtitle flex items-center gap-2">
-            <Shield className="h-4 w-4 text-slate-400" />
-            Add or edit your insurance policies and coverage
-          </p>
+    <div className="lm-body">
+      <PageHeader
+        title="What you are protected by"
+        description="Policies you already hold, and the gap between cover and what your family would actually need. Add each policy in the register below."
+      />
+      {rows.length === 0 && (
+        <div className="lm-alert">
+          <AlertTriangle className="h-4 w-4" />
+          <span>
+            Start adding your policies in the insurance register below. You may add as many
+            policies as you want.
+          </span>
         </div>
-        {rows.length === 0 && (
-          <div className="lifemap-alert">
-            <AlertTriangle className="h-4 w-4" />
-            <span>
-              Start adding your policies in the insurance register below. You may add as many
-              policies as you want.
-            </span>
-          </div>
-        )}
-      </div>
+      )}
 
-      {/* Insurance Calculation Section */}
-      <div className="lifemap-panel">
-        <div className="lifemap-panel-header">
-          <div className="lifemap-panel-title">Insurance Calculation</div>
-          {insuranceNeeded > 0 && (
-            <div className="text-xs bg-red-100 dark:bg-red-900/30 px-3 py-1 rounded-full text-red-600 dark:text-red-400">
-              Insurance Needed: {formatCurrency(insuranceNeeded)}
-            </div>
-          )}
+      <div id="sec-mix" className="lm-card" style={{ marginBottom: 16 }}>
+        <div className="lm-reghead">
+          <h3>Cover gap</h3>
+          {insuranceNeeded > 0 ? (
+            <span className="lm-pill">Needed {formatCurrency(insuranceNeeded)}</span>
+          ) : null}
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-2 gap-6">
-            {/* Assets Column */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Existing Assets</span>
-                <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                  + {formatCurrency(calculations.totalExistingAssets)}
-                </span>
-              </div>
-              
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Total</span>
-                  <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                    + {formatCurrency(calculations.totalExistingAssets)}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Insurance Cover</span>
-                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                  {formatCurrency(totalCover)}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Uncovered Amount</span>
-                <span className={`text-lg font-bold ${uncoveredInsurance > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  {formatCurrency(uncoveredInsurance)}
-                </span>
-              </div>
+        <div className="lm-gapgrid">
+          <div className="lm-gapcol">
+            <h4>What you have</h4>
+            <div className="lm-grow pos">
+              <span>Existing assets</span>
+              <b>+ {formatCurrency(calculations.totalExistingAssets)}</b>
             </div>
-
-            {/* Liabilities Column */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Existing Liabilities</span>
-                <span className="text-lg font-bold text-red-600 dark:text-red-400">
-                  - {formatCurrency(calculations.totalExistingLiabilities)}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Future Expense</span>
-                <span className="text-lg font-bold text-red-600 dark:text-red-400">
-                  - {formatCurrency(calculations.totalFutureExpenses)}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Cumulative Financial Goal</span>
-                <span className="text-lg font-bold text-red-600 dark:text-red-400">
-                  - {formatCurrency(calculations.totalFinancialGoals)}
-                </span>
-              </div>
-              
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">Total</span>
-                  <span className="text-xl font-bold text-red-600 dark:text-red-400">
-                    - {formatCurrency(calculations.totalExistingLiabilities + calculations.totalFutureExpenses + calculations.totalFinancialGoals)}
-                  </span>
-                </div>
-              </div>
+            <div className="lm-grow tot pos">
+              <span>Total</span>
+              <b>+ {formatCurrency(calculations.totalExistingAssets)}</b>
+            </div>
+            <div className="lm-grow">
+              <span>Insurance cover</span>
+              <b>{formatCurrency(totalCover)}</b>
+            </div>
+            <div className={`lm-grow ${uncoveredInsurance > 0 ? 'neg' : 'pos'}`}>
+              <span>Uncovered</span>
+              <b>{formatCurrency(uncoveredInsurance)}</b>
             </div>
           </div>
-        </div>
-      </div>
-      
-      {/* Insurance Policies Section */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Insurance Policies</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your insurance policies and coverage</p>
-        </div>
-        <div className="lifemap-stat-grid">
-          <div className="lifemap-stat-card">
-            <p className="lifemap-stat-title">Total Coverage</p>
-            <div className="lifemap-stat-value text-blue-600 dark:text-blue-400">
-              {formatCurrency(totalCover)}
+          <div className="lm-gapcol">
+            <h4>What would need funding</h4>
+            <div className="lm-grow neg">
+              <span>Existing liabilities</span>
+              <b>− {formatCurrency(calculations.totalExistingLiabilities)}</b>
             </div>
-          </div>
-          <div className="lifemap-stat-card">
-            <p className="lifemap-stat-title">Annual Premiums</p>
-            <div className="lifemap-stat-value text-blue-600 dark:text-blue-400">
-              {formatCurrency(totalAnnualPremium)}
+            <div className="lm-grow neg">
+              <span>Future expenses</span>
+              <b>− {formatCurrency(calculations.totalFutureExpenses)}</b>
+            </div>
+            <div className="lm-grow neg">
+              <span>Goals</span>
+              <b>− {formatCurrency(calculations.totalFinancialGoals)}</b>
+            </div>
+            <div className="lm-grow tot neg">
+              <span>Total</span>
+              <b>− {formatCurrency(calculations.totalExistingLiabilities + calculations.totalFutureExpenses + calculations.totalFinancialGoals)}</b>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="lifemap-panel">
-        <div className="lifemap-panel-header">
-          <div className="lifemap-panel-title">Insurance Policies</div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={addRow}>Add Row</Button>
-            <Button size="sm" variant="outline" onClick={handleExportCsv}>Export CSV</Button>
-            <Button size="sm" variant="ghost" className="text-red-500 dark:text-red-400" onClick={handleReset}>Reset</Button>
+      <div className="lm-stats">
+        <div className="lm-stat">
+          <div className="k">Total coverage</div>
+          <div className="v">{formatCurrency(totalCover)}</div>
+        </div>
+        <div className="lm-stat">
+          <div className="k">Annual premiums</div>
+          <div className="v">{formatCurrency(totalAnnualPremium)}</div>
+        </div>
+      </div>
+
+      <div id="sec-register" className="lm-card">
+        <div className="lm-reghead">
+          <h3>Insurance register</h3>
+          <span className="count">{rows.length} policies</span>
+          <div className="r">
+            <button type="button" className="lm-ghost primary" onClick={addRow}>+ Add policy</button>
+            <button type="button" className="lm-ghost" onClick={handleExportCsv}>Export CSV</button>
+            <button type="button" className="lm-ghost" onClick={handleReset}>Reset</button>
           </div>
         </div>
-        <div className="p-6">
-          <EditableGrid 
-            columns={columns} 
-            rows={rows} 
-            onChange={setRows} 
-            onAdd={addRow} 
+        <div style={{ padding: 16 }}>
+          <EditableGrid
+            columns={columns}
+            rows={rows}
+            onChange={setRows}
+            onAdd={addRow}
             onDelete={delRow}
             onCellChange={handleCellChange}
           />
@@ -668,10 +624,9 @@ export default function InsurancePage() {
       </div>
 
       {savingRows.size > 0 && (
-        <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-          Saving changes...
-        </div>
+        <div className="lm-note" style={{ textAlign: 'left' }}>Saving changes…</div>
       )}
+      <PagePager />
     </div>
   );
 }

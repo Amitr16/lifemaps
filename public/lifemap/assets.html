@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeMap — Assets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font:"Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --navy:#003c8f; --ink:#0a1f44; --teal:#75cfc2; --aqua:#b5e6e5;
+  --paper:#f6f8fb; --line:#e2e8f2; --muted:#66799a; --coral:#e2574c;
+  --amber:#e9a23b; --slate:#9aa7bd; --green:#0d8a78; --r:14px;
+  --shadow:0 1px 2px rgba(10,31,68,.04), 0 8px 24px rgba(10,31,68,.06);
+  --navh:44px;   /* height of the frozen bottom bar only */
+  --bar:#e8f4f5; --bar-line:#cfe6e8;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--font);
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums}
+h1,h2,h3,h4{font-family:var(--font); font-weight:700; letter-spacing:-.02em; margin:0}
+.num{font-variant-numeric:tabular-nums; font-weight:700; letter-spacing:-.02em}
+button,input,select,textarea{font-family:var(--font)}
+a{text-decoration:none; color:inherit}
+
+/* ---------- top bar ---------- */
+/* ---------- stacked top navigation ---------- */
+.topbar{background:#fff; position:relative}
+.topbar::before{content:""; display:block; height:3px;
+  background:linear-gradient(90deg, var(--navy) 0%, #2f6fd0 26%, #0d8a78 52%, var(--teal) 76%, var(--aqua) 100%)}
+.tier{max-width:1200px; margin:0 auto; padding:0 28px}
+@media(max-width:640px){.tier{padding:0 16px}}
+
+/* tier 0 — identity and actions */
+.tier0{display:flex; align-items:center; gap:16px; height:56px}
+.brand{display:flex; align-items:center; gap:10px; text-decoration:none}
+.mark{width:20px; height:20px; background:var(--navy); transform:rotate(45deg); border-radius:3px; position:relative; flex:none}
+.mark::after{content:""; position:absolute; inset:0 0 50% 50%; background:var(--teal); border-radius:0 3px 0 0}
+.brand .name{font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.03em}
+.brand .by{font-size:10.5px; color:var(--muted); letter-spacing:.09em; text-transform:uppercase; font-weight:600}
+.tier0 .acts{margin-left:auto; display:flex; align-items:center; gap:8px}
+.tlink{padding:8px 12px; font-size:14px; color:var(--navy); text-decoration:none; border-radius:8px; font-weight:600}
+.tlink:hover{color:var(--navy); background:#eef3fa}
+
+/* tier 1 — the product's main areas, centred */
+.tier1{display:flex; gap:1px; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none}
+.tier1::-webkit-scrollbar{display:none}
+/* auto margins centre the row, then collapse to zero when it overflows so nothing is unreachable */
+.tier1 > :first-child{margin-left:auto}
+.tier1 > :last-child{margin-right:auto}
+.ptab{padding:11px 14px 12px; font-size:14px; font-weight:600; color:var(--muted);
+  white-space:nowrap; text-decoration:none; border-radius:9px 9px 0 0; transition:background .13s, color .13s}
+/* each tab still carries its area's own colour, but only on hover and when active */
+.ptab:hover{color:var(--tone, var(--navy)); background:#f4f8fd}
+.ptab.on{background:var(--bar); color:var(--tone, var(--ink)); font-weight:700}
+/* Insurance is not built yet: the tab stays visible so the shape of the product
+   is legible, but reads as unavailable rather than merely unvisited. */
+.ptab.gate{opacity:.45; cursor:not-allowed}
+.ptab.gate:hover{background:transparent; color:var(--muted)}
+
+/* tier 2 — what is on this page, centred */
+.tier2wrap{position:sticky; top:0; z-index:80;
+  background:linear-gradient(180deg,#eef8f9,var(--bar));
+  border-top:1px solid var(--bar-line); border-bottom:1px solid var(--bar-line); transition:box-shadow .18s}
+.tier2wrap.stuck{box-shadow:0 6px 18px rgba(10,31,68,.09)}
+.tier2{display:flex; flex-wrap:wrap; justify-content:center; gap:0}
+.stab{padding:10px 14px 10px; font-size:13px; font-weight:600; color:#4a6274; white-space:nowrap;
+  background:none; border:0; border-bottom:2px solid transparent; cursor:pointer; transition:color .13s, border-color .13s}
+.stab:hover{color:var(--navy)}
+.stab.on{font-weight:700}
+.stab.on{color:var(--navy); border-bottom-color:var(--navy)}
+@media(max-width:640px){
+  .ptab{font-size:13px; padding:10px 12px 11px}
+  .stab{font-size:12.5px; padding:9px 12px}
+}
+
+.btn{border:0; cursor:pointer; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700;
+  background:linear-gradient(135deg,#0b52b8,var(--navy)); color:#fff; text-decoration:none;
+  display:inline-block; transition:filter .15s, box-shadow .15s; box-shadow:0 2px 10px rgba(0,60,143,.24)}
+.btn:hover{filter:brightness(1.08); box-shadow:0 4px 16px rgba(0,60,143,.32)}
+.btn-ghost{background:transparent; color:var(--navy); border:1px solid var(--line)}
+.btn-ghost:hover{background:#eef3fa}
+@media(max-width:640px){.tlink{display:none}}
+
+/* ---------- body ---------- */
+.body{max-width:1200px; margin:0 auto; padding:26px 28px 70px}
+@media(max-width:640px){.body{padding:20px 16px 56px}}
+#sec-mix,#sec-growth,#sec-register{scroll-margin-top:calc(var(--navh) + 14px)}
+.phead{margin-bottom:18px}
+.phead h1{font-size:25px}
+.phead p{margin:3px 0 0; color:var(--muted); font-size:14px; max-width:78ch}
+.card{background:#fff; border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+
+/* donut card — one full-width section */
+.mixcard{padding:18px 22px 20px; margin-bottom:16px}
+.mixbody{display:grid; grid-template-columns:300px minmax(0,1fr); gap:10px 34px; align-items:center; margin-top:6px}
+@media(max-width:900px){.mixbody{grid-template-columns:1fr; gap:18px}}
+.mixhead{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+.mixhead h3{font-size:16px}
+.seg2{margin-left:auto; display:flex; background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:2px}
+.seg2 button{border:0; background:none; padding:5px 11px; font-size:12.5px; border-radius:7px; color:var(--muted); cursor:pointer; font-weight:600}
+.seg2 button.on{background:var(--navy); color:#fff}
+.mixsub{font-size:12.5px; color:var(--muted); margin-bottom:10px}
+.donutbox{position:relative; width:100%; max-width:282px; margin:0 auto}
+.donutbox svg{width:100%; height:auto; display:block; overflow:visible}
+.wedge{transition:transform .16s cubic-bezier(.3,.9,.3,1), filter .16s; cursor:pointer}
+.wedge:hover{filter:brightness(1.08)}
+.dcenter{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none}
+.dcenter .k{font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.dcenter .v{font-size:28px; line-height:1.1; margin-top:3px; font-weight:800; letter-spacing:-.03em; color:var(--navy)}
+.dcenter .s{font-size:11.5px; color:var(--muted); margin-top:3px; max-width:145px; line-height:1.35}
+.dtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:var(--ink); color:#fff; border-radius:10px; padding:10px 13px; min-width:158px;
+  box-shadow:0 12px 32px rgba(10,31,68,.34); transform:translate(-50%,-116%)}
+.dtip.on{opacity:1}
+.dtip .n{font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:7px}
+.dtip .n i{width:9px; height:9px; border-radius:2px; display:block; flex:none}
+.dtip .a{font-size:19px; font-weight:800; letter-spacing:-.02em; margin:3px 0 1px}
+.dtip .d{font-size:11.5px; color:#a9bcda; line-height:1.45}
+.dkey{margin-top:12px; font-size:11.5px; color:var(--slate); text-align:center; line-height:1.5}
+.dleg{display:grid; grid-template-columns:repeat(auto-fill,minmax(208px,1fr)); gap:1px 18px; align-content:center}
+.dleg .lhead{grid-column:1/-1; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--slate); font-weight:700; padding:12px 6px 5px}
+.dleg .lhead.second{border-top:1px solid var(--line); margin-top:8px}
+.dleg .li{display:flex; align-items:center; gap:9px; font-size:13px; padding:5px 6px; border-radius:7px; transition:background .13s}
+.dleg .li:hover{background:var(--paper)}
+.dleg .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dleg .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#33456b}
+.dleg .vl{font-weight:700}
+.dleg .pc{color:var(--slate); font-size:11.5px; width:40px; text-align:right}
+
+/* ---------- growth chart ---------- */
+.gcard{padding:18px 20px 14px; margin-bottom:16px}
+.ghead{display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:2px}
+.ghead h3{font-size:16px}
+.gsub{font-size:12.5px; color:var(--muted)}
+.gsub b{color:var(--ink)}
+.gsub .arrow{color:var(--slate); margin:0 5px}
+.gright{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.chartbox{position:relative; margin-top:14px}
+.chartbox svg{width:100%; height:auto; display:block; overflow:visible}
+.gtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:#fff; color:#123f5a; border:1px solid #d5dce6; border-radius:0; padding:14px 16px; min-width:245px; max-width:350px;
+  max-height:70vh; overflow-y:auto; box-shadow:0 8px 22px rgba(10,31,68,.14)}
+.gtip.on{opacity:1}
+.gtip .yr{font-size:15px; letter-spacing:0; text-transform:none; color:#0f6171; font-weight:500}
+.gtip .tt{font-size:18px; font-weight:700; letter-spacing:-.01em; margin:5px 0 8px; color:#174ee8}
+.gtip .gl{display:flex; align-items:center; gap:8px; font-size:12px; padding:3px 0; color:#284765}
+.gtip .gl i{width:8px; height:8px; border-radius:50%; flex:none}
+.gtip .gl span{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.gtip .gl b{font-weight:700; color:#173a59}
+.gleg{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
+.gleg .gi{display:flex; align-items:center; gap:7px; font-size:12.5px; color:#33456b}
+.gleg .gi i{width:9px; height:9px; border-radius:2px; flex:none}
+.gleg .gi b{font-weight:700; color:var(--ink)}
+.gfoot{margin-top:10px; font-size:12px; color:var(--slate); line-height:1.55}
+
+/* ---------- register ---------- */
+.reghead{display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.reghead h3{font-size:17px}
+.reghead .count{font-size:12.5px; color:var(--slate); font-weight:600}
+.reghead .r{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap}
+.srch{border:1px solid var(--line); border-radius:9px; padding:8px 12px; font-size:13.5px; background:var(--paper); width:190px}
+.srch:focus{outline:none; border-color:var(--navy); background:#fff}
+.sel{border:1px solid var(--line); border-radius:9px; padding:8px 11px; font-size:13.5px; background:#fff; color:var(--muted); cursor:pointer}
+.ghost{background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 14px; font-size:13.5px; color:var(--muted); cursor:pointer; font-weight:600}
+.ghost:hover{background:#f0f4fa; color:var(--navy)}
+.ghost.primary{background:var(--navy); color:#fff; border-color:var(--navy)}
+.ghost.primary:hover{background:#00307a; color:#fff}
+
+.tblwrap{overflow:auto; max-height:max(330px, min(560px, calc(100vh - var(--navh) - 150px))); overscroll-behavior:contain}
+table{border-collapse:separate; border-spacing:0; width:100%; min-width:1240px}
+th{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--slate); font-weight:700;
+  text-align:left; padding:12px 12px; background:var(--paper); border-bottom:1px solid var(--line); white-space:nowrap; position:sticky; top:0; z-index:3}
+td{padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:middle; background:#fff}
+/* frozen name column */
+th.stick,td.stick{position:sticky; left:0; z-index:2}
+td.stick{background:#fff; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+th.stick{background:var(--paper); z-index:5; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+tr:hover td{background:#fbfcfe}
+tr:hover td.stick{background:#fbfcfe}
+td.rt{text-align:right}
+.cell{width:100%; border:1px solid transparent; border-radius:8px; padding:8px 9px; font-size:14px;
+  background:transparent; color:var(--ink); transition:border-color .13s, background .13s}
+.cell:hover{background:var(--paper)}
+.cell:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.cell.name{font-weight:600; min-width:170px}
+.cell.money{text-align:right; font-variant-numeric:tabular-nums; min-width:118px}
+.cell.small{min-width:96px}
+.tagpick{min-width:138px}
+.catpick{min-width:190px}
+.freqpick{min-width:118px}
+
+/* ---- theme-matched dropdown ---- */
+.dd{width:100%; display:flex; align-items:center; gap:8px; position:relative; text-align:left; cursor:pointer;
+  border:1px solid transparent; border-radius:8px; padding:8px 26px 8px 9px; font-size:14px;
+  background:transparent; color:var(--ink); transition:border-color .13s, background .13s}
+.dd:hover{background:var(--paper)}
+.dd[aria-expanded="true"]{border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.dd .lbl{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dd .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dd::after{content:""; position:absolute; right:11px; top:50%; width:6px; height:6px; margin-top:-5px;
+  border-right:1.8px solid var(--slate); border-bottom:1.8px solid var(--slate);
+  transform:rotate(45deg); transition:transform .16s, border-color .16s}
+.dd[aria-expanded="true"]::after{transform:rotate(225deg); margin-top:-2px; border-color:var(--navy)}
+.dd.filter{border-color:var(--line); background:#fff; width:auto; min-width:152px; color:var(--muted); font-size:13.5px; padding:8px 28px 8px 12px}
+.dd.filter:hover{border-color:#c8d5e8; color:var(--navy)}
+
+.ddpop{position:fixed; z-index:200; display:none; padding:6px; min-width:190px; max-height:296px; overflow-y:auto;
+  background:#fff; border:1px solid var(--line); border-radius:12px; font-family:var(--font);
+  box-shadow:0 20px 48px rgba(10,31,68,.20), 0 2px 6px rgba(10,31,68,.07)}
+.ddpop.on{display:block; animation:ddin .14s cubic-bezier(.2,.9,.3,1)}
+@keyframes ddin{from{opacity:0; transform:translateY(-5px)} to{opacity:1; transform:none}}
+.ddopt{display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:8px; font-size:14px;
+  color:#33456b; cursor:pointer; white-space:nowrap; line-height:1.35}
+.ddopt .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.ddopt .nm{flex:1}
+.ddopt .rt{font-size:11.5px; color:var(--slate); font-variant-numeric:tabular-nums; font-weight:600}
+.ddopt.cur{background:#eef3fa; color:var(--navy)}
+.ddopt[aria-selected="true"]{background:#eaf1fc; color:var(--navy); font-weight:700}
+.ddopt[aria-selected="true"] .rt{color:var(--navy)}
+.ddopt[aria-selected="true"]::before{content:""; width:6px; height:10px; flex:none; margin-right:-3px;
+  border-right:2px solid var(--navy); border-bottom:2px solid var(--navy); transform:rotate(40deg) translateY(-2px)}
+.ddpop::-webkit-scrollbar{width:11px}
+.ddpop::-webkit-scrollbar-track{background:transparent}
+.ddpop::-webkit-scrollbar-thumb{background:#ccd7e8; border-radius:99px; border:3px solid #fff}
+.ddpop::-webkit-scrollbar-thumb:hover{background:#b3c2da}
+.ddpop{scrollbar-width:thin; scrollbar-color:#ccd7e8 transparent}
+.swatch{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px; vertical-align:1px}
+.proj{font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; white-space:nowrap}
+.proj small{display:block; font-weight:500; color:var(--slate); font-size:11px; letter-spacing:0}
+.acts{display:flex; gap:6px; justify-content:flex-end}
+.rb{border:1px solid var(--line); background:#fff; border-radius:8px; height:34px; padding:0 11px; cursor:pointer;
+  font-size:12px; font-weight:700; color:var(--muted); white-space:nowrap; transition:.14s}
+.rb.save{color:var(--navy)}
+.rb.save:hover{background:#eef3fa; border-color:var(--navy)}
+.rb.save.done{background:#e9f6f4; border-color:#bfe6df; color:#0d6e60}
+.rb.del:hover{color:var(--coral); border-color:#f3c9c5; background:#fef6f5}
+.addbar{padding:14px 20px 18px}
+.addrow{width:100%; border:1px dashed #c8d5e8; background:#fbfcfe; color:var(--navy); border-radius:9px;
+  padding:12px; font-size:14px; font-weight:700; cursor:pointer}
+.addrow:hover{background:#eef3fa; border-color:var(--navy)}
+.empty{padding:52px 20px; text-align:center; color:var(--slate)}
+.empty b{display:block; color:var(--ink); font-size:16px; margin-bottom:4px}
+.foot{padding:14px 20px 18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--slate); line-height:1.6}
+.pager{display:flex; gap:10px; margin-top:20px}
+.btn-nav{background:#fff; border:1px solid var(--line); color:var(--navy); padding:11px 18px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer}
+.btn-nav:hover{background:#eef3fa}
+.btn-nav.sp{margin-left:auto}
+:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important} html{scroll-behavior:auto}}
+@media(max-width:760px){
+  /* the frozen column eats too much of a narrow screen otherwise */
+  .cell.name{min-width:124px}
+  .catpick{min-width:164px}
+  .tagpick{min-width:126px}
+}
+
+/* ---------- page description, folded away behind a caret ----------
+   The description expands in the flow rather than floating over the page, so
+   opening it pushes everything below it down instead of covering it. Height is
+   measured at the moment it opens, which keeps the transition honest when the
+   text wraps to a different number of lines on a narrow screen. */
+.phead h1{display:flex; align-items:center; gap:11px; flex-wrap:wrap}
+.pmore{width:23px; height:23px; flex:none; border-radius:50%; border:1px solid var(--line);
+  background:#fff; color:var(--slate); cursor:pointer; padding:0; position:relative;
+  display:inline-flex; align-items:center; justify-content:center; transition:.15s}
+.pmore::before{content:""; width:6px; height:6px; margin-top:-3px;
+  border-right:1.9px solid currentColor; border-bottom:1.9px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.pmore:hover{color:var(--navy); border-color:var(--navy); background:#eef3fa}
+.pmore[aria-expanded="true"]{color:#fff; background:var(--navy); border-color:var(--navy)}
+.pmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:3px}
+.pdesc{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.pdesc.open{opacity:1}
+
+/* Padded on all sides: the bar is the last thing in its card, so without a
+   bottom pad the caret sat astride the card's rounded edge. */
+.notebar{display:flex; align-items:center; justify-content:center; width:100%; padding:12px 18px 16px}
+/* Just the chevron. A ring around it competed with the row of real controls
+   directly above; the navy alone is enough to read as pressable. */
+.nmore{width:30px; height:26px; flex:none; border:0; background:none; padding:0; cursor:pointer;
+  color:var(--navy); border-radius:7px; transition:background .15s, color .15s;
+  display:inline-flex; align-items:center; justify-content:center}
+.nmore::before{content:""; width:9px; height:9px; margin-top:-4px;
+  border-right:2.2px solid currentColor; border-bottom:2.2px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.nmore:hover{background:rgba(0,60,143,.08)}
+.nmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:4px}
+.nfold{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.nfold.open{opacity:1}
+.nfold .foot{border-top:0}
+</style>
+</head>
+<body>
+
+<!-- ===== top navigation ===== -->
+<header class="topbar">
+  <!-- tier 0: identity and actions -->
+  <div class="tier tier0">
+    <a class="brand" href="lifemap-fp-calculator.html"><span class="mark"></span>
+      <span><span class="name">LifeMap</span> <span class="by">by BOX Wealth</span></span></a>
+    <span class="acts">
+      <a class="tlink" href="#">Sign in</a>
+      <a class="btn" href="#">Save my plan</a>
+    </span>
+  </div>
+
+  <!-- tier 1: the product's main areas -->
+  <nav class="tier tier1" aria-label="Main areas">
+    <a class="ptab" style="--tone:#003c8f" href="lifemap-fp-calculator.html">FP Calculator</a>
+    <a class="ptab on" style="--tone:#2f6fd0" href="lifemap-assets.html" aria-current="page">Assets</a>
+    <a class="ptab" style="--tone:#0d8a78" href="lifemap-work-assets.html">Work Assets</a>
+    <a class="ptab" style="--tone:#e9a23b" href="lifemap-goals.html">Goals</a>
+    <a class="ptab" style="--tone:#e2574c" href="lifemap-loans.html">Loans</a>
+    <a class="ptab" style="--tone:#8494ad" href="lifemap-expenses.html">Expenses</a>
+    <a class="ptab gate" style="--tone:#4fb9ab" href="#" title="Sign in to open Insurance">Insurance</a>
+  </nav>
+
+  <!-- tier 2 sits outside the header so it can freeze on its own -->
+</header>
+
+<!-- frozen bar: stays put while the header above it scrolls away -->
+<div class="tier2wrap" id="tier2wrap">
+  <nav class="tier tier2" aria-label="Sections on this page">
+    <button class="stab on" type="button" data-go="sec-mix">Asset mix</button>
+    <button class="stab" type="button" data-go="sec-growth">Growth over time</button>
+    <button class="stab" type="button" data-go="sec-register">Asset register</button>
+  </nav>
+</div>
+
+<div class="body">
+  <div class="phead">
+    <h1>What you own
+      <button class="pmore" type="button" aria-expanded="false" aria-controls="phead-desc" aria-label="Show what this page is for"></button></h1>
+    <div class="pdesc" id="phead-desc"><p>Every holding, in one register. The mix and the growth path below rebuild themselves as you add rows &mdash; and choosing a category fills in a historical return you can then override.</p></div>
+  </div>
+
+  <!-- ===== asset mix ===== -->
+  <div class="card mixcard" id="sec-mix">
+    <div class="mixhead">
+      <h3>Your asset mix</h3>
+      <div class="seg2">
+        <button class="on" data-mode="cat">By form</button>
+        <button data-mode="tag">By purpose</button>
+      </div>
+    </div>
+    <div class="mixsub" id="mix-sub">&nbsp;</div>
+    <div class="mixbody">
+      <div>
+        <div class="donutbox">
+          <svg viewBox="0 0 220 220" id="donut" role="img" aria-label="Asset mix"></svg>
+          <div class="dcenter">
+            <div class="k" id="d-k">Total assets</div>
+            <div class="v" id="d-v">&mdash;</div>
+            <div class="s" id="d-s">&nbsp;</div>
+          </div>
+          <div class="dtip" id="dtip"></div>
+        </div>
+        <div class="dkey" id="d-key">Outer ring: what form &nbsp;&middot;&nbsp; Inner arc: what purpose</div>
+      </div>
+      <div class="dleg" id="dleg"></div>
+    </div>
+  </div>
+
+  <!-- ===== growth over time ===== -->
+  <div class="card gcard" id="sec-growth">
+    <div class="ghead">
+      <div>
+        <h3>How that grows</h3>
+        <div class="gsub" id="g-sub">&nbsp;</div>
+      </div>
+      <div class="gright">
+        <div class="seg2" id="hzseg">
+          <button class="on" data-hz="10">10 yrs</button>
+          <button data-hz="20">20 yrs</button>
+          <button data-hz="30">30 yrs</button>
+        </div>
+      </div>
+    </div>
+    <div class="chartbox">
+      <svg viewBox="0 0 1400 320" id="growth" role="img" aria-label="Projected asset value over time"></svg>
+      <div class="gtip" id="gtip"></div>
+    </div>
+    <div class="gleg" id="gleg"></div>
+    <div class="gfoot" id="g-foot">
+      Each band is one slice of the mix above, compounded at the return you set in the register and topped up by any SIP until its expiry date. Change a value, a rate or a date below and this redraws.
+    </div>
+  </div>
+
+  <!-- ===== register ===== -->
+  <div class="card" id="sec-register">
+    <div class="reghead">
+      <h3>Asset register</h3>
+      <span class="count" id="rowcount">&mdash;</span>
+      <div class="r">
+        <input class="srch" id="search" type="search" placeholder="Search by name or category">
+        <button type="button" class="dd filter" id="filter" aria-haspopup="listbox" aria-expanded="false">
+          <span class="lbl">All purposes</span></button>
+        <button class="ghost" id="btn-reset">Reset</button>
+        <button class="ghost" id="btn-csv">Export CSV</button>
+        <button class="ghost primary" id="btn-add">+ Add asset</button>
+      </div>
+    </div>
+
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="stick">Name</th>
+            <th>Category</th>
+            <th>Purpose</th>
+            <th style="text-align:right">Current value</th>
+            <th style="text-align:right">Expected return</th>
+            <th style="text-align:right">SIP amount</th>
+            <th>SIP frequency</th>
+            <th>SIP expiry</th>
+            <th style="text-align:right">Value in 10 yrs</th>
+            <th>Notes</th>
+            <th style="text-align:right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" style="display:none"><b>No assets match</b>Clear the search or filter to see everything.</div>
+    <div class="addbar"><button class="addrow" id="btn-add2">+ Add another asset</button></div>
+    <div class="foot">
+      Expected returns are long-run historical averages for each asset class, filled in as a starting point and fully editable. They are not forecasts, and your own holdings may behave very differently. &ldquo;Value in 10 years&rdquo; compounds the current value at that rate and adds SIP contributions until the expiry date you set.
+    </div>
+  </div>
+
+  <div class="pager">
+    <a class="btn-nav" href="lifemap-fp-calculator.html">&larr; FP Calculator</a>
+    <a class="btn-nav sp" href="lifemap-work-assets.html">Work Assets &rarr;</a>
+  </div>
+</div>
+
+<script>
+/* ================= CATEGORIES =================
+   ret = long-run historical average for the class, used only as a starting value
+============================================== */
+const CATS = [
+  {n:"Equity mutual funds",     ret:12.0, c:"#2f6fd0"},
+  {n:"Debt mutual funds",       ret:7.0,  c:"#5b93de"},
+  {n:"Hybrid / balanced funds", ret:9.5,  c:"#8fb8ea"},
+  {n:"Direct equity / stocks",  ret:12.0, c:"#003c8f"},
+  {n:"Real estate",             ret:8.0,  c:"#0d8a78"},
+  {n:"Government securities",   ret:7.0,  c:"#4fb9ab"},
+  {n:"Fixed deposits",          ret:6.5,  c:"#75cfc2"},
+  {n:"PPF / EPF",               ret:7.1,  c:"#a3e0d6"},
+  {n:"NPS",                     ret:9.5,  c:"#6c7f9f"},
+  {n:"Gold / SGB",              ret:9.0,  c:"#e9a23b"},
+  {n:"REITs / InvITs",          ret:8.5,  c:"#d98f5a"},
+  {n:"Insurance-linked",        ret:5.0,  c:"#94a3bd"},
+  {n:"Cash / savings",          ret:3.5,  c:"#b6c0d0"},
+  {n:"Other",                   ret:6.0,  c:"#cbd3e0"}
+];
+const TAGS = [
+  {n:"Investment", c:"#2f6fd0", d:"Money working towards future goals."},
+  {n:"Retirement", c:"#0d8a78", d:"Earmarked for life after you stop earning."},
+  {n:"Emergency",  c:"#e9a23b", d:"Kept liquid for the unexpected. Aim for 6 months of expenses."},
+  {n:"Personal",   c:"#8494ad", d:"Things you use, not things that fund goals. Counts to net worth but not to plans."}
+];
+const FREQ = ["Monthly","Quarterly","Half-yearly","Yearly","One-time"];
+const PER_YEAR = {Monthly:12, Quarterly:4, "Half-yearly":2, Yearly:1, "One-time":0};
+
+/* Distinct line colours used by the growth chart — one colour per asset row. */
+const ASSET_COLORS = [
+  "#0d8a78", "#2f6fd0", "#e9a23b", "#9b51e0", "#e2574c", "#00a6a6",
+  "#7a5c00", "#d14f8f", "#4c78a8", "#59a14f", "#f28e2b", "#8c564b",
+  "#17becf", "#bcbd22", "#6b6ecf", "#ff6f61", "#2ca02c", "#9467bd"
+];
+
+const catOf = n => CATS.find(c => c.n === n) || CATS[CATS.length-1];
+const tagOf = n => TAGS.find(t => t.n === n) || TAGS[3];
+
+/* ================= STATE ================= */
+let ROWS = [
+  {name:"HDFC Flexi Cap",        cat:"Equity mutual funds",   tag:"Investment", val:1200000, sip:15000, freq:"Monthly", exp:"2035-03-31", ret:12.0, notes:"Core equity holding", saved:true},
+  {name:"SBI Corporate Bond",    cat:"Debt mutual funds",     tag:"Investment", val:450000,  sip:0,     freq:"Monthly", exp:"",           ret:7.0,  notes:"", saved:true},
+  {name:"Flat, Sector 62 Noida", cat:"Real estate",           tag:"Personal",   val:4200000, sip:0,     freq:"Monthly", exp:"",           ret:8.0,  notes:"Self-occupied", saved:true},
+  {name:"PPF account",           cat:"PPF / EPF",             tag:"Retirement", val:680000,  sip:12500, freq:"Monthly", exp:"2040-03-31", ret:7.1,  notes:"Matures 2040", saved:true},
+  {name:"Gold and SGB",          cat:"Gold / SGB",            tag:"Personal",   val:320000,  sip:0,     freq:"Yearly",  exp:"",           ret:9.0,  notes:"", saved:true},
+  {name:"Emergency FD",          cat:"Fixed deposits",        tag:"Emergency",  val:250000,  sip:0,     freq:"Monthly", exp:"",           ret:6.5,  notes:"3 months of expenses", saved:true}
+];
+const UNASSIGNED = 0;           /* lump figure carried over from the landing page, not yet itemised */
+let MODE = "cat", SEARCH = "", FILTER = "", HZ = 10;
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+function fmt(n){
+  n = Math.round(n||0); const a = Math.abs(n), s = n<0 ? "\u2212" : "";
+  if(a >= 1e7) return s+"\u20B9"+(a/1e7).toFixed(a/1e7>=100?0:2)+"Cr";
+  if(a >= 1e5) return s+"\u20B9"+(a/1e5).toFixed(a/1e5>=100?0:1)+"L";
+  if(a >= 1e3) return s+"\u20B9"+(a/1e3).toFixed(a/1e3>=100?0:1)+"K";
+  return s+"\u20B9"+a;
+}
+const full = n => (n<0?"\u2212":"")+"\u20B9"+Math.abs(Math.round(n)).toLocaleString("en-IN");
+const totalVal = () => ROWS.reduce((t,r) => t + num(r.val), 0) + UNASSIGNED;
+const esc = s => String(s??"").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+/* years of SIP still to run, capped at the horizon being drawn */
+function sipYears(r, cap){
+  const per = PER_YEAR[r.freq] || 0;
+  if(num(r.sip) <= 0 || per === 0) return 0;
+  if(!r.exp) return cap;                                  /* open-ended: runs the whole view */
+  const y = (new Date(r.exp) - new Date()) / (365.25*24*3600*1000);
+  return Math.max(0, Math.min(cap, y));
+}
+/* value of one row at each year 0..years */
+function pathOf(r, years){
+  const g = num(r.ret)/100, per = PER_YEAR[r.freq] || 0;
+  const annual = num(r.sip) * per;
+  const run = sipYears(r, years);
+  const out = [num(r.val)];
+  let v = num(r.val);
+  for(let t=0; t<years; t++){ v = v*(1+g) + (t < run ? annual : 0); out.push(v); }
+  return out;
+}
+const futureValue = (r, years) => pathOf(r, years)[years];
+const monthlySip = () => ROWS.reduce((t,r) => t + (num(r.sip) * (PER_YEAR[r.freq]||0) / 12), 0);
+
+/* ================= DONUT ================= */
+const CX=110, CY=110, RO_OUT=92, RO_IN=72, RI_OUT=66, RI_IN=54, POP=8, TAU=Math.PI*2;
+const track = (ro,ri,col) => `<circle cx="${CX}" cy="${CY}" r="${(ro+ri)/2}" fill="none" stroke="${col}" stroke-width="${ro-ri}"/>`;
+function wedgePath(a0,a1,rOut,rIn){
+  const span = Math.min(a1-a0, TAU-0.0001); a1 = a0+span;
+  const P = (rad,a) => [(CX+rad*Math.cos(a)).toFixed(2), (CY+rad*Math.sin(a)).toFixed(2)];
+  const big = span > Math.PI ? 1 : 0;
+  const [x1,y1]=P(rOut,a0),[x2,y2]=P(rOut,a1),[x3,y3]=P(rIn,a1),[x4,y4]=P(rIn,a0);
+  return `M${x1},${y1} A${rOut},${rOut} 0 ${big} 1 ${x2},${y2} L${x3},${y3} A${rIn},${rIn} 0 ${big} 0 ${x4},${y4} Z`;
+}
+
+/* group rows by category or by tag */
+function buckets(by){
+  const src = by === "cat" ? CATS : TAGS;
+  const out = src.map(s => ({
+    n:s.n, c:s.c, v:0,
+    d: by === "cat"
+       ? "Historical average return " + s.ret + "% a year."
+       : s.d
+  }));
+  ROWS.forEach(r => {
+    const key = by === "cat" ? (catOf(r.cat).n) : (tagOf(r.tag).n);
+    const b = out.find(o => o.n === key);
+    if(b) b.v += num(r.val);
+  });
+  if(UNASSIGNED > 0) out.push({n:"Not yet itemised", c:"#dfe5ee", v:UNASSIGNED,
+    d:"Carried over from your snapshot. Break it into rows to see it here."});
+  return out.filter(o => o.v > 0).sort((a,b) => b.v - a.v);
+}
+
+function drawDonut(){
+  const svg = $("donut"), leg = $("dleg"), tip = $("dtip");
+  const outer = buckets(MODE);
+  const inner = buckets(MODE === "cat" ? "tag" : "cat");
+  const total = outer.reduce((t,s) => t+s.v, 0);
+  leg.innerHTML = "";
+
+  if(total <= 0){
+    svg.innerHTML = track(RO_OUT,RO_IN,"#eef1f6") + track(RI_OUT,RI_IN,"#f4f6fa");
+    $("d-v").textContent = "\u20B90";
+    $("d-s").textContent = "Add your first asset below";
+    $("mix-sub").textContent = "Nothing recorded yet";
+    leg.innerHTML = `<div class="li"><span class="nm" style="color:var(--slate)">Add an asset to see the mix</span></div>`;
+    return;
+  }
+
+  let s = track(RO_OUT,RO_IN,"#eef1f6") + track(RI_OUT,RI_IN,"#f4f6fa");
+  const meta = [];
+  const lay = (segs, rOut, rIn, tipR) => {
+    let a = -Math.PI/2;
+    segs.forEach(seg => {
+      const f = seg.v/total, span = f*TAU;
+      if(span <= 0) return;
+      const gap = Math.min(0.014, span*0.16), mid = a + span/2;
+      s += `<path class="wedge" tabindex="0" role="img" fill="${seg.c}"`
+         + ` aria-label="${esc(seg.n)}: ${full(seg.v)}, ${(f*100).toFixed(1)} percent"`
+         + ` d="${wedgePath(a+gap, a+span, rOut, rIn)}"></path>`;
+      meta.push({seg, mid, tipR});
+      a += span;
+    });
+  };
+  lay(outer, RO_OUT, RO_IN, (RO_OUT+RO_IN)/2);
+  lay(inner, RI_OUT, RI_IN, (RI_OUT+RI_IN)/2);
+  svg.innerHTML = s;
+
+  const handlers = [...svg.querySelectorAll(".wedge")].map((el,i) => {
+    const m = meta[i], dx = Math.cos(m.mid)*POP, dy = Math.sin(m.mid)*POP;
+    const show = () => {
+      el.setAttribute("transform", `translate(${dx.toFixed(2)},${dy.toFixed(2)})`);
+      tip.classList.add("on");
+      tip.style.left = ((CX + Math.cos(m.mid)*m.tipR)/220*100) + "%";
+      tip.style.top  = ((CY + Math.sin(m.mid)*m.tipR)/220*100) + "%";
+      tip.innerHTML = `<div class="n"><i style="background:${m.seg.c}"></i>${esc(m.seg.n)}</div>
+                       <div class="a">${full(m.seg.v)}</div>
+                       <div class="d">${(m.seg.v/total*100).toFixed(1)}% of ${fmt(total)}<br>${esc(m.seg.d)}</div>`;
+    };
+    const hide = () => { el.removeAttribute("transform"); tip.classList.remove("on"); };
+    el.addEventListener("mouseenter", show); el.addEventListener("mouseleave", hide);
+    el.addEventListener("focus", show);      el.addEventListener("blur", hide);
+    return {show, hide};
+  });
+
+  let n = 0;
+  const block = (title, segs, second) => {
+    const h = document.createElement("div");
+    h.className = "lhead" + (second ? " second" : ""); h.textContent = title; leg.appendChild(h);
+    segs.forEach(seg => {
+      const i = n++;
+      const li = document.createElement("div");
+      li.className = "li";
+      li.innerHTML = `<span class="sw" style="background:${seg.c}"></span>
+                      <span class="nm">${esc(seg.n)}</span>
+                      <span class="vl">${fmt(seg.v)}</span>
+                      <span class="pc">${(seg.v/total*100).toFixed(0)}%</span>`;
+      li.addEventListener("mouseenter", handlers[i].show);
+      li.addEventListener("mouseleave", handlers[i].hide);
+      leg.appendChild(li);
+    });
+  };
+  block(MODE === "cat" ? "By form" : "By purpose", outer, false);
+  block(MODE === "cat" ? "By purpose" : "By form", inner, true);
+
+  const top = outer[0];
+  $("d-v").textContent = fmt(total);
+  $("d-s").textContent = top ? `${(top.v/total*100).toFixed(0)}% sits in ${top.n.toLowerCase()}` : "";
+  $("mix-sub").textContent = MODE === "cat"
+    ? `Across ${outer.length} asset ${outer.length===1?"class":"classes"} and ${inner.length} ${inner.length===1?"purpose":"purposes"}`
+    : `Across ${outer.length} ${outer.length===1?"purpose":"purposes"} and ${inner.length} asset ${inner.length===1?"class":"classes"}`;
+  $("d-key").innerHTML = MODE === "cat"
+    ? "Outer ring: what form &nbsp;&middot;&nbsp; Inner arc: what purpose"
+    : "Outer ring: what purpose &nbsp;&middot;&nbsp; Inner arc: what form";
+}
+
+/* ================= GROWTH CHART ================= */
+const GW=1400, GH=320, GL=78, GR=20, GT=16, GB=38;    /* viewBox + plot padding */
+const PW = GW-GL-GR, PH = GH-GT-GB;
+
+/* One line per asset row. Each asset gets its own clearly distinguishable colour. */
+function growthSeries(years){
+  const used = new Map();
+  return ROWS.map((r, idx) => {
+    const base = (r.name || `Asset ${idx+1}`).trim() || `Asset ${idx+1}`;
+    const count = (used.get(base) || 0) + 1;
+    used.set(base, count);
+    const label = count > 1 ? `${base} (${count})` : base;
+    return {
+      n: label,
+      c: ASSET_COLORS[idx % ASSET_COLORS.length],
+      pts: pathOf(r, years)
+    };
+  }).filter(s => s.pts.some(v => v > 0));
+}
+function niceStep(max){
+  const raw = max/4, p = Math.pow(10, Math.floor(Math.log10(raw||1)));
+  return [1,2,2.5,5,10].map(m => m*p).find(v => v >= raw) || p*10;
+}
+
+function drawGrowth(){
+  const svg = $("growth"), leg = $("gleg"), tip = $("gtip");
+  const years = HZ, S = growthSeries(years);
+  const totals = new Array(years+1).fill(0);
+  S.forEach(s => s.pts.forEach((v,i) => totals[i] += v));
+  const y0 = new Date().getFullYear();
+
+  if(!S.length || totals[years] <= 0){
+    svg.innerHTML = `<text x="${GL+PW/2}" y="${GT+PH/2}" text-anchor="middle" fill="#9aa7bd" font-size="14" font-family="var(--font)">Add an asset below to see the growth path</text>`;
+    leg.innerHTML = ""; $("g-sub").innerHTML = "Nothing to project yet";
+    return;
+  }
+
+  const peak = Math.max(...totals), step = niceStep(peak), top = Math.ceil(peak/step)*step;
+  const X = i => GL + (i/years)*PW;
+  const Y = v => GT + PH - (v/top)*PH;
+
+  let g = "";
+  /* dashed grid like the reference graph */
+  for(let v=0; v<=top+1; v+=step){
+    const y = Y(v).toFixed(1);
+    g += `<line x1="${GL}" y1="${y}" x2="${GL+PW}" y2="${y}" stroke="#c7cdd5" stroke-width="1" stroke-dasharray="4 4"/>`
+       + `<text x="${GL-10}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="#52657e" font-size="12">${fmt(v)}</text>`;
+  }
+  const tick = Math.max(1, Math.round(years/7));
+  for(let i=0;i<=years;i+=tick){
+    const x=X(i).toFixed(1);
+    g += `<line x1="${x}" y1="${GT}" x2="${x}" y2="${GT+PH}" stroke="#c7cdd5" stroke-width="1" stroke-dasharray="4 4"/>`
+       + `<text x="${x}" y="${GT+PH+22}" text-anchor="${i===0?"start":(i>=years-0.5?"end":"middle")}" fill="#52657e" font-size="12">${i===0?y0:y0+i}</text>`;
+  }
+
+  /* subtle area beneath total */
+  const areaPts = totals.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" L");
+  g += `<path d="M${X(0)},${Y(0)} L${areaPts} L${X(years)},${Y(0)} Z" fill="#2457d6" fill-opacity=".12" stroke="none"/>`;
+
+  /* smooth asset lines with point markers */
+  const bands = [];
+  S.forEach(sr => {
+    const d = sr.pts.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" L");
+    g += `<path d="M${d}" fill="none" stroke="${sr.c}" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round"/>`;
+    g += sr.pts.map((v,i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.6" fill="#fff" fill-opacity=".45" stroke="${sr.c}" stroke-width="2"/>`).join("");
+    bands.push(sr);
+  });
+
+  const tl = totals.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" L");
+  g += `<path d="M${tl}" fill="none" stroke="#174ee8" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`;
+  g += totals.map((v,i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4.1" fill="#fff" fill-opacity=".45" stroke="#174ee8" stroke-width="2.2"/>`).join("");
+
+  g += `<g id="gcross" opacity="0">
+          <line y1="${GT}" y2="${GT+PH}" stroke="#7c8796" stroke-width="1"/>
+          <circle r="5" fill="#fff" stroke="#174ee8" stroke-width="2.5"/>
+        </g>
+        <g id="gdots"></g>
+        <rect id="ghit" x="${GL}" y="${GT}" width="${PW}" height="${PH}" fill="transparent" style="cursor:crosshair"/>`;
+  svg.innerHTML = g;
+
+  leg.innerHTML = S.map(s =>
+    `<span class="gi"><i style="background:${s.c};border-radius:50%"></i>${esc(s.n)} <b>${fmt(s.pts[years])}</b></span>`
+  ).join("") + `<span class="gi" style="margin-left:auto"><i style="background:#174ee8;border-radius:50%"></i>Total <b>${fmt(totals[years])}</b></span>`;
+
+  const mult = totals[0] > 0 ? (totals[years]/totals[0]) : 0;
+  $("g-sub").innerHTML = `Today <b>${fmt(totals[0])}</b><span class="arrow">&rarr;</span>`
+    + `${y0+years} <b>${fmt(totals[years])}</b>`
+    + (mult ? ` &middot; ${mult.toFixed(1)}&times; over ${years} years` : "")
+    + (monthlySip() > 0 ? ` &middot; ${fmt(monthlySip())} a month going in` : "");
+
+  const cross = svg.querySelector("#gcross"), hit = svg.querySelector("#ghit");
+  const line = cross.querySelector("line"), dot = cross.querySelector("circle");
+  const dots = svg.querySelector("#gdots");
+  const move = ev => {
+    const b = svg.getBoundingClientRect();
+    const px = (ev.clientX - b.left) / b.width * GW;
+    let i = Math.round((px - GL)/PW*years);
+    i = Math.max(0, Math.min(years, i));
+    const x = X(i), yv = Y(totals[i]);
+    line.setAttribute("x1", x); line.setAttribute("x2", x);
+    dot.setAttribute("cx", x); dot.setAttribute("cy", yv);
+    cross.setAttribute("opacity","1");
+    dots.innerHTML = bands.map(sr =>
+      `<circle cx="${x.toFixed(1)}" cy="${Y(sr.pts[i]).toFixed(1)}" r="4" fill="#fff" stroke="${sr.c}" stroke-width="2"/>`
+    ).join("");
+
+    const parts = bands.map(s => ({n:s.n, c:s.c, v:s.pts[i]})).sort((a,b) => b.v-a.v);
+    tip.innerHTML = `<div class="yr">Year: ${y0+i}</div>
+      <div class="tt">Total assets: ${full(totals[i])}</div>`
+      + parts.map(p => `<div class="gl"><i style="background:${p.c}"></i><span>${esc(p.n)}</span><b>${fmt(p.v)}</b></div>`).join("");
+    tip.classList.add("on");
+    tip.style.transform = "none";
+    const tipW = tip.offsetWidth;
+    const xPx = (x / GW) * b.width;
+    const yPx = (yv / GH) * b.height;
+    const gap = 10;
+    const pad = 8;
+
+    /* Anchor the tooltip by its BOTTOM edge to the total line.
+       This makes the whole card rise and fall with the topmost line,
+       while keeping a small, fixed gap above it. */
+    const leftPx = Math.min(Math.max(xPx - tipW / 2, pad), b.width - tipW - pad);
+    tip.style.left = leftPx + "px";
+    tip.style.top = "auto";
+    tip.style.bottom = Math.max(pad, b.height - yPx + gap) + "px";
+  };
+  const leave = () => { cross.setAttribute("opacity","0"); dots.innerHTML=""; tip.classList.remove("on"); };
+  hit.addEventListener("mousemove", move);
+  hit.addEventListener("mouseleave", leave);
+  hit.addEventListener("touchstart", e => move(e.touches[0]), {passive:true});
+  hit.addEventListener("touchmove", e => move(e.touches[0]), {passive:true});
+  hit.addEventListener("touchend", leave);
+}
+
+/* ================= DROPDOWNS =================
+   Native <option> lists are drawn by the OS and can't be themed, so the
+   pickers are real elements. The panel lives on <body> as position:fixed so
+   the table's horizontal overflow can't clip it.
+============================================== */
+const DDPOP = document.createElement("div");
+DDPOP.className = "ddpop"; DDPOP.setAttribute("role","listbox");
+document.body.appendChild(DDPOP);
+let DD = null;                                  /* {btn, opts, pick, idx} */
+
+function ddClose(){
+  if(!DD) return;
+  DDPOP.classList.remove("on"); DDPOP.innerHTML = "";
+  DD.btn.setAttribute("aria-expanded","false");
+  DD = null;
+}
+function ddMark(scroll){
+  [...DDPOP.children].forEach((el,i) => el.classList.toggle("cur", i === DD.idx));
+  if(scroll && DDPOP.children[DD.idx]) DDPOP.children[DD.idx].scrollIntoView({block:"nearest"});
+}
+function ddPlace(){
+  const r = DD.btn.getBoundingClientRect();
+  DDPOP.style.minWidth = Math.max(r.width, 190) + "px";
+  DDPOP.style.left = "-9999px"; DDPOP.style.top = "0px";          /* measure clean */
+  const pw = DDPOP.offsetWidth, ph = DDPOP.offsetHeight;
+  let top = r.bottom + 6, left = r.left;
+  if(top + ph > innerHeight - 10) top = Math.max(10, r.top - ph - 6);   /* flip up */
+  if(left + pw > innerWidth - 10) left = Math.max(10, innerWidth - pw - 10);
+  DDPOP.style.left = Math.round(left) + "px"; DDPOP.style.top = Math.round(top) + "px";
+}
+function ddToggle(btn, opts, cur, pick){
+  if(DD && DD.btn === btn){ ddClose(); return; }
+  ddClose();
+  DDPOP.innerHTML = opts.map((o,i) =>
+      `<div class="ddopt" role="option" data-i="${i}" aria-selected="${o.n === cur}">`
+    + (o.c ? `<span class="sw" style="background:${o.c}"></span>` : "")
+    + `<span class="nm">${esc(o.n)}</span>`
+    + (o.rt ? `<span class="rt">${o.rt}</span>` : "")
+    + `</div>`).join("");
+  DDPOP.classList.add("on");
+  btn.setAttribute("aria-expanded","true");
+  DD = {btn, opts, pick, idx: Math.max(0, opts.findIndex(o => o.n === cur))};
+  ddPlace(); ddMark(true);
+  btn.focus();
+}
+function ddChoose(i){
+  const {opts, pick, btn} = DD; ddClose(); btn.focus(); pick(opts[i].n);
+}
+DDPOP.addEventListener("mousedown", e => {
+  const el = e.target.closest(".ddopt");
+  if(!el || !DD) return;
+  e.preventDefault(); ddChoose(+el.dataset.i);
+});
+DDPOP.addEventListener("mousemove", e => {
+  const el = e.target.closest(".ddopt");
+  if(el && DD){ DD.idx = +el.dataset.i; ddMark(false); }
+});
+document.addEventListener("mousedown", e => {
+  if(DD && !DDPOP.contains(e.target) && !DD.btn.contains(e.target)) ddClose();
+});
+document.addEventListener("keydown", e => {
+  if(!DD) return;
+  const n = DD.opts.length;
+  const k = e.key;
+  if(k === "Escape"){ e.preventDefault(); const b = DD.btn; ddClose(); b.focus(); }
+  else if(k === "ArrowDown"){ e.preventDefault(); DD.idx = (DD.idx+1)%n; ddMark(true); }
+  else if(k === "ArrowUp"){ e.preventDefault(); DD.idx = (DD.idx-1+n)%n; ddMark(true); }
+  else if(k === "Home"){ e.preventDefault(); DD.idx = 0; ddMark(true); }
+  else if(k === "End"){ e.preventDefault(); DD.idx = n-1; ddMark(true); }
+  else if(k === "Enter" || k === " "){ e.preventDefault(); ddChoose(DD.idx); }
+  else if(k === "Tab"){ ddClose(); }
+  else if(k.length === 1 && /\S/.test(k)){                      /* type to jump */
+    const q = k.toLowerCase();
+    const at = DD.opts.findIndex((o,i) => i > DD.idx && o.n.toLowerCase().startsWith(q));
+    const hit = at > -1 ? at : DD.opts.findIndex(o => o.n.toLowerCase().startsWith(q));
+    if(hit > -1){ DD.idx = hit; ddMark(true); }
+  }
+});
+/* keep the panel glued to its trigger while anything scrolls */
+window.addEventListener("scroll", () => { if(DD) ddPlace(); }, true);
+window.addEventListener("resize", ddClose);
+
+/* open on keyboard without a mouse press */
+document.addEventListener("keydown", e => {
+  if(DD) return;
+  const b = document.activeElement;
+  if(b && b.classList && b.classList.contains("dd") && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")){
+    e.preventDefault(); b.click();
+  }
+});
+
+/* ================= TABLE ================= */
+function visible(){
+  const q = SEARCH.trim().toLowerCase();
+  return ROWS.map((r,i) => ({r,i})).filter(({r}) => {
+    if(FILTER && tagOf(r.tag).n !== FILTER) return false;
+    if(!q) return true;
+    return (r.name+" "+r.cat+" "+r.notes).toLowerCase().includes(q);
+  });
+}
+function drawTable(){
+  const tb = $("tbody"), rows = visible();
+  tb.innerHTML = "";
+  $("empty").style.display = rows.length ? "none" : "block";
+  $("rowcount").textContent = rows.length === ROWS.length
+    ? ROWS.length + (ROWS.length===1 ? " asset" : " assets")
+    : rows.length + " of " + ROWS.length + " shown";
+
+  rows.forEach(({r,i}, vi) => {
+    const tr = document.createElement("tr");
+    const cat = catOf(r.cat), tag = tagOf(r.tag);
+    const fv  = futureValue(r, 10);
+    const gain = fv - num(r.val);
+    tr.innerHTML = `
+      <td class="stick"><input class="cell name" data-k="name" value="${esc(r.name)}" placeholder="Name this asset"></td>
+      <td><button type="button" class="dd catpick" data-dd="cat" aria-haspopup="listbox" aria-expanded="false">
+            <span class="sw" style="background:${cat.c}"></span><span class="lbl">${esc(cat.n)}</span></button></td>
+      <td><button type="button" class="dd tagpick" data-dd="tag" aria-haspopup="listbox" aria-expanded="false">
+            <span class="sw" style="background:${tag.c}"></span><span class="lbl">${esc(tag.n)}</span></button></td>
+      <td><input class="cell money" data-k="val" type="number" value="${r.val}" placeholder="0"></td>
+      <td><input class="cell money" data-k="ret" type="number" step="0.1" value="${r.ret}"></td>
+      <td><input class="cell money" data-k="sip" type="number" value="${r.sip}" placeholder="0"></td>
+      <td><button type="button" class="dd freqpick" data-dd="freq" aria-haspopup="listbox" aria-expanded="false">
+            <span class="lbl">${esc(r.freq)}</span></button></td>
+      <td><input class="cell small" data-k="exp" type="date" value="${r.exp}"></td>
+      <td class="rt"><span class="proj">${fmt(fv)}<small>${gain>=0?"+":""}${fmt(gain)} growth</small></span></td>
+      <td><input class="cell" data-k="notes" value="${esc(r.notes||"")}" placeholder="Click to add" style="min-width:150px"></td>
+      <td><span class="acts">
+        <button class="rb save${r.saved?" done":""}" type="button">${r.saved?"Saved":"Save"}</button>
+        <button class="rb del" type="button">Remove</button></span></td>`;
+
+    const btnSave = tr.querySelector(".save");
+    const dirty = () => { r.saved = false; btnSave.classList.remove("done"); btnSave.textContent = "Save"; };
+
+    tr.querySelectorAll("[data-k]").forEach(el => {
+      el.addEventListener("input", e => {
+        const k = e.target.dataset.k;
+        r[k] = ["val","sip","ret"].includes(k) ? num(e.target.value) : e.target.value;
+        dirty();
+        refresh(false);
+      });
+    });
+
+    tr.querySelectorAll("[data-dd]").forEach(btn => {
+      const k = btn.dataset.dd;
+      const opts = k === "cat" ? CATS.map(c => ({n:c.n, c:c.c, rt:c.ret.toFixed(1)+"%"}))
+                 : k === "tag" ? TAGS.map(t => ({n:t.n, c:t.c}))
+                 :               FREQ.map(f => ({n:f}));
+      btn.addEventListener("mousedown", e => e.preventDefault());   /* keep focus off the press */
+      btn.addEventListener("click", () => ddToggle(btn, opts, r[k], v => {
+        if(v === r[k]) return;
+        r[k] = v; dirty();
+        /* choosing a category drops in that class's historical return */
+        if(k === "cat") r.ret = catOf(r.cat).ret;
+        refresh();
+        const back = $("tbody").children[vi];
+        if(back) back.querySelector(`[data-dd="${k}"]`).focus();
+      }));
+    });
+    btnSave.addEventListener("click", () => { r.saved = true; btnSave.classList.add("done"); btnSave.textContent = "Saved"; });
+    tr.querySelector(".del").addEventListener("click", () => { ROWS.splice(i,1); refresh(); });
+    tb.appendChild(tr);
+  });
+}
+
+/* ================= REFRESH ================= */
+function refresh(redrawTable = true){
+  drawDonut(); drawGrowth();
+  if(redrawTable) drawTable();
+}
+
+/* ================= WIRING ================= */
+document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-mode]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); MODE = b.dataset.mode; drawDonut(); drawGrowth();
+}));
+document.querySelectorAll("[data-hz]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-hz]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); HZ = +b.dataset.hz; drawGrowth();
+}));
+const addAsset = () => {
+  ROWS.push({name:"", cat:"Equity mutual funds", tag:"Investment", val:0, sip:0,
+             freq:"Monthly", exp:"", ret:catOf("Equity mutual funds").ret, notes:"", saved:false});
+  SEARCH = ""; $("search").value = ""; setFilter("All purposes");
+  refresh();
+  const last = $("tbody").lastElementChild;
+  if(last) last.querySelector("input").focus();
+};
+$("btn-add").addEventListener("click", addAsset);
+$("btn-add2").addEventListener("click", addAsset);
+$("search").addEventListener("input", e => { SEARCH = e.target.value; drawTable(); });
+const FILTEROPTS = [{n:"All purposes"}].concat(TAGS.map(t => ({n:t.n, c:t.c})));
+const setFilter = v => {
+  FILTER = v === "All purposes" ? "" : v;
+  const o = FILTEROPTS.find(x => x.n === (FILTER || "All purposes"));
+  $("filter").innerHTML = (o && o.c ? `<span class="sw" style="background:${o.c}"></span>` : "")
+    + `<span class="lbl">${esc(FILTER || "All purposes")}</span>`;
+  drawTable();
+};
+$("filter").addEventListener("mousedown", e => e.preventDefault());
+$("filter").addEventListener("click", () =>
+  ddToggle($("filter"), FILTEROPTS, FILTER || "All purposes", setFilter));
+$("btn-reset").addEventListener("click", () => {
+  SEARCH = ""; $("search").value = ""; setFilter("All purposes");
+});
+$("btn-csv").addEventListener("click", () => {
+  const head = ["Name","Category","Purpose","Current value","Expected return %","SIP amount","SIP frequency","SIP expiry","Value in 10 yrs","Notes"];
+  const q = v => `"${String(v??"").replace(/"/g,'""')}"`;
+  const csv = [head.map(q).join(",")].concat(
+    ROWS.map(r => [r.name,r.cat,r.tag,r.val,r.ret,r.sip,r.freq,r.exp,Math.round(futureValue(r,10)),r.notes].map(q).join(","))
+  ).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
+  a.download = "lifemap-assets.csv"; a.click(); URL.revokeObjectURL(a.href);
+});
+
+/* ========================= STACKED NAV =========================
+   Same behaviour as the landing page: tier 0 and tier 1 scroll away with the
+   page, only .tier2wrap freezes at the top.
+============================================================== */
+(function(){
+  const tabs = [...document.querySelectorAll(".tier2 .stab[data-go]")];
+  const jump = id => {
+    const el = $(id);
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  };
+  tabs.forEach(b => b.addEventListener("click", () => {
+    tabs.forEach(x => x.classList.toggle("on", x === b));
+    jump(b.dataset.go);
+  }));
+
+  /* the frozen bar lifts off the page once the header has scrolled past */
+  const bar = $("tier2wrap"), head = document.querySelector(".topbar");
+  if(bar && head){
+    const onStuck = () => bar.classList.toggle("stuck", window.scrollY > head.offsetHeight - 1);
+    window.addEventListener("scroll", onStuck, {passive:true});
+    window.addEventListener("resize", onStuck);
+    onStuck();
+  }
+
+  /* highlight whichever section is in view */
+  const mark = id => tabs.forEach(b => b.classList.toggle("on", b.dataset.go === id));
+  const targets = tabs.map(b => $(b.dataset.go)).filter(Boolean);
+  if("IntersectionObserver" in window && targets.length){
+    const nav = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--navh")) || 44;
+    const seen = new Map();
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => seen.set(e.target.id, e));
+      let best = null;
+      seen.forEach(e => {
+        if(!e.isIntersecting) return;
+        if(!best || e.intersectionRatio > best.intersectionRatio) best = e;
+      });
+      if(best) mark(best.target.id);
+    }, {rootMargin:"-" + (nav + 10) + "px 0px -55% 0px", threshold:[0,.1,.25,.5,1]});
+    targets.forEach(t => obs.observe(t));
+  }
+})();
+
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(drawGrowth, 120); });
+
+setFilter("All purposes"); refresh();
+/* ---------- page description toggle ---------- */
+document.querySelectorAll(".pmore").forEach(btn => {
+  const box = document.getElementById(btn.getAttribute("aria-controls"));
+  if(!box) return;
+  const set = open => {
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    box.classList.toggle("open", open);
+    /* measured on every open: the text wraps differently at different widths */
+    box.style.maxHeight = open ? box.scrollHeight + "px" : "0px";
+  };
+  btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+  window.addEventListener("resize", () => {
+    if(btn.getAttribute("aria-expanded") === "true") box.style.maxHeight = box.scrollHeight + "px";
+  });
+});
+
+/* ---------- fold every section note behind a caret ----------
+   Done here rather than in the markup so the same rule covers notes that are
+   written by script as well as those already in the page, and so a note added
+   later is folded automatically. */
+(function(){
+  document.querySelectorAll(".rowfoot, .foot, .gfoot, .rnote").forEach(note => {
+    if(note.closest(".nfold")) return;
+    const host = note.parentNode;
+    const bar  = document.createElement("div");
+    bar.className = "notebar";
+    const btn  = document.createElement("button");
+    btn.type = "button"; btn.className = "nmore";
+    btn.setAttribute("aria-expanded","false");
+    btn.setAttribute("aria-label","Show the note for this section");
+    bar.appendChild(btn);
+    const fold = document.createElement("div");
+    fold.className = "nfold";
+    host.insertBefore(bar, note);
+    host.insertBefore(fold, note);
+    fold.appendChild(note);
+    const set = open => {
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      fold.classList.toggle("open", open);
+      fold.style.maxHeight = open ? fold.scrollHeight + "px" : "0px";
+    };
+    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+    /* the notes are rewritten as figures change, so the measured height goes stale */
+    new MutationObserver(() => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    }).observe(note, {childList:true, characterData:true, subtree:true});
+    window.addEventListener("resize", () => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    });
+  });
+})();
+
+
+/* === LIFEMAP_BRIDGE_START === */
+(function(){
+  var PAGE = "assets";
+  var ROUTES = {
+    "lifemap-fp-calculator.html": "/",
+    "fp-calculator.html": "/",
+    "lifemap-assets.html": "/assets",
+    "assets.html": "/assets",
+    "lifemap-work-assets.html": "/work-assets",
+    "work-assets.html": "/work-assets",
+    "lifemap-goals.html": "/goals",
+    "goals.html": "/goals",
+    "lifemap-loans.html": "/loans",
+    "loans.html": "/loans",
+    "lifemap-expenses.html": "/expenses",
+    "expenses.html": "/expenses",
+    "lifemap-insurance.html": "/insurance",
+    "insurance.html": "/insurance"
+  };
+
+  function post(type, payload){
+    try { parent.postMessage({ source:"lifemap-mockup", type:type, page:PAGE, payload:payload||null }, "*"); }
+    catch (e) {}
+  }
+
+  function fileOf(href){
+    if (!href) return "";
+    var clean = String(href).split("#")[0].split("?")[0];
+    var parts = clean.split("/");
+    return parts[parts.length-1];
+  }
+
+  function replaceList(target, next){
+    if (!target || !next) return;
+    target.splice.apply(target, [0, target.length].concat(next));
+  }
+
+  function getState(){
+    try {
+      if (PAGE === "fp") {
+        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
+      }
+      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ };
+      if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
+      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS };
+      if (PAGE === "loans") return { ROWS: ROWS.slice(), PLAN: PLAN.slice(), VIEW: VIEW };
+      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE };
+    } catch (e) { console.error(e); }
+    return {};
+  }
+
+  function hydrateFp(st){
+    if (!st || !st.S) return;
+    var src = st.S;
+    S.age = src.age; S.salary = src.salary; S.gSal = src.gSal; S.workTill = src.workTill;
+    S.finAssets = src.finAssets; S.personalAssets = src.personalAssets;
+    S.gRet = src.gRet; S.gInf = src.gInf; S.lifeTo = src.lifeTo;
+    if (src.loans) replaceList(S.loans, src.loans);
+    if (src.goals) replaceList(S.goals, src.goals);
+    if (src.exp) replaceList(S.exp, src.exp);
+    var set = function(id, val){ var el = $(id); if (el) el.value = val; };
+    var setTxt = function(id, val){ var el = $(id); if (el) el.textContent = val; };
+    set("i-age", S.age);
+    set("i-salary", S.salary);
+    set("i-gsal", S.gSal);
+    set("i-gsal2", S.gSal);
+    set("i-work-age", S.workTill);
+    set("i-fin-assets", S.finAssets);
+    set("i-personal-assets", S.personalAssets);
+    set("i-gret", S.gRet); setTxt("o-gret", Number(S.gRet).toFixed(1)+"%");
+    set("i-ginf", S.gInf); setTxt("o-ginf", Number(S.gInf).toFixed(1)+"%");
+    setTxt("o-gsal2", Number(S.gSal).toFixed(1)+"%");
+    set("i-life", S.lifeTo); setTxt("o-life", S.lifeTo);
+    ["loans","goals","exp"].forEach(renderRows);
+    refresh();
+  }
+
+  function setState(st){
+    if (!st) return;
+    try {
+      if (PAGE === "fp") { hydrateFp(st); return; }
+      if (PAGE === "assets") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
+        if (st.MODE) MODE = st.MODE;
+        if (st.HZ) HZ = st.HZ;
+        refresh();
+        return;
+      }
+      if (PAGE === "work") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") {
+          AGE = st.AGE;
+          var ageEl = $("i-age");
+          if (ageEl) ageEl.value = AGE;
+        }
+        var maxId = 0;
+        ROWS.forEach(function(r){ if (r.id > maxId) maxId = r.id; });
+        try { NEXT_ID = maxId + 1; } catch(e) {}
+        refresh();
+        return;
+      }
+      if (PAGE === "goals") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
+        if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
+        if (st.BASIS) BASIS = st.BASIS;
+        refresh();
+        return;
+      }
+      if (PAGE === "loans") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (st.PLAN) replaceList(PLAN, st.PLAN);
+        if (typeof REGS !== "undefined") {
+          REGS.cur.list = ROWS;
+          REGS.plan.list = PLAN;
+        }
+        if (st.VIEW) VIEW = st.VIEW;
+        refresh();
+        return;
+      }
+      if (PAGE === "expenses") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var e1=$("i-age"); if(e1) e1.value=AGE; }
+        if (typeof st.LIFE === "number") { LIFE = st.LIFE; var e2=$("i-life"); if(e2) e2.value=LIFE; }
+        if (typeof st.GINF === "number") { GINF = st.GINF; var e3=$("i-ginf"); if(e3) e3.value=GINF; }
+        if (st.BASIS) BASIS = st.BASIS;
+        if (st.MODE) MODE = st.MODE;
+        refresh();
+      }
+    } catch (err) {
+      console.error("LifeMap setState failed", err);
+    }
+  }
+
+  function setAccount(label){
+    var link = document.querySelector(".tier0 .tlink");
+    if (link && label) link.textContent = label;
+  }
+
+  document.querySelectorAll(".ptab.gate").forEach(function(a){
+    var label = (a.textContent || "").replace(/\s+/g," ").trim();
+    if (/insurance/i.test(label)) {
+      a.classList.remove("gate");
+      a.removeAttribute("title");
+      a.setAttribute("href", "/insurance");
+    }
+  });
+
+  document.querySelectorAll("a").forEach(function(a){
+    a.addEventListener("click", function(e){
+      var href = a.getAttribute("href") || "";
+      var file = fileOf(href);
+      var label = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/^insurance$/i.test(label) && (a.classList.contains("ptab") || href === "/insurance" || href === "#")) {
+        e.preventDefault();
+        post("navigate", { path: "/insurance" });
+        return;
+      }
+      if (a.classList.contains("gate")) { e.preventDefault(); return; }
+      if (ROUTES[file]) {
+        e.preventDefault();
+        post("navigate", { path: ROUTES[file] });
+      }
+    });
+  });
+
+  document.querySelectorAll(".tier0 .tlink, .tier0 .btn").forEach(function(a){
+    a.addEventListener("click", function(e){
+      e.preventDefault();
+      var text = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/sign in|account/i.test(text)) post("auth", { action: "signin", label: text });
+      else if (/save/i.test(text)) post("save", getState());
+    });
+  });
+
+  document.addEventListener("click", function(e){
+    var saveBtn = e.target.closest && e.target.closest(".rb.save");
+    var delBtn = e.target.closest && e.target.closest(".rb.del");
+    if (saveBtn || delBtn) {
+      setTimeout(function(){ post(delBtn ? "row-delete" : "row-save", getState()); }, 30);
+    }
+  }, true);
+
+  window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  post("ready", getState());
+})();
+/* === LIFEMAP_BRIDGE_END === */
+
+</script>
+</body>
+</html>

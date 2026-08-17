@@ -6,8 +6,10 @@ import { useLifeSheetStore } from '../store/enhanced-store'
 import ApiService from '../services/api'
 import LoansChart from '@/components/LoansChart.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertTriangle, CreditCard } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import PageHeader from '@/components/PageHeader.jsx'
+import PagePager from '@/components/PagePager.jsx'
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined || isNaN(value)) return '₹0';
@@ -397,17 +399,13 @@ export default function LoansPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="lifemap-page-header">
-        <div>
-          <h1 className="lifemap-page-title">Loans</h1>
-          <p className="lifemap-page-subtitle flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-slate-400" />
-            Add or edit your loans here
-          </p>
-        </div>
+    <div className="lm-body">
+      <PageHeader
+        title="What you owe"
+        description="Every loan, with its real repayment schedule. Enter the balance, the rate and the instalment — LifeMap works out when each one actually clears and what it will have cost you by then."
+      />
         {rows.length === 0 && (
-          <div className="lifemap-alert">
+          <div className="lm-alert">
             <AlertTriangle className="h-4 w-4" />
             <span>
               Start adding your first loan in the loan register below to get an output on the
@@ -415,9 +413,11 @@ export default function LoansPage() {
             </span>
           </div>
         )}
-      </div>
 
-      <LoansChart loans={rows} />
+      <div id="sec-schedule" className="lm-card" style={{ padding: '18px 20px 14px', marginBottom: 16 }}>
+        <h3 style={{ fontSize: 16, marginBottom: 10 }}>Path to debt-free</h3>
+        <LoansChart loans={rows} />
+      </div>
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="text-sm font-semibold text-slate-700">
@@ -431,7 +431,7 @@ export default function LoansPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="lifemap-stat-grid">
+      <div id="sec-mix" className="lifemap-stat-grid">
         <div className="lifemap-stat-card">
           <p className="lifemap-stat-title">Detailed Loans</p>
           <div className="lifemap-stat-value text-emerald-600">
@@ -478,18 +478,14 @@ export default function LoansPage() {
 
       {/* Loan Register */}
       {columns && Array.isArray(columns) && rows && Array.isArray(rows) ? (
-        <div className="lifemap-panel">
-          <div className="lifemap-panel-header">
-            <div className="lifemap-panel-title">
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
-                <CreditCard className="h-4 w-4" />
-              </span>
-              My Loans
-            </div>
-            <div className="flex items-center gap-2">
-            <Button size="sm" onClick={addRow}>Add Row</Button>
-            <Button size="sm" variant="outline" onClick={handleExportCsv}>Export CSV</Button>
-              <Button size="sm" variant="ghost" className="text-red-500" onClick={handleReset}>Reset</Button>
+        <div id="sec-register" className="lm-card">
+          <div className="lm-reghead">
+            <h3>Current loans</h3>
+            <span className="count">{rows.length} loans</span>
+            <div className="r">
+            <Button size="sm" className="lm-ghost primary" onClick={addRow}>+ Add loan</Button>
+            <Button size="sm" variant="outline" className="lm-ghost" onClick={handleExportCsv}>Export CSV</Button>
+              <Button size="sm" variant="ghost" className="lm-ghost" onClick={handleReset}>Reset</Button>
             </div>
           </div>
           <div className="p-6">
@@ -513,13 +509,14 @@ export default function LoansPage() {
       )}
 
       {/* Important Note */}
-      <div className="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
+      <div className="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400" style={{ marginTop: 16 }}>
         <p>
           <strong>Note:</strong> EMI payments are automatically excluded from your Expenses module 
           to avoid double counting. Loan EMIs are tracked separately here and included in your 
           financial projections.
         </p>
       </div>
+      <PagePager />
     </div>
   )
 }

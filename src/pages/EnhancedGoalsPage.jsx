@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Target } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
 import GoalsChart from '@/components/GoalsChart.jsx';
 import GoalDonutChart from '@/components/GoalDonutChart.jsx';
 import LinkedAssetsEditor from '@/components/LinkedAssetsEditor.jsx';
+import PageHeader from '@/components/PageHeader.jsx';
+import PagePager from '@/components/PagePager.jsx';
 import { calculateGoalFunding, formatCurrency, syncEarmarkingData } from '@/lib/goalCalculations';
 import { eventBus } from '@/lib/eventBus';
 import { Button } from '@/components/ui/button';
@@ -477,17 +479,13 @@ export default function EnhancedGoalsPage() {
   const selectedGoal = rows.length > 0 ? rows[0] : null;
 
   return (
-    <div className="space-y-6">
-      <div className="lifemap-page-header">
-        <div>
-          <h1 className="lifemap-page-title">Goals</h1>
-          <p className="lifemap-page-subtitle flex items-center gap-2">
-            <Target className="h-4 w-4 text-slate-400" />
-            Add or edit your goals
-          </p>
-        </div>
+    <div className="lm-body">
+      <PageHeader
+        title="What you are saving for"
+        description="The one-off, dated commitments that sit on top of ordinary living costs — a degree, a wedding, a down payment, a corpus for your parents. Enter what each would cost if it happened today and the age you expect to need it."
+      />
         {rows.length === 0 && (
-          <div className="lifemap-alert">
+          <div className="lm-alert">
             <AlertTriangle className="h-4 w-4" />
             <span>
               Start adding your first goal in the goal register below. You may add as many
@@ -495,34 +493,25 @@ export default function EnhancedGoalsPage() {
             </span>
           </div>
         )}
-      </div>
 
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+      <div className="flex items-center gap-3 mb-4">
         <button
           type="button"
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'progress' 
-              ? 'bg-blue-600 text-white' 
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
+          className={`lm-ghost ${activeTab === 'progress' ? 'primary' : ''}`}
           onClick={() => setActiveTab('progress')}
         >
           Progress to Goals
         </button>
         <button
           type="button"
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'saving' 
-              ? 'bg-blue-600 text-white' 
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
+          className={`lm-ghost ${activeTab === 'saving' ? 'primary' : ''}`}
           onClick={() => setActiveTab('saving')}
         >
           Saving Need Over Time
         </button>
       </div>
 
-      <div className="lifemap-stat-grid">
+      <div id="sec-mix" className="lifemap-stat-grid">
         <div className="lifemap-stat-card">
           <p className="lifemap-stat-title">Total Target Amount</p>
           <div className="lifemap-stat-value text-blue-600">{formatCurrency(totalTargetAmount)}</div>
@@ -538,18 +527,14 @@ export default function EnhancedGoalsPage() {
         </div>
       </div>
 
-      <div className="lifemap-panel">
-        <div className="lifemap-panel-header">
-          <div className="lifemap-panel-title">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
-              <Target className="h-4 w-4" />
-            </span>
-            Goals with Asset Linking
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={addRow}>Add Row</Button>
-            <Button size="sm" variant="outline" onClick={handleExportCsv}>Export CSV</Button>
-            <Button size="sm" variant="ghost" className="text-red-500" onClick={handleReset}>Reset</Button>
+      <div id="sec-register" className="lm-card">
+        <div className="lm-reghead">
+          <h3>Goal register</h3>
+          <span className="count">{rows.length} goals</span>
+          <div className="r">
+            <Button size="sm" className="lm-ghost primary" onClick={addRow}>+ Add goal</Button>
+            <Button size="sm" variant="outline" className="lm-ghost" onClick={handleExportCsv}>Export CSV</Button>
+            <Button size="sm" variant="ghost" className="lm-ghost" onClick={handleReset}>Reset</Button>
           </div>
         </div>
       
@@ -575,12 +560,17 @@ export default function EnhancedGoalsPage() {
       </div>
 
       {activeTab === 'progress' && selectedGoal && (
-        <GoalDonutChart goal={selectedGoal} assets={assets} />
+        <div id="sec-when" className="lm-card" style={{ padding: 16, marginTop: 16 }}>
+          <GoalDonutChart goal={selectedGoal} assets={assets} />
+        </div>
       )}
 
       {activeTab === 'saving' && (
-        <GoalsChart goals={rows} assets={assets} chartType="funding" />
+        <div id="sec-when" className="lm-card" style={{ padding: 16, marginTop: 16 }}>
+          <GoalsChart goals={rows} assets={assets} chartType="funding" />
+        </div>
       )}
+      <PagePager />
     </div>
   );
 }

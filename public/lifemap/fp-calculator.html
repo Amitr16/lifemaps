@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeMap — When could work become optional?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font:"Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --navy:#003c8f; --ink:#0a1f44; --teal:#75cfc2; --aqua:#b5e6e5;
+  --paper:#f6f8fb; --line:#e2e8f2; --muted:#66799a; --coral:#e2574c;
+  --amber:#e9a23b; --slate:#9aa7bd; --green:#0d8a78; --r:14px;
+  --c-own:#2f6fd0; --c-sur:#75cfc2; --c-exp:#8494ad; --c-emi:#e2574c; --c-goal:#e9a23b;
+  --c-need:#8fb8ea;
+  --shadow:0 1px 2px rgba(10,31,68,.04), 0 8px 24px rgba(10,31,68,.06);
+  --navh:44px;   /* height of the frozen bottom bar only */
+  --bar:#e8f4f5; --bar-line:#cfe6e8;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--font); font-size:15px; line-height:1.55; font-weight:400;
+  -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums}
+h1,h2,h3,h4{font-family:var(--font); font-weight:700; letter-spacing:-.02em; margin:0}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; font-weight:700; letter-spacing:-.02em}
+.wrap{max-width:1200px; margin:0 auto; padding:0 28px}
+a{color:inherit} button,input,select{font-family:var(--font)}
+
+/* ---------- top bar ---------- */
+/* ---------- stacked top navigation ---------- */
+.topbar{background:#fff; position:relative}
+.topbar::before{content:""; display:block; height:3px;
+  background:linear-gradient(90deg, var(--navy) 0%, #2f6fd0 26%, #0d8a78 52%, var(--teal) 76%, var(--aqua) 100%)}
+.tier{max-width:1200px; margin:0 auto; padding:0 28px}
+@media(max-width:640px){.tier{padding:0 16px}}
+
+/* tier 0 — identity and actions */
+.tier0{display:flex; align-items:center; gap:16px; height:56px}
+.brand{display:flex; align-items:center; gap:10px; text-decoration:none}
+.mark{width:20px; height:20px; background:var(--navy); transform:rotate(45deg); border-radius:3px; position:relative; flex:none}
+.mark::after{content:""; position:absolute; inset:0 0 50% 50%; background:var(--teal); border-radius:0 3px 0 0}
+.brand .name{font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.03em}
+.brand .by{font-size:10.5px; color:var(--muted); letter-spacing:.09em; text-transform:uppercase; font-weight:600}
+.tier0 .acts{margin-left:auto; display:flex; align-items:center; gap:8px}
+.tlink{padding:8px 12px; font-size:14px; color:var(--navy); text-decoration:none; border-radius:8px; font-weight:600}
+.tlink:hover{color:var(--navy); background:#eef3fa}
+
+/* tier 1 — the product's main areas, centred */
+.tier1{display:flex; gap:1px; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none}
+.tier1::-webkit-scrollbar{display:none}
+/* auto margins centre the row, then collapse to zero when it overflows so nothing is unreachable */
+.tier1 > :first-child{margin-left:auto}
+.tier1 > :last-child{margin-right:auto}
+.ptab{padding:11px 14px 12px; font-size:14px; font-weight:600; color:var(--muted);
+  white-space:nowrap; text-decoration:none; border-radius:9px 9px 0 0; transition:background .13s, color .13s}
+/* each tab still carries its area's own colour, but only on hover and when active */
+.ptab:hover{color:var(--tone, var(--navy)); background:#f4f8fd}
+.ptab.on{background:var(--bar); color:var(--tone, var(--ink)); font-weight:700}
+/* Insurance is not built yet: the tab stays visible so the shape of the product
+   is legible, but reads as unavailable rather than merely unvisited. */
+.ptab.gate{opacity:.45; cursor:not-allowed}
+.ptab.gate:hover{background:transparent; color:var(--muted)}
+
+/* tier 2 — what is on this page, centred */
+.tier2wrap{position:sticky; top:0; z-index:80;
+  background:linear-gradient(180deg,#eef8f9,var(--bar));
+  border-top:1px solid var(--bar-line); border-bottom:1px solid var(--bar-line); transition:box-shadow .18s}
+.tier2wrap.stuck{box-shadow:0 6px 18px rgba(10,31,68,.09)}
+.tier2{display:flex; flex-wrap:wrap; justify-content:center; gap:0}
+.stab{padding:10px 14px 10px; font-size:13px; font-weight:600; color:#4a6274; white-space:nowrap;
+  background:none; border:0; border-bottom:2px solid transparent; cursor:pointer; transition:color .13s, border-color .13s}
+.stab:hover{color:var(--navy)}
+.stab.on{font-weight:700}
+.stab.on{color:var(--navy); border-bottom-color:var(--navy)}
+@media(max-width:640px){
+  .ptab{font-size:13px; padding:10px 12px 11px}
+  .stab{font-size:12.5px; padding:9px 12px}
+}
+
+.btn{border:0; cursor:pointer; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700;
+  background:linear-gradient(135deg,#0b52b8,var(--navy)); color:#fff; text-decoration:none;
+  display:inline-block; transition:filter .15s, box-shadow .15s; box-shadow:0 2px 10px rgba(0,60,143,.24)}
+.btn:hover{filter:brightness(1.08); box-shadow:0 4px 16px rgba(0,60,143,.32)}
+.btn-ghost{background:transparent; color:var(--navy); border:1px solid var(--line)}
+.btn-ghost:hover{background:#eef3fa}
+@media(max-width:640px){.tlink{display:none}}
+
+/* ---------- hero ---------- */
+.hero{background:var(--ink); color:#fff; padding:38px 0 46px; position:relative}
+.glow{position:absolute; inset:0; overflow:hidden; pointer-events:none}
+.glow::before{content:""; position:absolute; right:-140px; top:-140px; width:460px; height:460px;
+  background:radial-gradient(circle, rgba(117,207,194,.15), transparent 62%)}
+.hero .wrap{position:relative; z-index:1}
+.eyebrow{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--teal); font-weight:700; margin-bottom:9px}
+.hero h1{font-size:clamp(25px,3.3vw,37px); margin:0 0 6px; color:#fff}
+.hero .sub{color:#a9bcda; font-size:15px; margin:0 0 26px; max-width:66ch}
+
+.panel{background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); border-radius:16px; padding:20px 22px 18px}
+.ptitle{display:flex; align-items:center; gap:7px; font-size:12.5px; letter-spacing:.11em;
+  text-transform:uppercase; color:#a9bcda; font-weight:700; margin-bottom:2px}
+.psub{font-size:12.5px; color:#7d93b7; margin-bottom:14px}
+
+.ffgrid{display:grid; grid-template-columns:1fr 316px; gap:18px; align-items:stretch}
+@media(max-width:1000px){.ffgrid{grid-template-columns:1fr}}
+
+/* chart card */
+.ffchart{display:flex; flex-direction:column}
+.chead{display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:12px}
+.chead .lbl{font-size:12.5px; letter-spacing:.11em; text-transform:uppercase; color:#a9bcda; font-weight:700}
+.legend{display:flex; gap:16px; flex-wrap:wrap; margin-left:auto}
+.lg{display:flex; align-items:center; gap:7px; font-size:12.5px; color:#cddcf0}
+.lg i{width:16px; height:3px; border-radius:2px; display:block; flex:none}
+.lg i.dot{width:9px; height:9px; border-radius:2px}
+.chartbox{position:relative; flex:1; overflow:visible}
+.chartsvg{width:100%; height:340px; display:block}
+@media(max-width:640px){.chartsvg{height:270px}}
+.axis{font-size:11px; fill:#7d93b7; font-family:var(--font); font-weight:500}
+.gridline{stroke:rgba(255,255,255,.09); stroke-width:1; stroke-dasharray:3 4}
+.cnote{font-size:11px; color:#6d84aa; margin-top:8px; text-align:center}
+
+.tip{position:absolute; pointer-events:none; opacity:0; transition:opacity .12s; z-index:20;
+  top:0; left:50%; background:#fff; color:var(--ink); border-radius:11px; padding:11px 13px;
+  min-width:220px; max-width:300px; box-shadow:0 14px 38px rgba(0,0,0,.4);
+  transform:translateX(-50%); will-change:left,top}
+.tip::after{content:""; position:absolute; left:var(--tip-arrow-x,50%); top:100%; width:12px; height:12px;
+  background:#fff; transform:translate(-50%,-6px) rotate(45deg); border-radius:2px; box-shadow:3px 3px 7px rgba(10,31,68,.08)}
+.tip.on{opacity:1}
+.tip .ty{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--slate); font-weight:700}
+.tip .tst{font-size:11px; font-weight:700; padding:2px 7px; border-radius:99px; float:right; margin-top:-1px}
+.tip .tst.before{background:#eef3fa; color:var(--navy)}
+.tip .tst.after{background:#e9f6f4; color:var(--green)}
+.tip .tst.retired{background:#f0f3f8; color:#596b8a}
+.tip .row{display:flex; justify-content:space-between; gap:14px; font-size:12.5px; padding:3px 0}
+.tip .row span{color:var(--muted)}
+.tip .row b{font-variant-numeric:tabular-nums}
+.tip .hr{height:1px; background:var(--line); margin:6px 0}
+
+/* result card */
+.ffresult{display:flex; flex-direction:column; gap:0}
+.ffbig{font-size:12.5px; letter-spacing:.11em; text-transform:uppercase; color:#a9bcda; font-weight:700}
+.ffage{font-size:52px; font-weight:800; letter-spacing:-.04em; line-height:1.02; color:var(--teal); margin:4px 0 2px}
+.ffage.none{font-size:26px; color:var(--amber); line-height:1.2}
+.ffsub{font-size:13.5px; color:#cddcf0}
+.ffrange{margin-top:14px; padding:11px 13px; background:rgba(255,255,255,.06); border-radius:10px;
+  border:1px solid rgba(255,255,255,.1)}
+.ffrange .k{font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:#8fa6c9; font-weight:700}
+.ffrange .v{font-size:17px; font-weight:800; letter-spacing:-.02em; margin-top:1px}
+.ffrows{margin-top:14px; border-top:1px solid rgba(255,255,255,.12); padding-top:4px}
+.ffrow{display:flex; justify-content:space-between; gap:12px; font-size:13px; padding:7px 0; color:#cddcf0}
+.ffrow + .ffrow{border-top:1px solid rgba(255,255,255,.07)}
+.ffrow b{font-variant-numeric:tabular-nums; color:#fff}
+.ffcav{margin-top:auto; padding-top:14px; font-size:11.5px; color:#7d93b7; line-height:1.55}
+
+/* info popovers */
+.term{display:inline-flex; align-items:center; gap:6px; position:relative}
+.info{width:15px; height:15px; border-radius:50%; border:1px solid currentColor; background:none;
+  color:inherit; font-size:9.5px; font-weight:800; line-height:1; cursor:help; opacity:.65;
+  display:inline-grid; place-items:center; padding:0; flex:none; font-style:italic; font-family:var(--font)}
+.info:hover{opacity:1}
+.pop{position:absolute; bottom:calc(100% + 9px); left:-8px; width:270px; background:#fff; color:var(--ink);
+  border-radius:11px; padding:13px 15px; box-shadow:0 12px 34px rgba(0,0,0,.3); z-index:70;
+  opacity:0; visibility:hidden; transform:translateY(5px); transition:.15s; text-transform:none; letter-spacing:0; font-weight:400}
+.pop::after{content:""; position:absolute; top:100%; left:14px; border:6px solid transparent; border-top-color:#fff}
+.info:hover + .pop, .info:focus + .pop, .info:focus-visible + .pop{opacity:1; visibility:visible; transform:translateY(0)}
+/* The hero and the supporting panels each sit in their own stacking context
+   below the frozen section bar, so no z-index on the card can lift it above
+   that bar. Direction is the only lever that works: when there is not enough
+   clear space above the marker, the card opens downwards instead. */
+.pop.below{bottom:auto; top:calc(100% + 9px); transform:translateY(-5px)}
+.info:hover + .pop.below, .info:focus + .pop.below, .info:focus-visible + .pop.below{transform:translateY(0)}
+.pop.below::after{top:auto; bottom:100%; border-top-color:transparent; border-bottom-color:#fff}
+.pop b{display:block; font-size:13px; font-weight:800; margin-bottom:4px}
+.pop p{margin:0 0 7px; font-size:12.5px; color:var(--muted); line-height:1.5}
+.pop .f{font-size:12px; background:var(--paper); border-radius:7px; padding:7px 9px; color:var(--ink); font-weight:600; display:block}
+.pop .live{font-size:11.5px; color:var(--navy); margin-top:7px; font-weight:600; display:block}
+@media(max-width:520px){.pop{width:224px; left:-40px}}
+/* ---------- page description, folded away behind a caret ----------
+   The description expands in the flow rather than floating over the page, so
+   opening it pushes everything below it down instead of covering it. That also
+   sidesteps the stacking problem entirely: nothing overlaps, so nothing can be
+   drawn behind the frozen section bar. */
+.hero h1{display:flex; align-items:center; gap:13px; flex-wrap:wrap}
+.pmore{width:27px; height:27px; flex:none; border-radius:50%; cursor:pointer; padding:0;
+  border:1px solid rgba(188,210,240,.45); background:rgba(255,255,255,.07); color:#bcd2f0;
+  display:inline-flex; align-items:center; justify-content:center; transition:.15s}
+.pmore::before{content:""; width:7px; height:7px; margin-top:-3px;
+  border-right:2px solid currentColor; border-bottom:2px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.pmore:hover{color:#fff; border-color:#fff; background:rgba(255,255,255,.18)}
+.pmore[aria-expanded="true"]{color:#0a1f44; background:#fff; border-color:#fff}
+.pmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:3px}
+.pdesc{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.pdesc.open{opacity:1}
+.pdesc .sub{margin-top:0}
+
+/* ---------- section notes, folded away behind a caret ----------
+   The explanations under each input block stay in the page but out of the way:
+   a caret at the bottom left of the block opens them in the flow, pushing what
+   follows down rather than covering it. */
+/* Padded on all sides: the bar is the last thing in its card, so without a
+   bottom pad the caret sat astride the card's rounded edge. */
+.notebar{display:flex; align-items:center; justify-content:center; width:100%; padding:12px 18px 16px}
+/* Just the chevron. A ring around it competed with the row of real controls
+   directly above; the navy alone is enough to read as pressable. */
+.nmore{width:30px; height:26px; flex:none; border:0; background:none; padding:0; cursor:pointer;
+  color:var(--navy); border-radius:7px; transition:background .15s, color .15s;
+  display:inline-flex; align-items:center; justify-content:center}
+.nmore::before{content:""; width:9px; height:9px; margin-top:-4px;
+  border-right:2.2px solid currentColor; border-bottom:2.2px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.nmore:hover{background:rgba(0,60,143,.08)}
+.nmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:4px}
+.nfold{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.nfold.open{opacity:1}
+.nfold .foot{border-top:0}
+
+
+/* ---------- sections ---------- */
+.section{padding:48px 0; scroll-margin-top:var(--navh)}
+.shead{display:flex; align-items:flex-end; gap:16px; margin-bottom:20px; flex-wrap:wrap}
+.shead h2{font-size:23px}
+.shead p{margin:4px 0 0; color:var(--muted); font-size:14px; max-width:74ch}
+.card{background:#fff; border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+
+/* ---------- supporting: today's position (light) ---------- */
+.support{background:#fff; border-bottom:1px solid var(--line)}
+.suppgrid{display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start}
+@media(max-width:900px){.suppgrid{grid-template-columns:1fr}}
+.support .panel{background:var(--paper); border:1px solid var(--line)}
+.support .ptitle{color:var(--muted)}
+.support .psub{color:var(--slate)}
+.support .dcenter .k{color:var(--muted)}
+.support .dcenter .v{color:var(--navy)}
+.support .dcenter .v.pos{color:var(--green)} .support .dcenter .v.neg{color:var(--coral)}
+.support .dcenter .s{color:var(--muted)}
+.support .dkey{color:var(--slate)}
+.support .dleg .gsw{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:8px; vertical-align:0}
+.dleg .lhead{color:var(--slate)}
+.support .dleg .li + .lhead{border-top:0}
+.support .dleg .nm{color:#33456b}
+.support .dleg .li:hover{background:#fff}
+.support .dleg .pc{color:var(--slate)}
+.support .ratio{background:#fff; border:1px solid var(--line)}
+.support .ratio .lab{color:var(--muted)}
+.support .ratio .big{color:var(--green)}
+.support .ratio .big.warn{color:#b07714} .support .ratio .big.bad{color:var(--coral)}
+.support .rtrack{background:var(--line)}
+.support .rscale{color:var(--slate)}
+.support .rverdict{color:var(--muted)}
+.support .info{color:var(--muted)}
+
+.donutbox{position:relative; width:100%; max-width:284px; margin:0 auto}
+.donutbox svg{width:100%; height:auto; display:block; overflow:visible}
+.wedge{transition:transform .16s cubic-bezier(.3,.9,.3,1), filter .16s; cursor:pointer}
+.wedge:hover{filter:brightness(1.1)}
+.dcenter{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none}
+.dcenter .k{font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:#8fa6c9; font-weight:700}
+.dcenter .v{font-size:28px; line-height:1.1; margin-top:3px; font-weight:800; letter-spacing:-.03em}
+.dcenter .s{font-size:11px; color:#8fa6c9; margin-top:3px; max-width:140px; line-height:1.35}
+.dtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:var(--ink); color:#fff; border-radius:10px; padding:10px 13px; min-width:150px;
+  box-shadow:0 12px 32px rgba(10,31,68,.34); transform:translate(-50%,-116%)}
+.dtip.on{opacity:1}
+.dtip .n{font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:7px}
+.dtip .n i{width:9px; height:9px; border-radius:2px; display:block; flex:none}
+.dtip .a{font-size:19px; font-weight:800; letter-spacing:-.02em; margin:3px 0 1px}
+.dtip .d{font-size:11.5px; color:#a9bcda; line-height:1.45}
+.dkey{margin-top:11px; font-size:11px; color:#7d93b7; text-align:center; line-height:1.5}
+.dleg{margin-top:12px; display:flex; flex-direction:column; gap:1px}
+/* The first-level split is a heading over its children, not a row alongside
+   them, so it is centred and ruled rather than left-aligned into the list. */
+.dleg .lhead{font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#7d93b7; font-weight:700;
+  padding:9px 7px 6px; display:flex; align-items:center; justify-content:center; gap:0; text-align:center}
+.dleg .lhead::before, .dleg .lhead::after{content:""; flex:1; height:1px; background:currentColor; opacity:.22}
+.dleg .lhead::before{margin-right:12px} .dleg .lhead::after{margin-left:12px}
+.dleg .lhead .gsw{flex:none}
+.dleg .li + .lhead{margin-top:7px}
+.dleg .li{display:flex; align-items:center; gap:9px; font-size:13px; padding:5px 7px; border-radius:7px; transition:background .13s}
+.dleg .li:hover{background:rgba(255,255,255,.07)}
+.dleg .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dleg .nm{flex:1; color:#cddcf0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dleg .vl{font-weight:700}
+.dleg .pc{color:#7d93b7; font-size:11.5px; width:42px; text-align:right}
+.ratio{margin-top:16px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:14px 16px}
+.ratio .top{display:flex; align-items:baseline; gap:9px}
+.ratio .lab{display:flex; align-items:center; gap:6px; font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:#a9bcda; font-weight:700}
+.ratio .big{margin-left:auto; font-size:26px; font-weight:800; letter-spacing:-.03em; color:var(--teal)}
+.ratio .big.warn{color:var(--amber)} .ratio .big.bad{color:#ff9b91}
+.rtrack{height:7px; background:rgba(255,255,255,.13); border-radius:99px; margin:11px 0 7px; overflow:hidden}
+.rtrack i{display:block; height:100%; background:var(--teal); border-radius:99px; transition:width .3s, background .3s}
+.rscale{display:flex; justify-content:space-between; font-size:10.5px; color:#7d93b7}
+.rverdict{font-size:12.5px; color:#cddcf0; margin-top:8px}
+
+/* ---------- inputs ---------- */
+.inputs-head{display:flex; align-items:center; gap:18px; margin-bottom:18px; flex-wrap:wrap}
+.progress{display:flex; align-items:center; gap:10px; margin-left:auto}
+.pbar{width:150px; height:6px; background:var(--line); border-radius:99px; overflow:hidden}
+.pbar i{display:block; height:100%; background:var(--teal); width:100%; transition:width .3s}
+.progress span{font-size:12.5px; color:var(--muted)}
+.grp{background:#fff; border:1px solid var(--line); border-radius:var(--r); margin-bottom:12px;
+  box-shadow:var(--shadow); overflow:hidden; scroll-margin-top:calc(var(--navh) + 14px); position:relative}
+.grp::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--accent,transparent)}
+.grp > summary{list-style:none; cursor:pointer; padding:16px 20px 16px 24px; display:flex; align-items:center; gap:14px}
+.grp > summary::-webkit-details-marker{display:none}
+.gnum{font-size:12.5px; color:var(--slate); width:20px; flex:none; font-weight:700}
+.gtitle{font-size:16px; font-weight:700; letter-spacing:-.01em}
+/* the heading is one line; its description is parked behind a caret and
+   unfolds to the right, so the six groups read as a clean list */
+.gline{display:flex; align-items:center; gap:9px; min-width:0; flex:1}
+.ghint{width:19px; height:19px; flex:none; border-radius:50%; border:1px solid var(--line);
+  background:#fff; color:var(--slate); cursor:pointer; padding:0; position:relative;
+  display:inline-flex; align-items:center; justify-content:center; transition:.15s}
+.ghint::before{content:""; width:5px; height:5px; margin-left:-2px;
+  border-right:1.6px solid currentColor; border-top:1.6px solid currentColor;
+  transform:rotate(45deg); transition:transform .18s}
+.ghint:hover{color:var(--navy); border-color:var(--navy); background:#eef3fa}
+.ghint[aria-expanded="true"]{color:#fff; background:var(--navy); border-color:var(--navy)}
+.ghint[aria-expanded="true"]::before{transform:rotate(225deg); margin-left:2px}
+.gsub{font-size:12.5px; color:var(--muted); min-width:0; overflow:hidden; white-space:nowrap;
+  text-overflow:ellipsis; max-width:0; opacity:0; transition:max-width .28s cubic-bezier(.3,.9,.3,1), opacity .18s}
+.gsub.open{max-width:60ch; opacity:1}
+@media(max-width:760px){
+  .gline{flex-wrap:wrap}
+  .gsub{white-space:normal; flex-basis:100%}
+  .gsub.open{max-width:none}
+}
+.gval{margin-left:auto; font-size:17px; font-weight:800; text-align:right; letter-spacing:-.02em}
+.gval small{display:block; font-size:11px; color:var(--muted); font-weight:500; letter-spacing:0}
+.caret{color:var(--slate); transition:transform .2s; font-size:11px}
+.grp[open] .caret{transform:rotate(180deg)}
+.gbody{padding:4px 20px 20px 24px; border-top:1px solid var(--line)}
+.fields{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; padding-top:16px}
+.f label{display:block; font-size:12.5px; color:var(--muted); margin-bottom:5px}
+.f label b{color:var(--ink); font-weight:700}
+.inp{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; background:var(--paper);
+  font-size:15px; color:var(--ink); font-variant-numeric:tabular-nums; transition:border-color .15s, background .15s}
+.inp:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.hint{font-size:11.5px; color:var(--slate); margin-top:5px}
+.rowhead,.row{display:grid; gap:9px; align-items:center}
+.rowhead{font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--slate); padding-top:14px; font-weight:600}
+.rows{padding-top:10px; display:flex; flex-direction:column; gap:9px}
+.g-loans .rowhead,.g-loans .row{grid-template-columns:1.5fr 1fr 1fr 148px}
+.g-goals .rowhead,.g-goals .row{grid-template-columns:1.5fr 1fr .85fr 148px}
+.g-exp   .rowhead,.g-exp   .row{grid-template-columns:1.9fr 1fr 148px}
+@media(max-width:760px){
+  .g-loans .rowhead,.g-goals .rowhead,.g-exp .rowhead{display:none}
+  .g-loans .row,.g-goals .row,.g-exp .row{grid-template-columns:1fr 1fr}
+}
+.rowbtns{display:flex; gap:6px}
+.rb{border:1px solid var(--line); background:#fff; border-radius:8px; height:38px; padding:0 12px;
+  cursor:pointer; font-size:12.5px; font-weight:700; color:var(--muted); white-space:nowrap; transition:.14s}
+.rb.save{color:var(--navy)}
+.rb.save:hover{background:#eef3fa; border-color:var(--navy)}
+.rb.save.done{background:#e9f6f4; border-color:#bfe6df; color:#0d6e60}
+.rb.del:hover{color:var(--coral); border-color:#f3c9c5; background:#fef6f5}
+.addrow{margin-top:11px; width:100%; border:1px dashed #c8d5e8; background:#fbfcfe; color:var(--navy);
+  border-radius:9px; padding:11px; font-size:14px; font-weight:700; cursor:pointer}
+.addrow:hover{background:#eef3fa; border-color:var(--navy)}
+.rowfoot{font-size:12.5px; color:var(--slate); padding-top:12px; line-height:1.6; max-width:80ch}
+.sliderrow{display:flex; align-items:center; gap:14px; padding:9px 0; flex-wrap:wrap}
+.sliderrow label{width:200px; font-size:14px; flex:none}
+.sliderrow input[type=range]{flex:1; min-width:150px; accent-color:var(--navy)}
+.sliderrow output{width:66px; text-align:right; font-size:15px; font-weight:700}
+
+/* ---------- wall / footer ---------- */
+.wall{background:linear-gradient(180deg,var(--paper),#eef3fa)}
+.wallcard{border:1px solid var(--line); border-radius:20px; background:#fff; padding:34px; box-shadow:var(--shadow);
+  display:grid; grid-template-columns:1fr 1fr; gap:36px; align-items:center}
+@media(max-width:900px){.wallcard{grid-template-columns:1fr; padding:26px}}
+.wallcard h2{font-size:26px; margin:0 0 10px}
+.wallcard p{color:var(--muted); margin:0 0 20px; font-size:14.5px}
+.unlocks{list-style:none; padding:0; margin:0 0 24px}
+.unlocks li{padding:12px 0 12px 16px; border-left:2px solid var(--aqua); font-size:14.5px}
+.unlocks li + li{border-top:1px solid var(--line)}
+.unlocks b{display:block; font-weight:700} .unlocks span{color:var(--muted); font-size:13px}
+.wallcta{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.wallcta small{color:var(--slate); font-size:12.5px}
+.preview{position:relative; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:var(--paper)}
+.preview .stack{padding:18px; display:flex; flex-direction:column; gap:12px; filter:blur(3.5px); opacity:.6; user-select:none}
+.pv{background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px}
+.pv .t{font-size:12px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; font-weight:600}
+.pv .b{display:flex; align-items:baseline; gap:9px; margin-top:5px}
+.pv .b b{font-size:23px; font-weight:800}
+.bars{display:flex; gap:5px; align-items:flex-end; height:44px; margin-top:11px}
+.bars i{flex:1; background:var(--aqua); border-radius:3px 3px 0 0}
+.lockover{position:absolute; inset:0; display:grid; place-items:center;
+  background:linear-gradient(180deg, rgba(246,248,251,.35), rgba(246,248,251,.9))}
+.lockpill{background:var(--ink); color:#fff; border-radius:99px; padding:9px 20px; font-size:12px;
+  font-weight:700; letter-spacing:.1em; box-shadow:0 8px 24px rgba(10,31,68,.28)}
+footer{background:var(--ink); color:#8fa6c9; padding:30px 0; font-size:13px}
+footer .wrap{display:flex; gap:18px; align-items:center; flex-wrap:wrap}
+footer a{color:#c3d3ea; text-decoration:none} footer a:hover{color:#fff}
+.tag{color:var(--teal); font-size:15px; font-weight:700}
+.disclaimer{max-width:1200px; margin:0 auto; padding:0 28px 26px; color:#5f7599; font-size:11.5px; line-height:1.6}
+:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <!-- tier 0: identity and actions -->
+  <div class="tier tier0">
+    <a class="brand" href="lifemap-fp-calculator.html"><span class="mark"></span>
+      <span><span class="name">LifeMap</span> <span class="by">by BOX Wealth</span></span></a>
+    <span class="acts">
+      <a class="tlink" href="#register">Sign in</a>
+      <a class="btn" href="#register">Save my plan</a>
+    </span>
+  </div>
+
+  <!-- tier 1: the product's main areas -->
+  <nav class="tier tier1" aria-label="Main areas">
+    <a class="ptab on" style="--tone:#003c8f" href="lifemap-fp-calculator.html" aria-current="page">FP Calculator</a>
+    <a class="ptab" style="--tone:#2f6fd0" href="lifemap-assets.html">Assets</a>
+    <a class="ptab" style="--tone:#0d8a78" href="lifemap-work-assets.html">Work Assets</a>
+    <a class="ptab" style="--tone:#e9a23b" href="lifemap-goals.html">Goals</a>
+    <a class="ptab" style="--tone:#e2574c" href="lifemap-loans.html">Loans</a>
+    <a class="ptab" style="--tone:#8494ad" href="lifemap-expenses.html">Expenses</a>
+    <a class="ptab gate" style="--tone:#4fb9ab" href="#" title="Sign in to open Insurance">Insurance</a>
+  </nav>
+
+  <!-- tier 2: what is on this page -->
+</header>
+
+<!-- frozen bar: stays put while the header above it scrolls away -->
+<div class="tier2wrap" id="tier2wrap">
+  <nav class="tier tier2" aria-label="Sections on this page">
+    <button class="stab on" type="button" data-go="top">Freedom chart</button>
+    <button class="stab" type="button" data-go="today">Where you stand today</button>
+    <button class="stab" type="button" data-go="inputs">Your details</button>
+    <button class="stab" type="button" data-go="register">The next layer</button>
+  </nav>
+</div>
+
+<!-- ==================== HERO: FINANCIAL FREEDOM ==================== -->
+<section class="hero" id="top">
+  <div class="glow"></div>
+  <div class="wrap">
+    <div class="eyebrow">Financial freedom</div>
+    <h1>When could work become optional?
+      <button class="pmore" type="button" aria-expanded="false" aria-controls="hero-desc"
+              aria-label="What this chart shows"></button>
+    </h1>
+    <div class="pdesc" id="hero-desc">
+      <p class="sub">If you carry on earning, spending and investing roughly as you do now, this shows when salary could become optional. Your salary still continues in the projection until the working age you choose below.</p>
+    </div>
+
+    <div class="ffgrid">
+
+      <!-- chart -->
+      <div class="panel ffchart">
+        <div class="chead">
+          <span class="lbl">Financial assets against the corpus you'd need</span>
+          <span class="legend">
+            <span class="lg"><i style="background:var(--teal)"></i>Projected financial assets</span>
+            <span class="lg"><i style="background:var(--c-need)"></i>Corpus needed to stop</span>
+            <span class="lg"><i class="dot" style="background:var(--c-goal)"></i>Life goal</span>
+            <span class="lg"><i style="background:#a9bcda"></i>Salary stops</span>
+          </span>
+        </div>
+        <div class="chartbox">
+          <svg class="chartsvg" id="ff" role="img" aria-label="Projected financial assets against the corpus needed to stop working, by age"></svg>
+          <div class="tip" id="tip"></div>
+        </div>
+        <div class="cnote" id="cnote">&nbsp;</div>
+      </div>
+
+      <!-- result -->
+      <div class="panel ffresult">
+        <div class="ffbig">
+          <span class="term">Estimated financial-freedom age
+            <button class="info" type="button" aria-label="How the financial-freedom age is worked out">i</button>
+            <span class="pop" role="tooltip">
+              <b>Financial-freedom age</b>
+              <p>The earliest age your financial assets cover every remaining expense, EMI and goal &mdash; and last to your life expectancy.</p>
+              <span class="f">assets &ge; corpus needed, at that age</span>
+            </span>
+          </span>
+        </div>
+        <div class="ffage num" id="ff-age">&mdash;</div>
+        <div class="ffsub" id="ff-years">&nbsp;</div>
+
+        <div class="ffrange">
+          <div class="k">Planning range</div>
+          <div class="v num" id="ff-range">&mdash;</div>
+        </div>
+
+        <div class="ffrows">
+          <div class="ffrow"><span>Corpus needed then</span><b class="num" id="ff-need">&mdash;</b></div>
+          <div class="ffrow"><span>Financial assets then</span><b class="num" id="ff-have">&mdash;</b></div>
+          <div class="ffrow"><span>Salary included until</span><b class="num" id="ff-workage">Age 60</b></div>
+          <div class="ffrow"><span>Financial assets at age <span id="ff-lifeage">85</span></span><b class="num" id="ff-end">&mdash;</b></div>
+        </div>
+
+        <div class="ffcav">This is an estimate, not a promise. Financial freedom means salary has become optional; the projection may still include salary until your selected working age. The planning range comes from varying return and inflation slightly.</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TODAY'S POSITION (supporting) ==================== -->
+<section class="section support" id="today">
+  <div class="wrap">
+    <div class="shead">
+      <div><h2>Where you stand today</h2>
+        <p>The chart above is a projection. These two are measured facts: the money passing through your hands this year, and what you actually own right now.</p></div>
+    </div>
+
+    <div class="suppgrid">
+      <!-- current surplus + ratio -->
+      <div>
+        <div class="panel">
+          <div class="ptitle">
+            <span class="term">Current surplus
+              <button class="info" type="button" aria-label="How current surplus is calculated">i</button>
+              <span class="pop" role="tooltip">
+                <b>Current surplus</b>
+                <p>What is left from one year of salary after living costs and loan instalments. A cash-flow figure &mdash; it says nothing about what you own.</p>
+                <span class="f">Annual salary &minus; annual expenses &minus; annual EMI</span>
+                <span class="live" id="pop-sur">&nbsp;</span>
+              </span>
+            </span>
+          </div>
+          <div class="psub" id="sur-sub">&nbsp;</div>
+          <div class="donutbox">
+            <svg viewBox="0 0 220 220" id="svg-sur" role="img" aria-label="How your annual salary is used"></svg>
+            <div class="dcenter">
+              <div class="k">Surplus</div>
+              <div class="v num pos" id="sur-val">&mdash;</div>
+              <div class="s" id="sur-cap">&nbsp;</div>
+            </div>
+            <div class="dtip" id="tip-sur"></div>
+          </div>
+          <div class="dkey">Inner ring: in against out &nbsp;&middot;&nbsp; Outer ring: what makes up each &nbsp;&middot;&nbsp; Centre: the difference</div>
+          <div class="dleg" id="leg-sur"></div>
+        </div>
+
+        <div class="ratio">
+          <div class="top">
+            <span class="lab">
+              <span class="term">Savings ratio
+                <button class="info" type="button" aria-label="How the savings ratio is calculated">i</button>
+                <span class="pop" role="tooltip">
+                  <b>Savings ratio</b>
+                  <p>The share of your salary you keep. The single biggest lever on your financial-freedom age, and the one thing fully under your control.</p>
+                  <span class="f">Current surplus &divide; annual salary &times; 100</span>
+                  <span class="live" id="pop-ratio">&nbsp;</span>
+                </span>
+              </span>
+            </span>
+            <span class="big num" id="ratio-val">&mdash;</span>
+          </div>
+          <div class="rtrack"><i id="ratio-bar" style="width:0%"></i></div>
+          <div class="rscale"><span>0%</span><span>10%</span><span>20%</span><span>30%</span><span>50%+</span></div>
+          <div class="rverdict" id="ratio-verdict">&nbsp;</div>
+        </div>
+      </div>
+
+      <!-- current net worth -->
+      <div>
+        <div class="panel">
+          <div class="ptitle">
+            <span class="term">Current net worth
+              <button class="info" type="button" aria-label="How current net worth is calculated">i</button>
+              <span class="pop" role="tooltip">
+                <b>Current net worth</b>
+                <p>Your financial and personal assets minus outstanding loans. Personal assets count towards net worth, but only financial assets are used in the freedom projection.</p>
+                <span class="f">Financial assets + personal assets &minus; outstanding loans</span>
+                <span class="live" id="pop-nw">&nbsp;</span>
+              </span>
+            </span>
+          </div>
+          <div class="psub" id="nw-sub">&nbsp;</div>
+          <div class="donutbox">
+            <svg viewBox="0 0 220 220" id="svg-nw" role="img" aria-label="Composition of what you own"></svg>
+            <div class="dcenter">
+              <div class="k">Net worth</div>
+              <div class="v num" id="nw-val">&mdash;</div>
+              <div class="s" id="nw-cap">&nbsp;</div>
+            </div>
+            <div class="dtip" id="tip-nw"></div>
+          </div>
+          <div class="dkey">Inner ring: assets against liabilities &nbsp;&middot;&nbsp; Outer ring: what makes up each &nbsp;&middot;&nbsp; Centre: the difference</div>
+          <div class="dleg" id="leg-nw"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== INPUTS ==================== -->
+<section class="section" id="inputs">
+  <div class="wrap">
+    <div class="inputs-head">
+      <div><h2 style="font-size:23px">Your details</h2>
+        <p style="margin:3px 0 0; color:var(--muted); font-size:14px">Everything above updates instantly as you type.</p></div>
+      <div class="progress"><span id="p-text">&mdash;</span><span class="pbar"><i id="p-bar"></i></span></div>
+    </div>
+
+    <details class="grp" id="g-profile" style="--accent:var(--c-sur)" open>
+      <summary><span class="gnum">01</span>
+        <span class="gline"><span class="gtitle">You and your salary</span><button class="ghint" type="button" aria-expanded="false" aria-label="What goes in this section"></button><span class="gsub">Age, annual salary, expected raise and how long you plan to work</span></span>
+        <span class="gval num" id="v-profile">&mdash;</span><span class="caret">&#9660;</span></summary>
+      <div class="gbody">
+        <div class="fields">
+          <div class="f"><label><b>Your age</b></label><input class="inp" type="number" id="i-age" value="30" min="18" max="99"><div class="hint">Years</div></div>
+          <div class="f"><label><b>Annual take-home salary</b></label><input class="inp" type="number" id="i-salary" value="900000" min="0"><div class="hint">The annual amount available for spending and investing. Salary only; tax is not calculated separately.</div></div>
+          <div class="f"><label><b>Salary growth</b> (%)</label><input class="inp" type="number" id="i-gsal" value="8" step="0.5" min="0" max="20"><div class="hint">The raise you expect each year</div></div>
+          <div class="f"><label><b>Working till age</b></label><input class="inp" type="number" id="i-work-age" value="60" min="30" max="85"><div class="hint">Salary is included until this age and becomes zero from this age onward.</div></div>
+        </div>
+        <div class="rowfoot" id="profile-note">&nbsp;</div>
+      </div>
+    </details>
+
+    <details class="grp" id="g-assets" style="--accent:var(--c-own)">
+      <summary><span class="gnum">02</span>
+        <span class="gline"><span class="gtitle">Current assets</span><button class="ghint" type="button" aria-expanded="false" aria-label="What goes in this section"></button><span class="gsub">Separate assets that can fund your plan from assets held for personal use</span></span>
+        <span class="gval num" id="v-assets">&mdash;</span><span class="caret">&#9660;</span></summary>
+      <div class="gbody">
+        <div class="fields">
+          <div class="f">
+            <label><b>Financial assets</b></label>
+            <input class="inp" type="number" id="i-fin-assets" value="3000000" min="0">
+            <div class="hint">Savings and investments that can fund expenses and goals. This is the pool that grows in the freedom chart.</div>
+          </div>
+          <div class="f">
+            <label><b>Personal assets</b></label>
+            <input class="inp" type="number" id="i-personal-assets" value="2000000" min="0">
+            <div class="hint">Self-use home, vehicle, jewellery and similar assets. Included in net worth, but not used to fund financial freedom.</div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details class="grp g-loans" id="g-loans" style="--accent:var(--c-emi)">
+      <summary><span class="gnum">03</span>
+        <span class="gline"><span class="gtitle">Outstanding loans and EMIs</span><button class="ghint" type="button" aria-expanded="false" aria-label="What goes in this section"></button><span class="gsub">The balance reduces your net worth; the EMI eats your savings until it clears</span></span>
+        <span class="gval num" id="v-loans">&mdash;</span><span class="caret">&#9660;</span></summary>
+      <div class="gbody">
+        <div class="rowhead"><span>Loan</span><span>Outstanding &#8377;</span><span>Monthly EMI &#8377;</span><span></span></div>
+        <div class="rows" id="rows-loans"></div>
+        <button class="addrow" data-add="loans">+ Add a loan</button>
+        <div class="rowfoot" id="loans-note">&nbsp;</div>
+      </div>
+    </details>
+
+    <details class="grp g-goals" id="g-goals" style="--accent:var(--c-goal)">
+      <summary><span class="gnum">04</span>
+        <span class="gline"><span class="gtitle">Life goals</span><button class="ghint" type="button" aria-expanded="false" aria-label="What goes in this section"></button><span class="gsub">Cost today and how many years until you need the money</span></span>
+        <span class="gval num" id="v-goals">&mdash;</span><span class="caret">&#9660;</span></summary>
+      <div class="gbody">
+        <div class="rowhead"><span>Goal</span><span>Cost today &#8377;</span><span>Need in (yrs)</span><span></span></div>
+        <div class="rows" id="rows-goals"></div>
+        <button class="addrow" data-add="goals">+ Add a goal</button>
+        <div class="rowfoot" id="goals-note">&nbsp;</div>
+      </div>
+    </details>
+
+    <details class="grp g-exp" id="g-spend" style="--accent:var(--c-exp)">
+      <summary><span class="gnum">05</span>
+        <span class="gline"><span class="gtitle">Current annual expenses</span><button class="ghint" type="button" aria-expanded="false" aria-label="What goes in this section"></button><span class="gsub">Everything you live on in a year, at today's prices</span></span>
+        <span class="gval num" id="v-spend">&mdash;</span><span class="caret">&#9660;</span></summary>
+      <div class="gbody">
+        <div class="rowhead"><span>Expense</span><span>Per year &#8377;</span><span></span></div>
+        <div class="rows" id="rows-exp"></div>
+        <button class="addrow" data-add="exp">+ Add an expense</button>
+        <div class="rowfoot" id="exp-note">&nbsp;</div>
+      </div>
+    </details>
+
+    <details class="grp" id="g-assume">
+      <summary><span class="gnum">06</span>
+        <span class="gline"><span class="gtitle">Assumptions</span><button class="ghint" type="button" aria-expanded="false" aria-label="What goes in this section"></button><span class="gsub">The four figures the whole projection rests on</span></span>
+        <span class="gval num" id="v-assume">&mdash;</span><span class="caret">&#9660;</span></summary>
+      <div class="gbody" style="padding-top:16px">
+        <div class="sliderrow"><label>Expected return on financial assets</label><input type="range" id="i-gret" min="1" max="18" step="0.5" value="11"><output id="o-gret">11.0%</output></div>
+        <div class="sliderrow"><label>Inflation rate</label><input type="range" id="i-ginf" min="0" max="12" step="0.5" value="6"><output id="o-ginf">6.0%</output></div>
+        <div class="sliderrow"><label>Salary growth</label><input type="range" id="i-gsal2" min="0" max="20" step="0.5" value="8"><output id="o-gsal2">8.0%</output></div>
+        <div class="sliderrow"><label>Life expectancy</label><input type="range" id="i-life" min="60" max="100" step="1" value="85"><output id="o-life">85</output></div>
+        <div class="rowfoot" id="assume-note">&nbsp;</div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ==================== WALL ==================== -->
+<section class="section wall" id="register">
+  <div class="wrap">
+    <div class="wallcard">
+      <div>
+        <div class="eyebrow" style="color:var(--navy)">The next layer</div>
+        <h2>You've drawn the outline. Now fill it in.</h2>
+        <p>Your freedom age rests on a handful of rough numbers. A free account lets you replace each one with the real detail &mdash; and LifeMap starts answering questions instead of just adding up.</p>
+        <ul class="unlocks">
+          <li><b>Asset-by-asset register</b><span>Tag each holding, split investment from personal, set a return per asset class</span></li>
+          <li><b>Goals linked to assets</b><span>See which goal is funded and what each one needs per month</span></li>
+          <li><b>Protection gap</b><span>How much life cover you actually need, against what you already hold</span></li>
+          <li><b>Saved and shareable</b><span>Come back any time; send it to your advisor as a PDF</span></li>
+        </ul>
+        <div class="wallcta">
+          <a class="btn" href="#">Create a free account</a>
+          <a class="btn btn-ghost" href="#">I already have one</a>
+          <small>Takes about 30 seconds. Your numbers carry over.</small>
+        </div>
+      </div>
+      <div class="preview" aria-hidden="true">
+        <div class="stack">
+          <div class="pv"><div class="t">Goal funding</div><div class="b"><b>62%</b><span style="color:var(--muted);font-size:13px">of Marriage 2031 is funded</span></div>
+            <div class="bars"><i style="height:40%"></i><i style="height:55%"></i><i style="height:48%"></i><i style="height:72%"></i><i style="height:66%"></i><i style="height:88%"></i><i style="height:100%; background:var(--teal)"></i></div></div>
+          <div class="pv"><div class="t">Protection gap</div><div class="b"><b>&#8377;92.0L</b><span style="color:var(--coral);font-size:13px">uncovered</span></div></div>
+          <div class="pv"><div class="t">Where your money goes</div>
+            <div class="bars" style="height:56px"><i style="height:100%;background:var(--c-own)"></i><i style="height:70%;background:var(--teal)"></i><i style="height:45%;background:var(--amber)"></i><i style="height:30%;background:var(--coral)"></i><i style="height:22%"></i></div></div>
+        </div>
+        <div class="lockover"><span class="lockpill">LOCKED &mdash; FREE ACCOUNT REQUIRED</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="brand"><span class="mark"></span><span class="name" style="color:#fff">LifeMap</span></span>
+    <span class="tag">Invest with Intent.</span>
+    <span style="margin-left:auto"><a href="#">Terms</a> &nbsp;&middot;&nbsp; <a href="#">Privacy</a> &nbsp;&middot;&nbsp; <a href="#">Talk to an advisor</a></span>
+  </div>
+  <div class="disclaimer">
+    LifeMap is an educational planning tool from BOX Wealth Advisors. The financial-freedom age is an illustration based on the assumptions you enter, not a forecast or a recommendation. It assumes salary is your only income and continues only until the working age selected, personal assets are not sold to fund the plan, loan instalments repay the balance without interest, and your spending pattern holds in real terms. It does not model tax, healthcare shocks or market sequence risk. Past performance is not indicative of future results.
+  </div>
+</footer>
+
+<script>
+/* ========================= STATE ========================= */
+const S = {
+  age:30, salary:900000, gSal:8, workTill:60, finAssets:3000000, personalAssets:2000000,
+  loans:[{n:"Home loan", v:900000, emi:9000, saved:true},
+         {n:"Education loan", v:250000, emi:4500, saved:true}],
+  goals:[{n:"Sister's marriage", v:400000, yrs:5, saved:true},
+         {n:"Child's education", v:2500000, yrs:14, saved:true}],
+  exp:[{n:"Household & food", v:360000, saved:true},
+       {n:"Travel & lifestyle", v:180000, saved:true}],
+  gRet:11, gInf:6, lifeTo:85
+};
+
+const $ = id => document.getElementById(id);
+const num = v => { const n = parseFloat(v); return isFinite(n) ? Math.max(0,n) : 0; };
+function fmt(n){
+  n = Math.round(n||0); const a = Math.abs(n), sg = n<0 ? "\u2212" : "";
+  if(a >= 1e7) return sg+"\u20B9"+(a/1e7).toFixed(a/1e7>=100?0:2)+"Cr";
+  if(a >= 1e5) return sg+"\u20B9"+(a/1e5).toFixed(a/1e5>=100?0:1)+"L";
+  return sg+"\u20B9"+a.toLocaleString("en-IN");
+}
+const full = n => (n<0?"\u2212":"")+"\u20B9"+Math.abs(Math.round(n)).toLocaleString("en-IN");
+const sum = (arr,k) => arr.reduce((t,r)=>t+num(r[k]),0);
+
+/* ========================= TODAY'S POSITION ========================= */
+function current(){
+  const salary  = num(S.salary);
+  const expenses= sum(S.exp,"v");
+  const emiYear = sum(S.loans,"emi")*12;
+  const surplus = salary - expenses - emiYear;
+  const finAssets = num(S.finAssets);
+  const personalAssets = num(S.personalAssets);
+  const assets  = finAssets + personalAssets;
+  const owed    = sum(S.loans,"v");
+  return {salary, expenses, emiYear, surplus,
+          ratio: salary>0 ? surplus/salary*100 : 0,
+          finAssets, personalAssets, assets, owed,
+          netWorth: assets-owed, outgo: expenses+emiYear};
+}
+
+/* ========================= FREEDOM ENGINE =========================
+   The financial-asset pool is projected year by year in nominal terms, then deflated to today's money for display.
+   Salary and outflows land at the start of each year, then the remaining pool grows.
+   Salary continues until the selected working age, even if financial freedom is reached earlier.
+   The required corpus is the present value at each age of every remaining
+   expense, EMI and goal, discounted at the expected return and assuming no
+   future salary from that age. Therefore, assets >= required corpus means
+   salary is optional at that age, even when the user chooses to keep working.
+   Loan interest is not modelled: an EMI runs until it has repaid the balance.
+================================================================= */
+function loanYears(){
+  return S.loans.map(l => { const a = num(l.emi)*12; return a>0 ? Math.ceil(num(l.v)/a) : 0; });
+}
+function engine(o){
+  o = o || {};
+  const gS = (o.gSal ?? S.gSal)/100, gR = (o.gRet ?? S.gRet)/100, gI = (o.gInf ?? S.gInf)/100;
+  const N  = Math.max(1, Math.round(S.lifeTo - S.age));
+  const selectedWorkAge = Math.round(o.workTill ?? S.workTill);
+  const workAge = Math.min(S.lifeTo, Math.max(S.age, selectedWorkAge));
+  const workStop = Math.min(N, Math.max(0, workAge - S.age));
+  const LY = loanYears(), exp0 = sum(S.exp,"v");
+
+  const exp=[], emi=[], goal=[], salFull=[], goalNames=[];
+  for(let t=0;t<=N;t++){
+    exp.push(exp0*Math.pow(1+gI,t));
+    emi.push(S.loans.reduce((s,l,i) => s + (t < LY[i] ? num(l.emi)*12 : 0), 0));
+    let g=0, names=[];
+    S.goals.forEach(gl => { if(Math.round(num(gl.yrs)) === t && num(gl.v) > 0){
+      g += num(gl.v)*Math.pow(1+gI,t); names.push(gl.n || "Goal"); }});
+    goal.push(g); goalNames.push(names);
+    salFull.push(num(S.salary)*Math.pow(1+gS,t));
+  }
+  const cost = t => exp[t] + emi[t] + goal[t];
+
+  /* Required corpus if salary stopped at the beginning of age t. */
+  const req = new Array(N+1).fill(0);
+  req[N] = cost(N);
+  for(let t=N-1;t>=0;t--) req[t] = cost(t) + req[t+1]/(1+gR);
+
+  /* Actual projected pool: salary keeps coming until the selected working age. */
+  const pool = [num(S.finAssets)];
+  for(let t=0;t<N;t++){
+    const sal = t < workStop ? salFull[t] : 0;
+    pool.push((pool[t] + sal - cost(t))*(1+gR));
+  }
+
+  /* Independent check that the pool at age t survives with salary set to zero from then. */
+  const survivesWithoutSalary = (start,t0) => {
+    let p = start;
+    for(let k=t0;k<N;k++){
+      p = (p - cost(k))*(1+gR);
+      if(p < -1) return false;
+    }
+    return p >= -1;
+  };
+
+  let ff = -1;
+  for(let t=0;t<=N;t++){
+    if(pool[t] >= req[t] - 1 && survivesWithoutSalary(pool[t],t)){ ff = t; break; }
+  }
+
+  const real = (v,t) => v/Math.pow(1+gI,t);
+  return {N, ff, req, pool, exp, emi, goal, goalNames, real, workAge, workStop,
+          sal: t => t < workStop ? salFull[t] : 0};
+}
+
+/* ========================= FREEDOM CHART ========================= */
+let FF = null, CH = null;
+function drawFF(){
+  const svg = $("ff"), box = svg.parentElement;
+  const E = FF;
+  const W = box.clientWidth || 820;
+  const compactLabels = window.innerWidth <= 640;
+  const H = compactLabels ? 270 : 340;
+  const PL = 74, PR = 22, PT = 26, PB = 34;
+
+  const pts = [];
+  for(let t=0;t<=E.N;t++) pts.push({
+    t, age:S.age+t,
+    assets: E.real(E.pool[t], t),
+    need:   E.real(E.req[t],  t),
+    sal:    E.real(E.sal(t),  t),
+    exp:    E.real(E.exp[t],  t),
+    emi:    E.real(E.emi[t],  t),
+    goal:   E.real(E.goal[t], t),
+    names:  E.goalNames[t]
+  });
+
+  const all = pts.flatMap(p => [p.assets, p.need]);
+  const hi = Math.max(...all, 1), lo = Math.min(0, ...all);
+  const span = (hi-lo) || 1;
+  const max = hi + span*0.13, min = lo - (lo<0 ? span*0.08 : 0);
+  const x = t => PL + t*(W-PL-PR)/Math.max(1,E.N);
+  const y = v => PT + (1-(v-min)/((max-min)||1))*(H-PT-PB);
+  let s = "";
+
+  for(let k=0;k<=4;k++){
+    const v = min + (max-min)*k/4, yy = y(v);
+    s += `<line class="gridline" x1="${PL}" y1="${yy}" x2="${W-PR}" y2="${yy}"/>`;
+    s += `<text class="axis" x="${PL-10}" y="${yy+4}" text-anchor="end">${fmt(v)}</text>`;
+  }
+  if(min < 0) s += `<line x1="${PL}" y1="${y(0)}" x2="${W-PR}" y2="${y(0)}" stroke="rgba(255,255,255,.3)" stroke-width="1"/>`;
+
+  const path = key => pts.map((p,i) => `${i?"L":"M"}${x(p.t).toFixed(1)},${y(p[key]).toFixed(1)}`).join(" ");
+
+  /* selected retirement marker behind the lines */
+  if(E.workStop >= 0 && E.workStop <= E.N){
+    const retireOnRight = E.workStop > E.N*0.72;
+    const retireLabelX = x(E.workStop) + (retireOnRight ? -7 : 7);
+    const retireAnchor = retireOnRight ? "end" : "start";
+    s += `<line x1="${x(E.workStop)}" y1="${PT}" x2="${x(E.workStop)}" y2="${y(min)}" stroke="#a9bcda" stroke-width="1.2" stroke-dasharray="2 5"/>`;
+    const retireText = compactLabels ? `Salary stops ${E.workAge}` : `Salary stops &mdash; age ${E.workAge}`;
+    s += `<text class="axis" x="${retireLabelX}" y="${PT+29}" text-anchor="${retireAnchor}" fill="#a9bcda" font-weight="700">${retireText}</text>`;
+  }
+
+  /* freedom marker behind the lines */
+  if(E.ff >= 0){
+    s += `<rect x="${x(E.ff)}" y="${PT}" width="${Math.max(0,W-PR-x(E.ff))}" height="${H-PT-PB}" fill="rgba(117,207,194,.07)"/>`;
+    s += `<line x1="${x(E.ff)}" y1="${PT}" x2="${x(E.ff)}" y2="${y(min)}" stroke="var(--teal)" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+    const freedomOnRight = E.ff > E.N*0.72;
+    const freedomLabelX = x(E.ff) + (freedomOnRight ? -7 : 7);
+    const freedomAnchor = freedomOnRight ? "end" : "start";
+    const freedomText = compactLabels ? `Optional ${S.age+E.ff}` : `Work optional &mdash; age ${S.age+E.ff}`;
+    s += `<text class="axis" x="${freedomLabelX}" y="${PT+12}" text-anchor="${freedomAnchor}" fill="#75cfc2" font-weight="700">${freedomText}</text>`;
+  }
+
+  s += `<defs><linearGradient id="afill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#75cfc2" stop-opacity=".28"/>
+        <stop offset="100%" stop-color="#75cfc2" stop-opacity="0"/></linearGradient></defs>`;
+  s += `<path d="${path("assets")} L${x(E.N)},${y(min)} L${PL},${y(min)} Z" fill="url(#afill)"/>`;
+  s += `<path d="${path("need")}" fill="none" stroke="#8fb8ea" stroke-width="2" stroke-dasharray="6 4" stroke-linejoin="round"/>`;
+  s += `<path d="${path("assets")}" fill="none" stroke="#75cfc2" stroke-width="2.6" stroke-linejoin="round"/>`;
+
+  /* goal markers */
+  pts.forEach(p => { if(p.goal > 0){
+    s += `<line x1="${x(p.t)}" y1="${y(min)-8}" x2="${x(p.t)}" y2="${y(min)}" stroke="#e9a23b" stroke-width="2"/>`;
+    s += `<circle cx="${x(p.t)}" cy="${y(p.assets)}" r="4.5" fill="#e9a23b" stroke="#0a1f44" stroke-width="1.5"/>`;
+  }});
+
+  /* intersection marker */
+  if(E.ff >= 0){
+    const p = pts[E.ff];
+    s += `<circle cx="${x(E.ff)}" cy="${y(p.assets)}" r="7.5" fill="none" stroke="#fff" stroke-width="2"/>`;
+    s += `<circle cx="${x(E.ff)}" cy="${y(p.assets)}" r="3.5" fill="#fff"/>`;
+  }
+
+  const step = Math.max(1, Math.round(E.N/8));
+  pts.forEach(p => { if(p.t % step === 0 || p.t === E.N)
+    s += `<text class="axis" x="${x(p.t)}" y="${H-11}" text-anchor="middle">${p.age}</text>`; });
+  s += `<text class="axis" x="${PL-10}" y="${H-11}" text-anchor="end" fill="#6d84aa">age</text>`;
+
+  s += `<g id="hg" style="display:none">
+          <line id="hl" y1="${PT}" y2="${y(min)}" stroke="rgba(255,255,255,.45)" stroke-width="1"/>
+          <circle id="ha" r="5" fill="#0a1f44" stroke="#75cfc2" stroke-width="2.5"/>
+          <circle id="hn" r="4.5" fill="#0a1f44" stroke="#8fb8ea" stroke-width="2.5"/></g>`;
+  s += `<rect id="hit" x="${PL}" y="${PT}" width="${Math.max(1,W-PL-PR)}" height="${H-PT-PB}" fill="transparent" style="cursor:crosshair"/>`;
+
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+  CH = {pts, x, y, W, H, PL, PR, N:E.N};
+  wireHover();
+
+  $("cnote").textContent = "Both lines in today's purchasing power \u00B7 salary continues to age " + E.workAge
+    + " \u00B7 assumes " + S.gRet + "% return, " + S.gInf + "% inflation, " + S.gSal
+    + "% salary growth, planning to age " + S.lifeTo;
+}
+
+function wireHover(){
+  const hit = $("hit"), tip = $("tip"), g = $("hg");
+  if(!hit) return;
+  const move = ev => {
+    const r = $("ff").getBoundingClientRect();
+    const cx0 = ev.touches ? ev.touches[0].clientX : ev.clientX;
+    const sx = (cx0 - r.left) * (CH.W / r.width);
+    const gap = (CH.W - CH.PL - CH.PR) / Math.max(1, CH.N);
+    let i = Math.round((sx - CH.PL)/gap);
+    i = Math.max(0, Math.min(CH.pts.length-1, i));
+    const p = CH.pts[i], px = CH.x(p.t);
+    g.style.display = "block";
+    $("hl").setAttribute("x1",px); $("hl").setAttribute("x2",px);
+    $("ha").setAttribute("cx",px); $("ha").setAttribute("cy",CH.y(p.assets));
+    $("hn").setAttribute("cx",px); $("hn").setAttribute("cy",CH.y(p.need));
+    const freed = FF.ff >= 0 && p.t >= FF.ff;
+    const retired = p.t >= FF.workStop;
+    const status = retired ? "Retired" : (freed ? "Work optional \u00B7 still earning" : "Still working");
+    const statusClass = retired ? "retired" : (freed ? "after" : "before");
+    tip.classList.add("on");
+    tip.innerHTML =
+      `<span class="tst ${statusClass}">${status}</span>
+       <div class="ty">Age ${p.age}</div>
+       <div class="hr"></div>
+       <div class="row"><span>Projected financial assets</span><b style="color:var(--green)">${fmt(p.assets)}</b></div>
+       <div class="row"><span>Corpus needed</span><b style="color:var(--navy)">${fmt(p.need)}</b></div>
+       <div class="hr"></div>
+       <div class="row"><span>Salary</span><b>${fmt(p.sal)}</b></div>
+       <div class="row"><span>Expenses</span><b>${fmt(p.exp)}</b></div>
+       ${p.emi > 0 ? `<div class="row"><span>EMI</span><b>${fmt(p.emi)}</b></div>` : ""}
+       ${p.goal > 0 ? `<div class="row"><span>${p.names.join(", ")}</span><b style="color:var(--amber)">${fmt(p.goal)}</b></div>` : ""}`;
+
+    /* Follow the upper of the two hovered points without moving the graph.
+       The popup may extend upward over the chart heading area, preserving the
+       chart's original vertical placement and a consistent point-to-card gap. */
+    const chartBox = tip.parentElement;
+    const chartRect = chartBox.getBoundingClientRect();
+    const boxWidth = chartBox.clientWidth || r.width;
+    const svgLeft = (px / CH.W) * r.width + (r.left - chartRect.left);
+    const upperSvgY = Math.min(CH.y(p.assets), CH.y(p.need));
+    const upperPointY = (upperSvgY / CH.H) * r.height + (r.top - chartRect.top);
+    const tipWidth = tip.offsetWidth || 240;
+    const tipHeight = tip.offsetHeight || 190;
+    const half = tipWidth / 2;
+    const sidePadding = 8;
+    const pointGap = 16;
+    const safeX = Math.max(half + sidePadding, Math.min(boxWidth - half - sidePadding, svgLeft));
+
+    tip.style.left = safeX + "px";
+    tip.style.top = (upperPointY - tipHeight - pointGap) + "px";
+
+    /* Keep the pointer aimed at the hovered age even when the card is clamped
+       near the left or right edge. */
+    const arrowX = Math.max(14, Math.min(tipWidth - 14, svgLeft - (safeX - half)));
+    tip.style.setProperty("--tip-arrow-x", arrowX + "px");
+  };
+  const leave = () => { g.style.display = "none"; tip.classList.remove("on"); };
+  hit.addEventListener("mousemove", move);
+  hit.addEventListener("mouseleave", leave);
+  hit.addEventListener("touchmove", e => { move(e); e.preventDefault(); }, {passive:false});
+  hit.addEventListener("touchend", leave);
+}
+
+/* ========================= DONUTS ========================= */
+/* The two bands touch: RI_OUT and RO_IN are the same radius. A hairline white
+   edge on every wedge keeps the levels legible without opening a gap. */
+const CX=110, CY=110, RO_OUT=94, RO_IN=73, RI_OUT=73, RI_IN=52, POP=8, TAU=Math.PI*2;
+const EDGE = ' stroke="#fff" stroke-width="1.1" stroke-linejoin="round"';
+/* Two levels, two jobs. The inner ring carries one deep, quiet tone per group
+   so the headline split reads at a glance. The outer ring is the expansion of
+   that group, so its colours are brighter and clearly separated from one
+   another — a child should never be mistaken for its parent, or for a sibling. */
+const GRP_IN   = "#0a5e52";   /* money in      */
+const GRP_OUT  = "#3f4f66";   /* money out     */
+const GRP_ASSET= "#12356b";   /* assets        */
+const GRP_DEBT = "#4a0d07";   /* liabilities   */
+const PAL_HAVE  = ["#17b394"];                                   /* salary          */
+const PAL_ASSET = ["#2f6fd0","#79b0ea"];                          /* financial, personal */
+/* Living costs get real hue variation, not six shades of the same grey: six
+   tints of one neutral cannot be told apart from each other AND from their
+   parent at once. Reds stay reserved for loan instalments. */
+const PAL_LIVE  = ["#6f9ee0","#57b0a2","#a487c4","#96a7bd","#3f7f92","#b59240"];
+/* Loans stay in one warm family so they read as debt at a glance, but they
+   vary across hue as well as lightness — six tints of the same red were
+   indistinguishable from each other once they sat side by side. */
+const PAL_DEBT  = ["#e04a3f","#f59a1f","#c02e78","#d2764e","#f0aa96","#8e2f57"];
+const pick=(p,i)=>p[i%p.length];
+const track=(ro,ri,c)=>`<circle cx="${CX}" cy="${CY}" r="${(ro+ri)/2}" fill="none" stroke="${c}" stroke-width="${ro-ri}"/>`;
+function wedgePath(a0,a1,rOut,rIn){
+  const sp = Math.min(a1-a0, TAU-0.0001); a1 = a0+sp;
+  const P=(rad,a)=>[(CX+rad*Math.cos(a)).toFixed(2),(CY+rad*Math.sin(a)).toFixed(2)];
+  const big = sp > Math.PI ? 1 : 0;
+  const [x1,y1]=P(rOut,a0),[x2,y2]=P(rOut,a1),[x3,y3]=P(rIn,a1),[x4,y4]=P(rIn,a0);
+  return `M${x1},${y1} A${rOut},${rOut} 0 ${big} 1 ${x2},${y2} L${x3},${y3} A${rIn},${rIn} 0 ${big} 0 ${x4},${y4} Z`;
+}
+/* ================= TWO-LEVEL DONUT =================
+   A hierarchy, not two independent rings. The inner ring is the headline
+   split — what you own against what you owe, what comes in against what goes
+   out — and the outer ring breaks each of those in two or more parts that sit
+   exactly inside their parent's arc.
+
+   Both rings share one denominator: the sum of the groups. That is what makes
+   the picture honest. In the old chart the assets ring was scaled to assets
+   and the loans ring to assets as well, so a wedge in one ring could not be
+   compared with a wedge in the other. Here every angle on the chart means the
+   same thing, and the centre carries the difference between the two groups.
+============================================================ */
+function shade(hex, amt){
+  const n = parseInt(hex.slice(1),16);
+  const r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  const m = v => Math.round(amt < 0 ? v*(1+amt) : v + (255-v)*amt);
+  return "#" + [m(r),m(g),m(b)].map(v => v.toString(16).padStart(2,"0")).join("");
+}
+function drawRings(svgId, legId, tipId, groups, opts){
+  const svg=$(svgId), leg=$(legId), tip=$(tipId);
+  groups = groups.filter(g => g.v > 0);
+  const total = groups.reduce((t,g)=>t+g.v,0);
+  leg.innerHTML = "";
+  if(total <= 0){
+    svg.innerHTML = track(RO_OUT,RO_IN,"#e6ebf3") + track(RI_OUT,RI_IN,"#eef1f6");
+    leg.innerHTML = `<div class="li"><span class="nm" style="color:var(--slate)">${opts.empty}</span></div>`;
+    return;
+  }
+
+  let s = track(RO_OUT,RO_IN,"#e6ebf3") + track(RI_OUT,RI_IN,"#eef1f6");
+  const meta = [];
+  let a = -Math.PI/2;
+
+  groups.forEach(grp => {
+    const gsp = (grp.v/total)*TAU;
+    if(gsp <= 0) return;
+
+    /* the parent arc, on the inner band */
+    const ggap = Math.min(0.016, gsp*0.10);
+    s += `<path class="wedge" tabindex="0" role="img" fill="${grp.c}"`
+       + ` aria-label="${grp.n}: ${full(grp.v)}, ${(grp.v/total*100).toFixed(1)} percent"`
+       + ` d="${wedgePath(a+ggap, a+gsp, RI_OUT, RI_IN)}"${EDGE}></path>`;
+    meta.push({seg:grp, mid:a+gsp/2, tipR:(RI_OUT+RI_IN)/2, share:grp.v/total, parent:null});
+
+    /* its children, on the outer band, filling exactly the parent's span */
+    const kids = (grp.items || []).filter(k => k.v > 0);
+    const kidSum = kids.reduce((t,k)=>t+k.v,0);
+    if(!kids.length || kidSum <= 0){
+      /* nothing itemised yet: carry the parent through at a lighter weight */
+      s += `<path class="wedge" tabindex="0" role="img" fill="${shade(grp.c,0.45)}"`
+         + ` aria-label="${grp.n}, not yet itemised"`
+         + ` d="${wedgePath(a+ggap, a+gsp, RO_OUT, RO_IN)}"${EDGE}></path>`;
+      meta.push({seg:{n:grp.n, v:grp.v, c:shade(grp.c,0.45), d:opts.unsplit || "Not broken down yet."},
+                 mid:a+gsp/2, tipR:(RO_OUT+RO_IN)/2, share:grp.v/total, parent:grp});
+    } else {
+      let k0 = a;
+      kids.forEach(kid => {
+        /* children are scaled to the parent so they always fill it exactly,
+           even if the itemised rows do not add up to the parent total */
+        const ksp = (kid.v/kidSum)*gsp;
+        if(ksp <= 0) return;
+        const kgap = Math.min(0.012, ksp*0.14);
+        s += `<path class="wedge" tabindex="0" role="img" fill="${kid.c}"`
+           + ` aria-label="${kid.n}: ${full(kid.v)}, ${(kid.v/total*100).toFixed(1)} percent"`
+           + ` d="${wedgePath(k0+kgap, k0+ksp, RO_OUT, RO_IN)}"${EDGE}></path>`;
+        meta.push({seg:kid, mid:k0+ksp/2, tipR:(RO_OUT+RO_IN)/2, share:kid.v/total, parent:grp});
+        k0 += ksp;
+      });
+    }
+    a += gsp;
+  });
+  svg.innerHTML = s;
+
+  const handlers = [...svg.querySelectorAll(".wedge")].map((el,i) => {
+    const m = meta[i], dx = Math.cos(m.mid)*POP, dy = Math.sin(m.mid)*POP;
+    const show = () => {
+      el.setAttribute("transform",`translate(${dx.toFixed(2)},${dy.toFixed(2)})`);
+      tip.classList.add("on");
+      tip.style.left = ((CX+Math.cos(m.mid)*m.tipR)/220*100)+"%";
+      tip.style.top  = ((CY+Math.sin(m.mid)*m.tipR)/220*100)+"%";
+      const within = m.parent && m.parent.v > 0
+        ? `<br>${(m.seg.v/m.parent.v*100).toFixed(0)}% of ${m.parent.n.toLowerCase()}` : "";
+      tip.innerHTML = `<div class="n"><i style="background:${m.seg.c}"></i>${m.seg.n}</div>
+                       <div class="a">${full(m.seg.v)}</div>
+                       <div class="d">${(m.share*100).toFixed(1)}% of the chart${within}<br>${m.seg.d}</div>`;
+    };
+    const hide = () => { el.removeAttribute("transform"); tip.classList.remove("on"); };
+    el.addEventListener("mouseenter",show); el.addEventListener("mouseleave",hide);
+    el.addEventListener("focus",show);      el.addEventListener("blur",hide);
+    return {show,hide};
+  });
+
+  /* the legend follows the same hierarchy: a parent line, then its children */
+  let n = 0;
+  groups.forEach(grp => {
+    const h = document.createElement("div");
+    h.className = "lhead";
+    h.innerHTML = `<span class="gsw" style="background:${grp.c}"></span>${grp.n} \u00B7 ${fmt(grp.v)}`;
+    leg.appendChild(h);
+    const pi = n++;                                   /* the parent wedge */
+    const kids = (grp.items || []).filter(k => k.v > 0);
+    if(!kids.length){
+      const i = n++;
+      const li = document.createElement("div"); li.className = "li";
+      li.innerHTML = `<span class="sw" style="background:${shade(grp.c,0.45)}"></span>
+                      <span class="nm" style="color:var(--slate)">${opts.unsplitLeg || "not itemised"}</span>
+                      <span class="vl">${fmt(grp.v)}</span>
+                      <span class="pc">${(grp.v/total*100).toFixed(0)}%</span>`;
+      if(handlers[i]){ li.addEventListener("mouseenter",handlers[i].show); li.addEventListener("mouseleave",handlers[i].hide); }
+      leg.appendChild(li);
+      return;
+    }
+    kids.forEach(kid => {
+      const i = n++;
+      const li = document.createElement("div"); li.className = "li";
+      li.innerHTML = `<span class="sw" style="background:${kid.c}"></span>
+                      <span class="nm">${kid.n}</span>
+                      <span class="vl">${fmt(kid.v)}</span>
+                      <span class="pc">${(kid.v/total*100).toFixed(0)}%</span>`;
+      if(handlers[i]){ li.addEventListener("mouseenter",handlers[i].show); li.addEventListener("mouseleave",handlers[i].hide); }
+      leg.appendChild(li);
+    });
+  });
+}
+
+
+/* ---------- fold every section note behind a caret ----------
+   Done here rather than in the markup so the same rule covers notes that are
+   written by script as well as those already in the page, and so a note added
+   later is folded automatically. */
+(function(){
+  document.querySelectorAll(".rowfoot, .foot, .gfoot, .rnote").forEach(note => {
+    if(note.closest(".nfold")) return;
+    const host = note.parentNode;
+    const bar  = document.createElement("div");
+    bar.className = "notebar";
+    const btn  = document.createElement("button");
+    btn.type = "button"; btn.className = "nmore";
+    btn.setAttribute("aria-expanded","false");
+    btn.setAttribute("aria-label","Show the note for this section");
+    bar.appendChild(btn);
+    const fold = document.createElement("div");
+    fold.className = "nfold";
+    host.insertBefore(bar, note);
+    host.insertBefore(fold, note);
+    fold.appendChild(note);
+    const set = open => {
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      fold.classList.toggle("open", open);
+      fold.style.maxHeight = open ? fold.scrollHeight + "px" : "0px";
+    };
+    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+    /* the notes are rewritten as figures change, so the measured height goes stale */
+    new MutationObserver(() => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    }).observe(note, {childList:true, characterData:true, subtree:true});
+    window.addEventListener("resize", () => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    });
+  });
+})();
+
+/* ============ page description ============
+   Expands in the flow, so the chart below moves down rather than being
+   covered. Height is measured each time it opens because the text wraps to a
+   different number of lines at different widths.
+========================================== */
+document.querySelectorAll(".pmore").forEach(btn => {
+  const box = $(btn.getAttribute("aria-controls"));
+  if(!box) return;
+  const set = open => {
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    box.classList.toggle("open", open);
+    box.style.maxHeight = open ? box.scrollHeight + "px" : "0px";
+  };
+  btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+  window.addEventListener("resize", () => {
+    if(btn.getAttribute("aria-expanded") === "true") box.style.maxHeight = box.scrollHeight + "px";
+  });
+});
+
+/* ============ tooltip placement ============
+   Measured when the card is asked to open, not once at load: the frozen bar's
+   position and the marker's position both move as the page scrolls, so the
+   right direction is not a fixed property of the tooltip.
+============================================ */
+(function(){
+  const barBottom = () => {
+    const b = $("tier2wrap");
+    if(!b) return 0;
+    const r = b.getBoundingClientRect();
+    /* only counts as an obstacle while it is actually frozen at the top */
+    return r.top <= 1 ? r.bottom : 0;
+  };
+  document.querySelectorAll(".pop").forEach(pop => {
+    const btn = pop.previousElementSibling;
+    if(!btn || !btn.classList.contains("info")) return;
+    const place = () => {
+      pop.classList.remove("below");
+      const r = btn.getBoundingClientRect();
+      const h = pop.offsetHeight;                 /* hidden, not display:none, so measurable */
+      /* 16px of clearance, not a hairline: a card that only just fits above
+         still reads as jammed against the frozen bar. */
+      if(r.top - 9 - h < barBottom() + 16) pop.classList.add("below");
+    };
+    btn.addEventListener("mouseenter", place);
+    btn.addEventListener("focus", place);
+    btn.addEventListener("touchstart", place, {passive:true});
+  });
+})();
+
+/* ============ heading descriptions ============
+   The caret lives inside a <summary>, so a plain click would also open or
+   close the group. Both the click and the default summary behaviour are
+   stopped, leaving the caret to do one thing only.
+============================================ */
+document.querySelectorAll(".ghint").forEach(btn => {
+  const sub = btn.nextElementSibling;
+  const set = open => {
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    sub.classList.toggle("open", open);
+  };
+  btn.addEventListener("click", e => {
+    e.preventDefault(); e.stopPropagation();
+    set(btn.getAttribute("aria-expanded") !== "true");
+  });
+  /* space and enter reach the summary otherwise, which would collapse the group */
+  btn.addEventListener("keydown", e => {
+    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); e.stopPropagation();
+      set(btn.getAttribute("aria-expanded") !== "true"); }
+  });
+});
+
+/* ========================= ROWS ========================= */
+const DEFS = {
+  loans:{list:"loans", el:"rows-loans", cols:[["n","text","Home loan"],["v","number","Outstanding"],["emi","number","Monthly EMI"]]},
+  goals:{list:"goals", el:"rows-goals", cols:[["n","text","Child's education"],["v","number","Cost today"],["yrs","number","Years"]]},
+  exp:  {list:"exp",   el:"rows-exp",   cols:[["n","text","Rent, food, travel"],["v","number","Per year"]]}
+};
+function renderRows(key){
+  const d = DEFS[key], box = $(d.el);
+  box.innerHTML = "";
+  S[d.list].forEach((r,idx) => {
+    const div = document.createElement("div");
+    div.className = "row";
+    div.innerHTML = d.cols.map(([k,t,ph]) =>
+        `<input class="inp" type="${t}" data-k="${k}" placeholder="${ph}" value="${r[k]!==undefined&&r[k]!==null?r[k]:""}">`).join("")
+      + `<span class="rowbtns">
+           <button class="rb save${r.saved?" done":""}" type="button">${r.saved?"Saved":"Save"}</button>
+           <button class="rb del" type="button">Remove</button></span>`;
+    const btnSave = div.querySelector(".save");
+    div.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("input", e => {
+        const k = e.target.dataset.k;
+        S[d.list][idx][k] = (k === "n") ? e.target.value : num(e.target.value);
+        S[d.list][idx].saved = false;
+        btnSave.classList.remove("done"); btnSave.textContent = "Save";
+        refresh();
+      });
+    });
+    btnSave.addEventListener("click", () => {
+      S[d.list][idx].saved = true;
+      btnSave.classList.add("done"); btnSave.textContent = "Saved";
+    });
+    div.querySelector(".del").addEventListener("click", () => { S[d.list].splice(idx,1); renderRows(key); refresh(); });
+    box.appendChild(div);
+  });
+}
+document.querySelectorAll("[data-add]").forEach(b => {
+  b.addEventListener("click", () => {
+    const key = b.dataset.add;
+    S[DEFS[key].list].push(key === "goals" ? {n:"",v:0,yrs:5,saved:false} : {n:"",v:0,emi:0,saved:false});
+    renderRows(key); refresh();
+    $(DEFS[key].el).lastElementChild.querySelector("input").focus();
+  });
+});
+
+/* ========================= REFRESH ========================= */
+function refresh(){
+  const c = current();
+  FF = engine();
+
+  /* --- freedom result --- */
+  const ageEl = $("ff-age");
+  if(FF.ff < 0){
+    ageEl.textContent = "Not within this plan";
+    ageEl.className = "ffage num none";
+    $("ff-years").textContent = "On these figures your financial assets do not reach the required corpus before salary stops at age " + FF.workAge + ".";
+    $("ff-range").textContent = "\u2014";
+    $("ff-need").textContent = "\u2014";
+    $("ff-have").textContent = "\u2014";
+  } else {
+    const ffAge = S.age + FF.ff;
+    ageEl.textContent = "Around " + ffAge;
+    ageEl.className = "ffage num";
+    $("ff-years").textContent = FF.ff === 0
+      ? "Work is optional today. Salary is still included until age " + FF.workAge + "."
+      : "Approximately " + FF.ff + (FF.ff === 1 ? " year" : " years") + " from now. Salary continues until age " + FF.workAge + ".";
+    const lo = engine({gRet:S.gRet+1, gInf:Math.max(0,S.gInf-0.5)}).ff;
+    const hi = engine({gRet:Math.max(1,S.gRet-1), gInf:S.gInf+0.5}).ff;
+    const a = lo < 0 ? null : S.age+lo, b = hi < 0 ? null : S.age+hi;
+    $("ff-range").textContent = (a === null || b === null)
+      ? "age " + ffAge + " or later"
+      : (a === b ? "age " + a : "age " + Math.min(a,b) + "\u2013" + Math.max(a,b));
+    $("ff-need").textContent = fmt(FF.real(FF.req[FF.ff], FF.ff));
+    $("ff-have").textContent = fmt(FF.real(FF.pool[FF.ff], FF.ff));
+  }
+  $("ff-workage").textContent = "Age " + FF.workAge;
+  $("ff-lifeage").textContent = S.lifeTo;
+  $("ff-end").textContent = fmt(FF.real(FF.pool[FF.N], FF.N));
+
+  /* --- chart 1: what comes in against what goes out, surplus in the middle --- */
+  const spend = [];
+  S.exp.forEach((e,i) => { if(num(e.v) > 0) spend.push({
+    n:e.n || "Expense "+(i+1), v:num(e.v), c:pick(PAL_LIVE,i),
+    d:"A yearly living cost. Inflates at "+S.gInf+"% a year." }); });
+  S.loans.forEach((l,i) => { const a = num(l.emi)*12; if(a > 0) spend.push({
+    n:(l.n || "Loan "+(i+1))+" EMI", v:a, c:pick(PAL_DEBT,i),
+    d: full(num(l.emi))+" a month. Stops once the balance is repaid." }); });
+  const surGroups = [
+    {n:"Money in", v:c.salary, c:GRP_IN,
+     d:"Your only income on this page, growing "+S.gSal+"% a year.",
+     items: c.salary > 0 ? [{n:"Annual salary", v:c.salary, c:pick(PAL_HAVE,0),
+       d:"Gross salary for the year, before anything is spent."}] : []},
+    {n:"Money out", v:c.outgo, c:GRP_OUT,
+     d:"Everything that leaves your hands this year: living costs plus loan instalments.",
+     items: spend}
+  ];
+  drawRings("svg-sur","leg-sur","tip-sur", surGroups,
+    {empty:"Add your salary and expenses to see this",
+     unsplit:"Recorded as a single figure, not yet itemised.",
+     unsplitLeg:"not itemised"});
+
+  const sv = $("sur-val");
+  sv.textContent = fmt(c.surplus);
+  sv.className = "v num " + (c.surplus >= 0 ? "pos" : "neg");
+  const keptPc = c.salary > 0 ? Math.round((1-c.outgo/c.salary)*100) : 0;
+  $("sur-cap").textContent = c.surplus >= 0
+    ? keptPc+"% of your salary is still yours"
+    : "you spend "+fmt(c.outgo-c.salary)+" more than you earn";
+  $("sur-sub").textContent = c.surplus >= 0
+    ? "How this year's salary of "+fmt(c.salary)+" is used up"
+    : "Your outgo of "+fmt(c.outgo)+" exceeds your salary";
+  $("pop-sur").textContent = full(c.salary)+" \u2212 "+full(c.expenses)+" \u2212 "+full(c.emiYear)+" = "+full(c.surplus);
+
+  /* --- chart 2: what you own against what you owe, net worth in the middle --- */
+  const ownItems = [];
+  if(c.finAssets > 0) ownItems.push({n:"Financial assets", v:c.finAssets, c:pick(PAL_ASSET,0),
+    d:"Savings and investments available to fund expenses and goals. This is the starting pool in the freedom chart."});
+  if(c.personalAssets > 0) ownItems.push({n:"Personal assets", v:c.personalAssets, c:pick(PAL_ASSET,1),
+    d:"Assets held for personal use. They count towards net worth but are not assumed to be sold for financial freedom."});
+  const oweItems = [];
+  S.loans.forEach((l,i) => { if(num(l.v) > 0) oweItems.push({
+    n:(l.n || "Loan "+(i+1)), v:num(l.v), c:pick(PAL_DEBT,i),
+    d:"Still owed to a lender. Reduces your net worth rupee for rupee." }); });
+  const nwGroups = [
+    {n:"Assets", v:c.assets, c:GRP_ASSET,
+     d:"Everything you own, at what it would fetch today.",
+     items: ownItems},
+    {n:"Liabilities", v:c.owed, c:GRP_DEBT,
+     d:"Everything you still owe. Subtracted in full from what you own.",
+     items: oweItems}
+  ];
+  drawRings("svg-nw","leg-nw","tip-nw", nwGroups,
+    {empty:"Add your assets to see this",
+     unsplit:"Recorded as a single figure, not yet itemised.",
+     unsplitLeg:"not itemised"});
+
+  const nv = $("nw-val");
+  nv.textContent = fmt(c.netWorth);
+  nv.className = "v num " + (c.netWorth >= 0 ? "" : "neg");
+  const freePc = c.assets > 0 ? Math.round((1-c.owed/c.assets)*100) : 0;
+  $("nw-cap").textContent = c.owed > 0 ? freePc+"% of what you own is unencumbered" : "nothing you own is financed";
+  $("nw-sub").textContent = fmt(c.finAssets)+" financial + "+fmt(c.personalAssets)+" personal; "+fmt(c.owed)+" is owed";
+  $("pop-nw").textContent = full(c.finAssets)+" + "+full(c.personalAssets)+" \u2212 "+full(c.owed)+" = "+full(c.netWorth);
+
+  /* --- savings ratio --- */
+  const rv = $("ratio-val"), rb = $("ratio-bar");
+  rv.textContent = c.salary > 0 ? c.ratio.toFixed(1)+"%" : "\u2014";
+  rb.style.width = Math.max(0, Math.min(100, c.ratio/50*100))+"%";
+  let band, tone, col;
+  if(c.ratio < 0){ band="You spend more than you earn, so freedom moves further away every year."; tone="bad"; col="#e2574c"; }
+  else if(c.ratio < 10){ band="Below the 10% most planners treat as a floor."; tone="bad"; col="#e2574c"; }
+  else if(c.ratio < 20){ band="A workable start, but thin against inflation."; tone="warn"; col="#e9a23b"; }
+  else if(c.ratio < 30){ band="A healthy rate. This is what pulls your freedom age closer."; tone=""; col="#0d8a78"; }
+  else { band="Strong. You are building faster than most."; tone=""; col="#0d8a78"; }
+  rv.className = "big num "+tone;
+  rb.style.background = col;
+  $("ratio-verdict").textContent = c.salary > 0 ? band : "Enter your salary to see this.";
+  $("pop-ratio").textContent = c.salary > 0
+    ? full(c.surplus)+" \u00F7 "+full(c.salary)+" = "+c.ratio.toFixed(1)+"%" : "";
+
+  /* --- section summaries --- */
+  $("v-profile").innerHTML = fmt(S.salary)+"<small>a year, +"+S.gSal+"% · working to age "+S.workTill+"</small>";
+  $("v-assets").innerHTML  = fmt(c.assets)+"<small>"+fmt(c.finAssets)+" financial · "+fmt(c.personalAssets)+" personal</small>";
+  $("v-loans").innerHTML   = fmt(c.owed)+"<small>"+fmt(c.emiYear)+" of EMI a year</small>";
+  const fvGoals = S.goals.reduce((t,g) => t + num(g.v)*Math.pow(1+S.gInf/100, Math.round(num(g.yrs))), 0);
+  $("v-goals").innerHTML   = fmt(fvGoals)+"<small>"+S.goals.length+(S.goals.length===1?" goal":" goals")+", at target year</small>";
+  $("v-spend").innerHTML   = fmt(c.expenses)+"<small>a year, at today's prices</small>";
+  $("v-assume").innerHTML  = S.gRet+"% \u00B7 "+S.gInf+"%<small>return \u00B7 inflation, to age "+S.lifeTo+"</small>";
+
+  const realRaise = ((1+S.gSal/100)/(1+S.gInf/100)-1)*100;
+  $("profile-note").textContent = "A " + S.gSal + "% raise against " + S.gInf + "% inflation is a real increase of "
+    + realRaise.toFixed(1) + "% a year. Salary continues until age " + S.workTill
+    + " even if financial freedom is reached earlier, and becomes zero from that age onward.";
+  const LY = loanYears();
+  $("loans-note").textContent = c.owed > 0
+    ? "EMIs total "+full(c.emiYear)+" a year. At this rate the longest runs "+(Math.max(...LY,0)||"\u2014")
+      +" more years, after which that money joins your savings. Loan interest is not modelled."
+    : "No loans recorded.";
+  $("exp-note").textContent = "You spend "+full(c.expenses)+" of "+full(c.salary)+" \u2014 "
+    + (c.salary>0 ? (c.expenses/c.salary*100).toFixed(0) : "0")
+    + "% of salary. This is the single biggest driver of the corpus you need, because it continues for life.";
+  $("goals-note").textContent = S.goals.length
+    ? "Together these cost "+full(fvGoals)+" in the years they fall due. Each is deducted from your assets in its year and is included in the corpus you need before then \u2014 look for the amber markers."
+    : "No goals recorded yet. Healthcare, a lifestyle change or a contingency reserve can all be added here as goals.";
+  const realRet = ((1+S.gRet/100)/(1+S.gInf/100)-1)*100;
+  $("assume-note").textContent = "A " + S.gRet + "% return against " + S.gInf
+    + "% inflation is a real return of " + realRet.toFixed(1)
+    + "% a year. That real figure, and your savings ratio, are what really set your freedom age.";
+
+  const done = [num(S.age)>=18, num(S.salary)>0, (num(S.finAssets)+num(S.personalAssets))>0,
+                S.exp.some(e=>num(e.v)>0)].filter(Boolean).length;
+  $("p-text").textContent = done+" of 4 essentials filled";
+  $("p-bar").style.width = (done/4*100)+"%";
+
+  drawFF();
+}
+
+/* ========================= WIRING ========================= */
+[["i-salary","salary"],["i-fin-assets","finAssets"],["i-personal-assets","personalAssets"]]
+  .forEach(([id,k]) => $(id).addEventListener("input", e => { S[k] = num(e.target.value); refresh(); }));
+$("i-age").addEventListener("input", e => {
+  S.age = Math.min(99, Math.max(18, Math.round(num(e.target.value))));
+  e.target.value = S.age;
+  const minLife = Math.min(100, S.age+1);
+  $("i-life").min = minLife;
+  if(S.lifeTo < minLife){ S.lifeTo = minLife; $("i-life").value = S.lifeTo; $("o-life").textContent = S.lifeTo; }
+  $("i-work-age").min = S.age;
+  $("i-work-age").max = S.lifeTo;
+  if(S.workTill < S.age) S.workTill = S.age;
+  if(S.workTill > S.lifeTo) S.workTill = S.lifeTo;
+  $("i-work-age").value = S.workTill;
+  refresh();
+});
+$("i-work-age").addEventListener("input", e => {
+  S.workTill = Math.min(S.lifeTo, Math.max(S.age, Math.round(num(e.target.value))));
+  e.target.value = S.workTill;
+  refresh();
+});
+
+/* salary growth appears beside the salary and in assumptions; keep both in step */
+function setGSal(v){
+  S.gSal = num(v);
+  $("i-gsal").value = S.gSal; $("i-gsal2").value = S.gSal;
+  $("o-gsal2").textContent = S.gSal.toFixed(1)+"%";
+  refresh();
+}
+$("i-gsal").addEventListener("input",  e => setGSal(e.target.value));
+$("i-gsal2").addEventListener("input", e => setGSal(e.target.value));
+$("i-gret").addEventListener("input",  e => { S.gRet = num(e.target.value); $("o-gret").textContent = S.gRet.toFixed(1)+"%"; refresh(); });
+$("i-ginf").addEventListener("input",  e => { S.gInf = num(e.target.value); $("o-ginf").textContent = S.gInf.toFixed(1)+"%"; refresh(); });
+$("i-life").addEventListener("input",  e => {
+  S.lifeTo = Math.max(S.age+1, num(e.target.value));
+  $("o-life").textContent = S.lifeTo;
+  $("i-work-age").max = S.lifeTo;
+  if(S.workTill > S.lifeTo){ S.workTill = S.lifeTo; $("i-work-age").value = S.workTill; }
+  refresh();
+});
+
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawFF, 120); });
+
+["loans","goals","exp"].forEach(renderRows);
+$("i-work-age").min = S.age;
+$("i-work-age").max = S.lifeTo;
+refresh();
+/* ========================= STACKED NAV ========================= */
+(function(){
+  const byId = id => document.getElementById(id);
+  const tabs = [...document.querySelectorAll(".tier2 .stab[data-go]")];
+
+  const jump = id => {
+    if(id === "top"){ window.scrollTo({top:0, behavior:"smooth"}); return; }
+    const el = byId(id);
+    if(!el) return;
+    if(el.tagName === "DETAILS") el.open = true;
+    el.scrollIntoView({behavior:"smooth", block:"start"});
+  };
+  tabs.forEach(b => b.addEventListener("click", () => jump(b.dataset.go)));
+
+  /* the frozen bar lifts off the page once the header has scrolled past */
+  const bar = byId("tier2wrap"), head = document.querySelector(".topbar");
+  if(bar && head){
+    const onScroll = () => bar.classList.toggle("stuck", window.scrollY > head.offsetHeight - 1);
+    window.addEventListener("scroll", onScroll, {passive:true});
+    window.addEventListener("resize", onScroll);
+    onScroll();
+  }
+
+  /* highlight whichever section is in view */
+  const mark = id => tabs.forEach(b => b.classList.toggle("on", b.dataset.go === id));
+  const targets = tabs.map(b => byId(b.dataset.go)).filter(Boolean);
+  if("IntersectionObserver" in window && targets.length){
+    const nav = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--navh")) || 146;
+    const seen = new Map();
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => seen.set(e.target.id, e));
+      let best = null;
+      seen.forEach(e => {
+        if(!e.isIntersecting) return;
+        if(!best || e.intersectionRatio > best.intersectionRatio) best = e;
+      });
+      if(best) mark(best.target.id);
+    }, {rootMargin:"-" + (nav + 10) + "px 0px -55% 0px", threshold:[0,.1,.25,.5,1]});
+    targets.forEach(t => obs.observe(t));
+  }
+})();
+
+
+/* === LIFEMAP_BRIDGE_START === */
+(function(){
+  var PAGE = "fp";
+  var ROUTES = {
+    "lifemap-fp-calculator.html": "/",
+    "fp-calculator.html": "/",
+    "lifemap-assets.html": "/assets",
+    "assets.html": "/assets",
+    "lifemap-work-assets.html": "/work-assets",
+    "work-assets.html": "/work-assets",
+    "lifemap-goals.html": "/goals",
+    "goals.html": "/goals",
+    "lifemap-loans.html": "/loans",
+    "loans.html": "/loans",
+    "lifemap-expenses.html": "/expenses",
+    "expenses.html": "/expenses",
+    "lifemap-insurance.html": "/insurance",
+    "insurance.html": "/insurance"
+  };
+
+  function post(type, payload){
+    try { parent.postMessage({ source:"lifemap-mockup", type:type, page:PAGE, payload:payload||null }, "*"); }
+    catch (e) {}
+  }
+
+  function fileOf(href){
+    if (!href) return "";
+    var clean = String(href).split("#")[0].split("?")[0];
+    var parts = clean.split("/");
+    return parts[parts.length-1];
+  }
+
+  function replaceList(target, next){
+    if (!target || !next) return;
+    target.splice.apply(target, [0, target.length].concat(next));
+  }
+
+  function getState(){
+    try {
+      if (PAGE === "fp") {
+        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
+      }
+      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ };
+      if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
+      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS };
+      if (PAGE === "loans") return { ROWS: ROWS.slice(), PLAN: PLAN.slice(), VIEW: VIEW };
+      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE };
+    } catch (e) { console.error(e); }
+    return {};
+  }
+
+  function hydrateFp(st){
+    if (!st || !st.S) return;
+    var src = st.S;
+    S.age = src.age; S.salary = src.salary; S.gSal = src.gSal; S.workTill = src.workTill;
+    S.finAssets = src.finAssets; S.personalAssets = src.personalAssets;
+    S.gRet = src.gRet; S.gInf = src.gInf; S.lifeTo = src.lifeTo;
+    if (src.loans) replaceList(S.loans, src.loans);
+    if (src.goals) replaceList(S.goals, src.goals);
+    if (src.exp) replaceList(S.exp, src.exp);
+    var set = function(id, val){ var el = $(id); if (el) el.value = val; };
+    var setTxt = function(id, val){ var el = $(id); if (el) el.textContent = val; };
+    set("i-age", S.age);
+    set("i-salary", S.salary);
+    set("i-gsal", S.gSal);
+    set("i-gsal2", S.gSal);
+    set("i-work-age", S.workTill);
+    set("i-fin-assets", S.finAssets);
+    set("i-personal-assets", S.personalAssets);
+    set("i-gret", S.gRet); setTxt("o-gret", Number(S.gRet).toFixed(1)+"%");
+    set("i-ginf", S.gInf); setTxt("o-ginf", Number(S.gInf).toFixed(1)+"%");
+    setTxt("o-gsal2", Number(S.gSal).toFixed(1)+"%");
+    set("i-life", S.lifeTo); setTxt("o-life", S.lifeTo);
+    ["loans","goals","exp"].forEach(renderRows);
+    refresh();
+  }
+
+  function setState(st){
+    if (!st) return;
+    try {
+      if (PAGE === "fp") { hydrateFp(st); return; }
+      if (PAGE === "assets") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
+        if (st.MODE) MODE = st.MODE;
+        if (st.HZ) HZ = st.HZ;
+        refresh();
+        return;
+      }
+      if (PAGE === "work") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") {
+          AGE = st.AGE;
+          var ageEl = $("i-age");
+          if (ageEl) ageEl.value = AGE;
+        }
+        var maxId = 0;
+        ROWS.forEach(function(r){ if (r.id > maxId) maxId = r.id; });
+        try { NEXT_ID = maxId + 1; } catch(e) {}
+        refresh();
+        return;
+      }
+      if (PAGE === "goals") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
+        if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
+        if (st.BASIS) BASIS = st.BASIS;
+        refresh();
+        return;
+      }
+      if (PAGE === "loans") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (st.PLAN) replaceList(PLAN, st.PLAN);
+        if (typeof REGS !== "undefined") {
+          REGS.cur.list = ROWS;
+          REGS.plan.list = PLAN;
+        }
+        if (st.VIEW) VIEW = st.VIEW;
+        refresh();
+        return;
+      }
+      if (PAGE === "expenses") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var e1=$("i-age"); if(e1) e1.value=AGE; }
+        if (typeof st.LIFE === "number") { LIFE = st.LIFE; var e2=$("i-life"); if(e2) e2.value=LIFE; }
+        if (typeof st.GINF === "number") { GINF = st.GINF; var e3=$("i-ginf"); if(e3) e3.value=GINF; }
+        if (st.BASIS) BASIS = st.BASIS;
+        if (st.MODE) MODE = st.MODE;
+        refresh();
+      }
+    } catch (err) {
+      console.error("LifeMap setState failed", err);
+    }
+  }
+
+  function setAccount(label){
+    var link = document.querySelector(".tier0 .tlink");
+    if (link && label) link.textContent = label;
+  }
+
+  document.querySelectorAll(".ptab.gate").forEach(function(a){
+    var label = (a.textContent || "").replace(/\s+/g," ").trim();
+    if (/insurance/i.test(label)) {
+      a.classList.remove("gate");
+      a.removeAttribute("title");
+      a.setAttribute("href", "/insurance");
+    }
+  });
+
+  document.querySelectorAll("a").forEach(function(a){
+    a.addEventListener("click", function(e){
+      var href = a.getAttribute("href") || "";
+      var file = fileOf(href);
+      var label = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/^insurance$/i.test(label) && (a.classList.contains("ptab") || href === "/insurance" || href === "#")) {
+        e.preventDefault();
+        post("navigate", { path: "/insurance" });
+        return;
+      }
+      if (a.classList.contains("gate")) { e.preventDefault(); return; }
+      if (ROUTES[file]) {
+        e.preventDefault();
+        post("navigate", { path: ROUTES[file] });
+      }
+    });
+  });
+
+  document.querySelectorAll(".tier0 .tlink, .tier0 .btn").forEach(function(a){
+    a.addEventListener("click", function(e){
+      e.preventDefault();
+      var text = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/sign in|account/i.test(text)) post("auth", { action: "signin", label: text });
+      else if (/save/i.test(text)) post("save", getState());
+    });
+  });
+
+  document.addEventListener("click", function(e){
+    var saveBtn = e.target.closest && e.target.closest(".rb.save");
+    var delBtn = e.target.closest && e.target.closest(".rb.del");
+    if (saveBtn || delBtn) {
+      setTimeout(function(){ post(delBtn ? "row-delete" : "row-save", getState()); }, 30);
+    }
+  }, true);
+
+  window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  post("ready", getState());
+})();
+/* === LIFEMAP_BRIDGE_END === */
+
+</script>
+
+</body>
+</html>

@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "prepare:mockups": "python scripts/prepare-mockups.py",
     "check-schema": "node check_production_schema.js",
     "migrate:admin": "node backend/scripts/migrate-admin-tables.js"
   },

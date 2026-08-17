@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeMap &mdash; Loans</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font:"Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --navy:#003c8f; --ink:#0a1f44; --teal:#75cfc2; --aqua:#b5e6e5;
+  --paper:#f6f8fb; --line:#e2e8f2; --muted:#66799a; --coral:#e2574c;
+  --amber:#e9a23b; --slate:#9aa7bd; --green:#0d8a78; --r:14px;
+  --shadow:0 1px 2px rgba(10,31,68,.04), 0 8px 24px rgba(10,31,68,.06);
+  --navh:44px;   /* height of the frozen bottom bar only */
+  --bar:#e8f4f5; --bar-line:#cfe6e8;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--font);
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums}
+h1,h2,h3,h4{font-family:var(--font); font-weight:700; letter-spacing:-.02em; margin:0}
+.num{font-variant-numeric:tabular-nums; font-weight:700; letter-spacing:-.02em}
+button,input,select,textarea{font-family:var(--font)}
+a{text-decoration:none; color:inherit}
+
+/* ---------- top bar ---------- */
+/* ---------- stacked top navigation ---------- */
+.topbar{background:#fff; position:relative}
+.topbar::before{content:""; display:block; height:3px;
+  background:linear-gradient(90deg, var(--navy) 0%, #2f6fd0 26%, #0d8a78 52%, var(--teal) 76%, var(--aqua) 100%)}
+.tier{max-width:1200px; margin:0 auto; padding:0 28px}
+@media(max-width:640px){.tier{padding:0 16px}}
+
+/* tier 0 — identity and actions */
+.tier0{display:flex; align-items:center; gap:16px; height:56px}
+.brand{display:flex; align-items:center; gap:10px; text-decoration:none}
+.mark{width:20px; height:20px; background:var(--navy); transform:rotate(45deg); border-radius:3px; position:relative; flex:none}
+.mark::after{content:""; position:absolute; inset:0 0 50% 50%; background:var(--teal); border-radius:0 3px 0 0}
+.brand .name{font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.03em}
+.brand .by{font-size:10.5px; color:var(--muted); letter-spacing:.09em; text-transform:uppercase; font-weight:600}
+.tier0 .acts{margin-left:auto; display:flex; align-items:center; gap:8px}
+.tlink{padding:8px 12px; font-size:14px; color:var(--navy); text-decoration:none; border-radius:8px; font-weight:600}
+.tlink:hover{color:var(--navy); background:#eef3fa}
+
+/* tier 1 — the product's main areas, centred */
+.tier1{display:flex; gap:1px; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none}
+.tier1::-webkit-scrollbar{display:none}
+/* auto margins centre the row, then collapse to zero when it overflows so nothing is unreachable */
+.tier1 > :first-child{margin-left:auto}
+.tier1 > :last-child{margin-right:auto}
+.ptab{padding:11px 14px 12px; font-size:14px; font-weight:600; color:var(--muted);
+  white-space:nowrap; text-decoration:none; border-radius:9px 9px 0 0; transition:background .13s, color .13s}
+/* each tab still carries its area's own colour, but only on hover and when active */
+.ptab:hover{color:var(--tone, var(--navy)); background:#f4f8fd}
+.ptab.on{background:var(--bar); color:var(--tone, var(--ink)); font-weight:700}
+/* Insurance is not built yet: the tab stays visible so the shape of the product
+   is legible, but reads as unavailable rather than merely unvisited. */
+.ptab.gate{opacity:.45; cursor:not-allowed}
+.ptab.gate:hover{background:transparent; color:var(--muted)}
+
+/* tier 2 — what is on this page, centred */
+.tier2wrap{position:sticky; top:0; z-index:80;
+  background:linear-gradient(180deg,#eef8f9,var(--bar));
+  border-top:1px solid var(--bar-line); border-bottom:1px solid var(--bar-line); transition:box-shadow .18s}
+.tier2wrap.stuck{box-shadow:0 6px 18px rgba(10,31,68,.09)}
+.tier2{display:flex; flex-wrap:wrap; justify-content:center; gap:0}
+.stab{padding:10px 14px 10px; font-size:13px; font-weight:600; color:#4a6274; white-space:nowrap;
+  background:none; border:0; border-bottom:2px solid transparent; cursor:pointer; transition:color .13s, border-color .13s}
+.stab:hover{color:var(--navy)}
+.stab.on{font-weight:700}
+.stab.on{color:var(--navy); border-bottom-color:var(--navy)}
+@media(max-width:640px){
+  .ptab{font-size:13px; padding:10px 12px 11px}
+  .stab{font-size:12.5px; padding:9px 12px}
+}
+
+.btn{border:0; cursor:pointer; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700;
+  background:linear-gradient(135deg,#0b52b8,var(--navy)); color:#fff; text-decoration:none;
+  display:inline-block; transition:filter .15s, box-shadow .15s; box-shadow:0 2px 10px rgba(0,60,143,.24)}
+.btn:hover{filter:brightness(1.08); box-shadow:0 4px 16px rgba(0,60,143,.32)}
+.btn-ghost{background:transparent; color:var(--navy); border:1px solid var(--line)}
+.btn-ghost:hover{background:#eef3fa}
+@media(max-width:640px){.tlink{display:none}}
+
+/* ---------- body ---------- */
+.body{max-width:1200px; margin:0 auto; padding:26px 28px 70px}
+@media(max-width:640px){.body{padding:20px 16px 56px}}
+#sec-mix,#sec-growth,#sec-schedule,#sec-register,#sec-planned{scroll-margin-top:calc(var(--navh) + 14px)}
+.phead{margin-bottom:18px}
+.phead h1{font-size:25px}
+.phead p{margin:3px 0 0; color:var(--muted); font-size:14px; max-width:78ch}
+.card{background:#fff; border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+
+/* donut card — one full-width section */
+.mixcard{padding:18px 22px 20px; margin-bottom:16px}
+.mixbody{display:grid; grid-template-columns:300px minmax(0,1fr); gap:10px 34px; align-items:center; margin-top:6px}
+@media(max-width:900px){.mixbody{grid-template-columns:1fr; gap:18px}}
+.mixhead{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+.mixhead h3{font-size:16px}
+.seg2{margin-left:auto; display:flex; background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:2px}
+.seg2 button{border:0; background:none; padding:5px 11px; font-size:12.5px; border-radius:7px; color:var(--muted); cursor:pointer; font-weight:600}
+.seg2 button.on{background:var(--navy); color:#fff}
+.mixsub{font-size:12.5px; color:var(--muted); margin-bottom:10px}
+.donutbox{position:relative; width:100%; max-width:282px; margin:0 auto}
+.donutbox svg{width:100%; height:auto; display:block; overflow:visible}
+.wedge{transition:transform .16s cubic-bezier(.3,.9,.3,1), filter .16s; cursor:pointer}
+.wedge:hover{filter:brightness(1.08)}
+.dcenter{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none}
+.dcenter{padding:0 30px}
+.dcenter .k{font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:700; line-height:1.25}
+.dcenter .v{font-size:27px; line-height:1.1; margin-top:2px; font-weight:800; letter-spacing:-.03em; color:var(--navy)}
+.dtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:var(--ink); color:#fff; border-radius:10px; padding:10px 13px; min-width:158px;
+  box-shadow:0 12px 32px rgba(10,31,68,.34); transform:translate(-50%,-116%)}
+.dtip.on{opacity:1}
+.dtip .n{font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:7px}
+.dtip .n i{width:9px; height:9px; border-radius:2px; display:block; flex:none}
+.dtip .a{font-size:19px; font-weight:800; letter-spacing:-.02em; margin:3px 0 1px}
+.dtip .d{font-size:11.5px; color:#a9bcda; line-height:1.45}
+.dkey{margin-top:12px; font-size:11.5px; color:var(--slate); text-align:center; line-height:1.5}
+.dleg{display:grid; grid-template-columns:repeat(auto-fill,minmax(208px,1fr)); gap:1px 18px; align-content:center}
+.dleg .lhead{grid-column:1/-1; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--slate); font-weight:700; padding:12px 6px 5px}
+.dleg .lhead.second{border-top:1px solid var(--line); margin-top:8px}
+.dleg .li{display:flex; align-items:center; gap:9px; font-size:13px; padding:5px 6px; border-radius:7px; transition:background .13s}
+.dleg .li:hover{background:var(--paper)}
+.dleg .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dleg .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#33456b}
+.dleg .vl{font-weight:700}
+.dleg .pc{color:var(--slate); font-size:11.5px; width:40px; text-align:right}
+
+/* ---------- growth chart ---------- */
+.gcard{padding:18px 20px 14px; margin-bottom:16px}
+.ghead{display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:2px}
+.ghead h3{font-size:16px}
+.gsub{font-size:12.5px; color:var(--muted)}
+.gsub b{color:var(--ink)}
+.gsub .arrow{color:var(--slate); margin:0 5px}
+.gright{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.chartbox{position:relative; margin-top:14px}
+.chartbox svg{width:100%; height:auto; display:block; overflow:visible}
+.gtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:#fff; color:#234566; border:1px solid #d8dee8; border-radius:0; padding:15px 18px; min-width:280px; max-width:360px;
+  max-height:70vh; overflow-y:auto; box-shadow:0 10px 24px rgba(10,31,68,.10)}
+.gtip.on{opacity:1}
+.gtip .yr{font-size:11px; letter-spacing:.02em; text-transform:none; color:#1b657b; font-weight:500}
+.gtip .tt{font-size:22px; font-weight:800; letter-spacing:-.02em; margin:8px 0 12px; color:#2453dd}
+.gtip .gl{display:flex; align-items:center; gap:10px; font-size:12.2px; padding:4px 0; color:#355272}
+.gtip .gl i{width:10px; height:10px; border-radius:50%; flex:none}
+.gtip .gl span{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.gtip .gl b{font-weight:700; color:#234566}
+.gleg{display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
+.gleg .gi{display:flex; align-items:center; gap:8px; font-size:12.5px; color:#33456b}
+.gleg .gi i{width:10px; height:10px; border-radius:50%; flex:none}
+.gleg .gi b{font-weight:700; color:var(--ink)}
+.gfoot{margin-top:10px; font-size:12px; color:var(--slate); line-height:1.55}
+
+/* ---------- register ---------- */
+.reghead{display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.reghead h3{font-size:17px}
+.reghead .count{font-size:12.5px; color:var(--slate); font-weight:600}
+.reghead .r{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap}
+.srch{border:1px solid var(--line); border-radius:9px; padding:8px 12px; font-size:13.5px; background:var(--paper); width:190px}
+.srch:focus{outline:none; border-color:var(--navy); background:#fff}
+.sel{border:1px solid var(--line); border-radius:9px; padding:8px 11px; font-size:13.5px; background:#fff; color:var(--muted); cursor:pointer}
+.ghost{background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 14px; font-size:13.5px; color:var(--muted); cursor:pointer; font-weight:600}
+.ghost:hover{background:#f0f4fa; color:var(--navy)}
+.ghost.primary{background:var(--navy); color:#fff; border-color:var(--navy)}
+.ghost.primary:hover{background:#00307a; color:#fff}
+
+.tblwrap{overflow:auto; max-height:max(330px, min(560px, calc(100vh - var(--navh) - 150px))); overscroll-behavior:contain}
+table{border-collapse:separate; border-spacing:0; width:100%; min-width:1240px}
+th{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--slate); font-weight:700;
+  text-align:left; padding:12px 12px; background:var(--paper); border-bottom:1px solid var(--line); white-space:nowrap; position:sticky; top:0; z-index:3}
+td{padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:middle; background:#fff}
+/* frozen name column */
+th.stick,td.stick{position:sticky; left:0; z-index:2}
+td.stick{background:#fff; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+th.stick{background:var(--paper); z-index:5; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+tr:hover td{background:#fbfcfe}
+tr:hover td.stick{background:#fbfcfe}
+td.rt{text-align:right}
+.cell{width:100%; border:1px solid transparent; border-radius:8px; padding:8px 9px; font-size:14px;
+  background:transparent; color:var(--ink); transition:border-color .13s, background .13s}
+.cell:hover{background:var(--paper)}
+.cell:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.cell.name{font-weight:600; min-width:170px}
+.cell.money{text-align:right; font-variant-numeric:tabular-nums; min-width:118px}
+.cell.small{min-width:96px}
+.tagpick{min-width:138px}
+.catpick{min-width:190px}
+.freqpick{min-width:118px}
+
+/* ---- theme-matched dropdown ---- */
+.dd{width:100%; display:flex; align-items:center; gap:8px; position:relative; text-align:left; cursor:pointer;
+  border:1px solid transparent; border-radius:8px; padding:8px 26px 8px 9px; font-size:14px;
+  background:transparent; color:var(--ink); transition:border-color .13s, background .13s}
+.dd:hover{background:var(--paper)}
+.dd[aria-expanded="true"]{border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.dd .lbl{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dd .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dd::after{content:""; position:absolute; right:11px; top:50%; width:6px; height:6px; margin-top:-5px;
+  border-right:1.8px solid var(--slate); border-bottom:1.8px solid var(--slate);
+  transform:rotate(45deg); transition:transform .16s, border-color .16s}
+.dd[aria-expanded="true"]::after{transform:rotate(225deg); margin-top:-2px; border-color:var(--navy)}
+.dd.filter{border-color:var(--line); background:#fff; width:auto; min-width:152px; color:var(--muted); font-size:13.5px; padding:8px 28px 8px 12px}
+.dd.filter:hover{border-color:#c8d5e8; color:var(--navy)}
+
+.ddpop{position:fixed; z-index:200; display:none; padding:6px; min-width:190px; max-height:296px; overflow-y:auto;
+  background:#fff; border:1px solid var(--line); border-radius:12px; font-family:var(--font);
+  box-shadow:0 20px 48px rgba(10,31,68,.20), 0 2px 6px rgba(10,31,68,.07)}
+.ddpop.on{display:block; animation:ddin .14s cubic-bezier(.2,.9,.3,1)}
+@keyframes ddin{from{opacity:0; transform:translateY(-5px)} to{opacity:1; transform:none}}
+.ddopt{display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:8px; font-size:14px;
+  color:#33456b; cursor:pointer; white-space:nowrap; line-height:1.35}
+.ddopt .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.ddopt .nm{flex:1}
+.ddopt .rt{font-size:11.5px; color:var(--slate); font-variant-numeric:tabular-nums; font-weight:600}
+.ddopt.cur{background:#eef3fa; color:var(--navy)}
+.ddopt[aria-selected="true"]{background:#eaf1fc; color:var(--navy); font-weight:700}
+.ddopt[aria-selected="true"] .rt{color:var(--navy)}
+.ddopt[aria-selected="true"]::before{content:""; width:6px; height:10px; flex:none; margin-right:-3px;
+  border-right:2px solid var(--navy); border-bottom:2px solid var(--navy); transform:rotate(40deg) translateY(-2px)}
+.ddpop::-webkit-scrollbar{width:11px}
+.ddpop::-webkit-scrollbar-track{background:transparent}
+.ddpop::-webkit-scrollbar-thumb{background:#ccd7e8; border-radius:99px; border:3px solid #fff}
+.ddpop::-webkit-scrollbar-thumb:hover{background:#b3c2da}
+.ddpop{scrollbar-width:thin; scrollbar-color:#ccd7e8 transparent}
+.swatch{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px; vertical-align:1px}
+.proj{font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; white-space:nowrap}
+.proj small{display:block; font-weight:500; color:var(--slate); font-size:11px; letter-spacing:0}
+.acts{display:flex; gap:6px; justify-content:flex-end}
+.rb{border:1px solid var(--line); background:#fff; border-radius:8px; height:34px; padding:0 11px; cursor:pointer;
+  font-size:12px; font-weight:700; color:var(--muted); white-space:nowrap; transition:.14s}
+.rb.save{color:var(--navy)}
+.rb.save:hover{background:#eef3fa; border-color:var(--navy)}
+.rb.save.done{background:#e9f6f4; border-color:#bfe6df; color:#0d6e60}
+.rb.del:hover{color:var(--coral); border-color:#f3c9c5; background:#fef6f5}
+.addbar{padding:14px 20px 18px}
+.addrow{width:100%; border:1px dashed #c8d5e8; background:#fbfcfe; color:var(--navy); border-radius:9px;
+  padding:12px; font-size:14px; font-weight:700; cursor:pointer}
+.addrow:hover{background:#eef3fa; border-color:var(--navy)}
+.empty{padding:52px 20px; text-align:center; color:var(--slate)}
+.empty b{display:block; color:var(--ink); font-size:16px; margin-bottom:4px}
+.foot{padding:14px 20px 18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--slate); line-height:1.6}
+.pager{display:flex; gap:10px; margin-top:20px}
+.btn-nav{background:#fff; border:1px solid var(--line); color:var(--navy); padding:11px 18px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer}
+.btn-nav:hover{background:#eef3fa}
+.btn-nav.sp{margin-left:auto}
+:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important} html{scroll-behavior:auto}}
+@media(max-width:760px){
+  /* the frozen column eats too much of a narrow screen otherwise */
+  .cell.name{min-width:124px}
+  .catpick{min-width:164px}
+  .tagpick{min-width:126px}
+}
+
+/* ---------- loans page additions ---------- */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:12px; margin-bottom:16px}
+.sum{padding:14px 16px; position:relative; overflow:hidden; background:#fff;
+  border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+.sum::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--tone,var(--line))}
+.sum .l{font-size:12.5px; color:var(--muted); font-weight:600}
+.sum .v{font-size:24px; font-weight:800; letter-spacing:-.03em; margin-top:2px}
+.sum .s{font-size:11.5px; color:var(--slate); margin-top:2px}
+.sum.total{background:var(--ink); border-color:var(--ink)}
+.sum.total .l{color:#8fa6c9} .sum.total .v{color:#fff} .sum.total .s{color:#8fa6c9}
+
+/* alert strip for loans that cannot amortise */
+.alerts{margin-bottom:16px; display:flex; flex-direction:column; gap:10px}
+.alert{display:flex; gap:12px; align-items:flex-start; padding:13px 16px; border-radius:11px;
+  background:#fdf1f0; border:1px solid #f3cdc9; font-size:13.5px}
+.alert.warn{background:#fdf6e9; border-color:#f4e0bc}
+.alert b{display:block; margin-bottom:2px}
+.alert p{margin:0; color:var(--muted); font-size:13px; line-height:1.55}
+.alert .go{margin-left:auto; color:var(--navy); font-weight:700; white-space:nowrap; font-size:13px; align-self:center}
+
+/* payoff cell */
+.pay{font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap}
+.pay small{display:block; font-weight:500; color:var(--slate); font-size:11px; letter-spacing:0}
+.pay.never{color:var(--coral)}
+.cell.warnval{border-color:#f0b3ad; background:#fdf3f2}
+.ratebadge{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+  padding:3px 9px; border-radius:99px; white-space:nowrap}
+
+/* ---------- page description, folded away behind a caret ----------
+   The description expands in the flow rather than floating over the page, so
+   opening it pushes everything below it down instead of covering it. Height is
+   measured at the moment it opens, which keeps the transition honest when the
+   text wraps to a different number of lines on a narrow screen. */
+.phead h1{display:flex; align-items:center; gap:11px; flex-wrap:wrap}
+.pmore{width:23px; height:23px; flex:none; border-radius:50%; border:1px solid var(--line);
+  background:#fff; color:var(--slate); cursor:pointer; padding:0; position:relative;
+  display:inline-flex; align-items:center; justify-content:center; transition:.15s}
+.pmore::before{content:""; width:6px; height:6px; margin-top:-3px;
+  border-right:1.9px solid currentColor; border-bottom:1.9px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.pmore:hover{color:var(--navy); border-color:var(--navy); background:#eef3fa}
+.pmore[aria-expanded="true"]{color:#fff; background:var(--navy); border-color:var(--navy)}
+.pmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:3px}
+.pdesc{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.pdesc.open{opacity:1}
+
+/* Padded on all sides: the bar is the last thing in its card, so without a
+   bottom pad the caret sat astride the card's rounded edge. */
+.notebar{display:flex; align-items:center; justify-content:center; width:100%; padding:12px 18px 16px}
+/* Just the chevron. A ring around it competed with the row of real controls
+   directly above; the navy alone is enough to read as pressable. */
+.nmore{width:30px; height:26px; flex:none; border:0; background:none; padding:0; cursor:pointer;
+  color:var(--navy); border-radius:7px; transition:background .15s, color .15s;
+  display:inline-flex; align-items:center; justify-content:center}
+.nmore::before{content:""; width:9px; height:9px; margin-top:-4px;
+  border-right:2.2px solid currentColor; border-bottom:2.2px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.nmore:hover{background:rgba(0,60,143,.08)}
+.nmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:4px}
+.nfold{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.nfold.open{opacity:1}
+.nfold .foot{border-top:0}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tier tier0">
+    <a class="brand" href="lifemap-fp-calculator.html"><span class="mark"></span>
+      <span><span class="name">LifeMap</span> <span class="by">by BOX Wealth</span></span></a>
+    <span class="acts">
+      <a class="tlink" href="#">Sign in</a>
+      <a class="btn" href="#">Save my plan</a>
+    </span>
+  </div>
+
+  <nav class="tier tier1" aria-label="Main areas">
+    <a class="ptab" style="--tone:#003c8f" href="lifemap-fp-calculator.html">FP Calculator</a>
+    <a class="ptab" style="--tone:#2f6fd0" href="lifemap-assets.html">Assets</a>
+    <a class="ptab" style="--tone:#0d8a78" href="lifemap-work-assets.html">Work Assets</a>
+    <a class="ptab" style="--tone:#e9a23b" href="lifemap-goals.html">Goals</a>
+    <a class="ptab on" style="--tone:#e2574c" href="lifemap-loans.html" aria-current="page">Loans</a>
+    <a class="ptab" style="--tone:#8494ad" href="lifemap-expenses.html">Expenses</a>
+    <a class="ptab gate" style="--tone:#4fb9ab" href="#" title="Sign in to open Insurance">Insurance</a>
+  </nav>
+</header>
+
+<div class="tier2wrap" id="tier2wrap">
+  <nav class="tier tier2" aria-label="Sections on this page">
+    <button class="stab on" type="button" data-go="sec-mix">What you owe</button>
+    <button class="stab" type="button" data-go="sec-schedule">Path to debt-free</button>
+    <button class="stab" type="button" data-go="sec-register">Current loans</button>
+    <button class="stab" type="button" data-go="sec-planned">Planned loans</button>
+  </nav>
+</div>
+
+<div class="body">
+  <div class="phead">
+    <h1>What you owe
+      <button class="pmore" type="button" aria-expanded="false" aria-controls="phead-desc" aria-label="Show what this page is for"></button></h1>
+    <div class="pdesc" id="phead-desc"><p>Every loan, with its real repayment schedule. Enter the balance, the rate and the instalment &mdash; LifeMap works out when each one actually clears and what it will have cost you by then. Picking a loan type fills in a typical market rate you can override.</p></div>
+  </div>
+
+  <div class="alerts" id="alerts"></div>
+  <div class="cards" id="cards"></div>
+
+  <!-- ===== mix ===== -->
+  <div class="card mixcard" id="sec-mix">
+    <div class="mixhead">
+      <h3>Your debt mix</h3>
+    </div>
+    <div class="mixsub" id="mix-sub">&nbsp;</div>
+    <div class="mixbody">
+      <div>
+        <div class="donutbox">
+          <svg viewBox="0 0 220 220" id="donut" role="img" aria-label="Debt mix"></svg>
+          <div class="dcenter">
+            <div class="k" id="d-k">Total outstanding</div>
+            <div class="v" id="d-v">&mdash;</div>
+          </div>
+          <div class="dtip" id="dtip"></div>
+        </div>
+        <div class="dkey" id="d-s">&nbsp;</div>
+      </div>
+      <div class="dleg" id="dleg"></div>
+    </div>
+  </div>
+
+  <!-- ===== schedule ===== -->
+  <div class="card gcard" id="sec-schedule">
+    <div class="ghead">
+      <div>
+        <h3>Path to debt-free</h3>
+        <div class="gsub" id="g-sub">&nbsp;</div>
+      </div>
+      <div class="gright">
+        <div class="seg2" id="viewseg">
+          <button class="on" data-view="bal">Balance owed</button>
+          <button data-view="int">Interest paid</button>
+        </div>
+      </div>
+    </div>
+    <div class="chartbox">
+      <svg viewBox="0 0 1400 320" id="growth" role="img" aria-label="Loan balances over time"></svg>
+      <div class="gtip" id="gtip"></div>
+    </div>
+    <div class="gleg" id="gleg"></div>
+    <div class="gfoot" id="g-foot">
+      Each line is one loan, amortised at its own rate and instalment. Planned loans are drawn dashed, starting the year
+      you give them. In the balance view the figure beside each name is the most that loan ever reaches, since every line
+      ends at zero. Interest is charged on the balance before each payment is applied, so a loan whose instalment is smaller than its monthly interest never falls &mdash; it climbs. Nothing here assumes prepayment, a rate change or a missed month.
+    </div>
+  </div>
+
+  <!-- ===== register: what you owe today ===== -->
+  <div class="card" id="sec-register">
+      <div class="reghead">
+        <h3>Current loans</h3>
+        <span class="count" id="rowcount-cur">&mdash;</span>
+        <div class="r">
+          <input class="srch" id="search-cur" type="search" placeholder="Search provider, loan or note">
+          <button type="button" class="dd filter" id="filter-cur" aria-haspopup="listbox" aria-expanded="false">
+            <span class="lbl">All types</span></button>
+          <button class="ghost" id="btn-reset-cur">Reset</button>
+          <button class="ghost" id="btn-csv-cur">Export CSV</button>
+          <button class="ghost primary" id="btn-add-cur">+ Add loan</button>
+        </div>
+      </div>
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="stick">Provider</th>
+            <th>Loan name</th>
+            <th>Loan type</th>
+            <th style="text-align:right">Outstanding &#8377;</th>
+            <th style="text-align:right">Interest rate %</th>
+            <th style="text-align:right">Instalment &#8377;</th>
+            <th>Frequency</th>
+            <th style="text-align:right">Ends in</th>
+            <th style="text-align:right">Interest still to pay</th>
+            <th>Notes</th>
+            <th style="text-align:right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-cur"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty-cur" style="display:none"><b>No loans match</b>Clear the search or the type filter to see everything.</div>
+    <div class="addbar"><button class="addrow" id="btn-add2-cur">+ Add another loan</button></div>
+    <div class="foot">
+      <b>Ends in</b> and <b>instalment</b> decide each other: type the year your loan runs to and LifeMap works out the instalment that clears it by then; change the instalment, the balance or the rate and the end year moves to match. Type whichever one your sanction letter actually states. If an instalment is smaller than one period&rsquo;s interest the loan never clears, the end year is left blank and the row is flagged. Rates shown against each loan type are typical Indian market rates for early 2026 and are a starting point only; use the rate on your own sanction letter.
+      <br><br>
+      <b>On double counting:</b> instalments live here, not in Expenses. LifeMap counts them once, from this page, in every projection. If you have also entered an EMI row under Expenses, remove it there.
+    </div>
+  </div>
+
+  <!-- ===== register: borrowing you have not taken yet ===== -->
+  <div class="card" id="sec-planned">
+      <div class="reghead">
+        <h3>Planned loans</h3>
+        <span class="count" id="rowcount-plan">&mdash;</span>
+        <div class="r">
+          <input class="srch" id="search-plan" type="search" placeholder="Search provider, loan or note">
+          <button type="button" class="dd filter" id="filter-plan" aria-haspopup="listbox" aria-expanded="false">
+            <span class="lbl">All types</span></button>
+          <button class="ghost" id="btn-reset-plan">Reset</button>
+          <button class="ghost" id="btn-csv-plan">Export CSV</button>
+          <button class="ghost primary" id="btn-add-plan">+ Add planned loan</button>
+        </div>
+      </div>
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="stick">Provider</th>
+            <th>Loan name</th>
+            <th>Loan type</th>
+            <th style="text-align:right">Amount &#8377;</th>
+            <th style="text-align:right">Interest rate %</th>
+            <th style="text-align:right">Instalment &#8377;</th>
+            <th>Frequency</th>
+            <th style="text-align:right">Starts</th>
+            <th style="text-align:right">Ends in</th>
+            <th style="text-align:right">Interest still to pay</th>
+            <th>Notes</th>
+            <th style="text-align:right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-plan"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty-plan" style="display:none"><b>Nothing planned yet</b>Add a loan you expect to take, or clear the search.</div>
+    <div class="addbar"><button class="addrow" id="btn-add2-plan">+ Add another planned loan</button></div>
+    <div class="foot">
+      Borrowing you expect to take but have not yet. Nothing here counts towards what you owe today, so the mix above and the
+      <b>total outstanding</b> ignore it &mdash; but the chart does include it, drawn dashed from the year it starts, so you can
+      see how a planned loan lands on top of what you are already repaying.
+    </div>
+  </div>
+
+  <div class="pager">
+    <a class="btn-nav" href="lifemap-goals.html">&larr; Goals</a>
+    <a class="btn-nav sp" href="lifemap-expenses.html">Expenses &rarr;</a>
+  </div>
+</div>
+
+<script>
+/* ================= LOAN TYPES =================
+   rate = typical Indian market rate, early 2026. A starting point, always editable.
+============================================== */
+const CATS = [
+  {n:"Home loan",              rate:8.5,  c:"#2f6fd0"},
+  {n:"Loan against property",  rate:9.5,  c:"#5b93de"},
+  {n:"Car loan",               rate:9.5,  c:"#003c8f"},
+  {n:"Two-wheeler loan",       rate:11.0, c:"#8fb8ea"},
+  {n:"Education loan",         rate:10.5, c:"#0d8a78"},
+  {n:"Overdraft / cash credit",rate:12.0, c:"#4fb9ab"},
+  {n:"Gold loan",              rate:12.0, c:"#e9a23b"},
+  {n:"Business loan",          rate:14.0, c:"#d98f5a"},
+  {n:"Personal loan",          rate:14.0, c:"#e2574c"},
+  {n:"Consumer durable / BNPL",rate:16.0, c:"#ea8377"},
+  {n:"Credit card revolve",    rate:42.0, c:"#b8352c"},
+  {n:"Loan from family",       rate:0.0,  c:"#75cfc2"},
+  {n:"Other",                  rate:12.0, c:"#94a3bd"}
+];
+const FREQ = ["Monthly","Quarterly","Half-yearly","Annually"];
+const PER_YEAR = {Monthly:12, Quarterly:4, "Half-yearly":2, Annually:1};
+const MAX_PERIODS = 12*40;                       /* stop simulating after 40 years */
+
+const catOf = n => CATS.find(c => c.n === n) || CATS[CATS.length-1];
+
+/* ================= STATE ================= */
+let ROWS = [
+  {prov:"HDFC Bank",     name:"Flat, Sector 62",  cat:"Home loan",           bal:4200000, rate:8.5,  emi:38000, freq:"Monthly", notes:"Floating, resets each April", saved:true},
+  {prov:"SBI",           name:"MBA funding",      cat:"Education loan",      bal:800000,  rate:10.5, emi:12000, freq:"Monthly", notes:"Moratorium ended 2025", saved:true},
+  {prov:"ICICI Bank",    name:"Creta",            cat:"Car loan",            bal:650000,  rate:9.5,  emi:14000, freq:"Monthly", notes:"", saved:true},
+  {prov:"Bajaj Finserv", name:"Home renovation",  cat:"Personal loan",       bal:320000,  rate:14.0, emi:11000, freq:"Monthly", notes:"", saved:true},
+  {prov:"HDFC Bank",     name:"Card outstanding", cat:"Credit card revolve", bal:85000,   rate:42.0, emi:5000,  freq:"Monthly", notes:"Rolling balance", saved:true}
+];
+const THIS_YEAR = new Date().getFullYear();
+/* borrowing you expect to take but have not yet. `start` is the calendar year it begins. */
+let PLAN = [
+  {prov:"", name:"Second home, Pune", cat:"Home loan", bal:3500000, rate:8.5, emi:32000,
+   freq:"Monthly", start:THIS_YEAR+3, notes:"Deposit saved by then", saved:true},
+  {prov:"", name:"Child's degree", cat:"Education loan", bal:1200000, rate:10.5, emi:16000,
+   freq:"Monthly", start:THIS_YEAR+7, notes:"", saved:true}
+];
+let VIEW = "bal";
+/* per-register search and filter, so the two tables never fight each other */
+const REGS = {
+  cur:  {key:"cur",  planned:false, list:ROWS, noun:"loan",         search:"", filter:""},
+  plan: {key:"plan", planned:true,  list:PLAN, noun:"planned loan", search:"", filter:""}
+};
+const startOffset = r => Math.max(0, Math.round(num(r.start)) - THIS_YEAR);
+/* the year a loan begins: now for a current loan, its start year if planned */
+const startYearOf = (r,g) => g.planned ? Math.max(THIS_YEAR, Math.round(num(r.start))) : THIS_YEAR;
+
+/* Balance, rate, instalment and end year over-determine each other: any three
+   fix the fourth. So the two the user types last stay put and the other is
+   recalculated. Editing the end year sets the instalment; editing the balance,
+   rate, frequency or instalment sets the end year. */
+function emiFor(bal, ratePct, n, perYear){
+  if(n <= 0 || bal <= 0) return 0;
+  const i = ratePct/100/perYear;
+  if(i <= 0) return bal/n;
+  return bal * i / (1 - Math.pow(1+i, -n));
+}
+function endYearOf(r,g){
+  if(num(r.bal) <= 0) return 0;
+  const sc = schedule(r);
+  return sc.never ? 0 : startYearOf(r,g) + Math.max(1, Math.ceil(sc.years));
+}
+function emiFromEnd(r,g){
+  const per = PER_YEAR[r.freq] || 12;
+  const n = Math.max(1, Math.round(num(r.end)) - startYearOf(r,g)) * per;
+  return Math.round(emiFor(num(r.bal), num(r.rate), n, per));
+}
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const esc = v => String(v==null?"":v).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+function fmt(n){
+  n = Math.round(n||0); const a = Math.abs(n), s = n<0 ? "\u2212" : "";
+  if(a >= 1e7) return s+"\u20B9"+(a/1e7).toFixed(a/1e7>=100?0:2)+"Cr";
+  if(a >= 1e5) return s+"\u20B9"+(a/1e5).toFixed(a/1e5>=100?0:2)+"L";
+  if(a >= 1e3) return s+"\u20B9"+(a/1e3).toFixed(a/1e3>=100?0:1)+"K";
+  return s+"\u20B9"+a;
+}
+const full = n => (n<0?"\u2212":"")+"\u20B9"+Math.abs(Math.round(n)).toLocaleString("en-IN");
+const annualEmi = r => num(r.emi) * (PER_YEAR[r.freq] || 0);
+const totalOwed = () => ROWS.reduce((t,r) => t + num(r.bal), 0);
+
+/* ================= AMORTISATION =================
+   Interest accrues on the balance, then the instalment is applied.
+   If the instalment is smaller than one period's interest the balance rises
+   and the loan never clears; that is reported rather than hidden.
+============================================== */
+function schedule(r){
+  const p = PER_YEAR[r.freq] || 12;
+  const per = num(r.rate)/100/p;                 /* periodic rate */
+  const pay = num(r.emi);
+  let bal = num(r.bal);
+  const out = {periodsPerYear:p, months:0, years:0, interest:0, paid:0,
+               never:false, firstInterest:bal*per, balByYear:[bal], intByYear:[0]};
+  if(bal <= 0){ out.years = 0; return out; }
+  if(pay <= 0 || (per > 0 && pay <= bal*per)){    /* cannot amortise */
+    out.never = true;
+    let b = bal, acc = 0;
+    for(let k=1;k<=40*p;k++){
+      const i = b*per; acc += i; b = b + i - pay;
+      if(k % p === 0){ out.balByYear.push(Math.max(0,b)); out.intByYear.push(acc); }
+    }
+    out.interest = acc;
+    return out;
+  }
+  let acc = 0, k = 0;
+  while(bal > 0.5 && k < MAX_PERIODS){
+    const i = bal*per; acc += i;
+    bal = bal + i - pay;
+    k++;
+    if(k % p === 0){ out.balByYear.push(Math.max(0,bal)); out.intByYear.push(acc); }
+  }
+  if(k % p !== 0){ out.balByYear.push(Math.max(0,bal)); out.intByYear.push(acc); }
+  out.months = Math.round(k * 12/p);
+  out.years  = k/p;
+  out.interest = acc;
+  out.paid = num(r.bal) + acc;
+  return out;
+}
+function payoffLabel(s){
+  if(s.never) return "Never";
+  const y = Math.floor(s.months/12), m = s.months%12;
+  if(y === 0) return m + (m===1?" month":" months");
+  if(m === 0) return y + (y===1?" year":" years");
+  return y + "y " + m + "m";
+}
+const horizonYears = () => {
+  const ys = ROWS.map(r => { const s = schedule(r); return s.never ? 30 : Math.ceil(s.years); })
+    .concat(PLAN.filter(r => num(r.bal) > 0).map(r => {
+      const s = schedule(r);
+      return startOffset(r) + (s.never ? 30 : Math.ceil(s.years));
+    }));
+  return Math.max(5, Math.min(35, Math.max(0, ...ys)));
+};
+
+/* combined balance across both registers, year by year */
+function combinedBalance(years){
+  const tot = new Array(years+1).fill(0);
+  const add = (r, off) => {
+    const src = schedule(r).balByYear;
+    for(let i=0;i<=years;i++){
+      const j = i - off;
+      tot[i] += j < 0 ? 0 : (j < src.length ? src[j] : 0);
+    }
+  };
+  ROWS.filter(r => num(r.bal) > 0).forEach(r => add(r, 0));
+  PLAN.filter(r => num(r.bal) > 0).forEach(r => add(r, startOffset(r)));
+  return tot;
+}
+/* years until nothing is owed on either register, or -1 if it never happens */
+function debtFreeIn(){
+  const years = horizonYears(), t = combinedBalance(years);
+  for(let i=1;i<=years;i++) if(t[i] < 1) return i;
+  return -1;
+}
+const anyNeverClears = () => ROWS.concat(PLAN)
+  .some(r => num(r.bal) > 0 && schedule(r).never);
+
+/* ================= DONUT ================= */
+const CX=110, CY=110, RO_OUT=92, RO_IN=70, POP=8, TAU=Math.PI*2;
+const track=(ro,ri,c)=>`<circle cx="${CX}" cy="${CY}" r="${(ro+ri)/2}" fill="none" stroke="${c}" stroke-width="${ro-ri}"/>`;
+function wedgePath(a0,a1,rOut,rIn){
+  const sp = Math.min(a1-a0, TAU-0.0001); a1 = a0+sp;
+  const P=(rad,a)=>[(CX+rad*Math.cos(a)).toFixed(2),(CY+rad*Math.sin(a)).toFixed(2)];
+  const big = sp > Math.PI ? 1 : 0;
+  const [x1,y1]=P(rOut,a0),[x2,y2]=P(rOut,a1),[x3,y3]=P(rIn,a1),[x4,y4]=P(rIn,a0);
+  return `M${x1},${y1} A${rOut},${rOut} 0 ${big} 1 ${x2},${y2} L${x3},${y3} A${rIn},${rIn} 0 ${big} 0 ${x4},${y4} Z`;
+}
+function buckets(){
+  const out = CATS.map(c => ({n:c.n, c:c.c, v:0, d:"Typical market rate " + c.rate + "%."}));
+  ROWS.forEach(r => {
+    const b = out.find(o => o.n === catOf(r.cat).n);
+    if(b) b.v += num(r.bal);
+  });
+  return out.filter(o => o.v > 0).sort((a,b) => b.v - a.v);
+}
+function drawDonut(){
+  const svg = $("donut"), leg = $("dleg"), tip = $("dtip");
+  const segs = buckets();
+  const total = segs.reduce((t,x) => t + x.v, 0);
+  leg.innerHTML = "";
+
+  if(total <= 0){
+    svg.innerHTML = track(RO_OUT,RO_IN,"#eef1f6");
+    $("d-v").textContent = "\u20B90";
+    $("d-s").textContent = "Nothing owed. Enjoy it.";
+    $("mix-sub").textContent = "No loans on the books";
+    leg.innerHTML = `<div class="li"><span class="nm" style="color:var(--slate)">Add a loan below to see the mix</span></div>`;
+    return;
+  }
+
+  let out = track(RO_OUT,RO_IN,"#eef1f6");
+  const meta = [];
+  let ang = -Math.PI/2;
+  segs.forEach(seg => {
+    const f = seg.v/total, sp = f*TAU;
+    if(sp <= 0) return;
+    const gap = Math.min(0.014, sp*0.16), mid = ang + sp/2;
+    out += `<path class="wedge" tabindex="0" role="img" fill="${seg.c}"`
+         + ` aria-label="${esc(seg.n)}: ${full(seg.v)}, ${(f*100).toFixed(1)} percent"`
+         + ` d="${wedgePath(ang+gap, ang+sp, RO_OUT, RO_IN)}"></path>`;
+    meta.push({seg, mid});
+    ang += sp;
+  });
+  svg.innerHTML = out;
+
+  const tipR = (RO_OUT+RO_IN)/2;
+  const handlers = [...svg.querySelectorAll(".wedge")].map((el,i) => {
+    const m = meta[i], dx = Math.cos(m.mid)*POP, dy = Math.sin(m.mid)*POP;
+    const show = () => {
+      el.setAttribute("transform", `translate(${dx.toFixed(2)},${dy.toFixed(2)})`);
+      tip.classList.add("on");
+      tip.style.left = ((CX + Math.cos(m.mid)*tipR)/220*100) + "%";
+      tip.style.top  = ((CY + Math.sin(m.mid)*tipR)/220*100) + "%";
+      tip.innerHTML = `<div class="n"><i style="background:${m.seg.c}"></i>${esc(m.seg.n)}</div>
+                       <div class="a">${full(m.seg.v)}</div>
+                       <div class="d">${(m.seg.v/total*100).toFixed(1)}% of ${fmt(total)}<br>${esc(m.seg.d)}</div>`;
+    };
+    const hide = () => { el.removeAttribute("transform"); tip.classList.remove("on"); };
+    el.addEventListener("mouseenter", show); el.addEventListener("mouseleave", hide);
+    el.addEventListener("focus", show);      el.addEventListener("blur", hide);
+    return {show, hide};
+  });
+
+  segs.forEach((seg,i) => {
+    const li = document.createElement("div");
+    li.className = "li";
+    li.innerHTML = `<span class="sw" style="background:${seg.c}"></span>
+                    <span class="nm">${esc(seg.n)}</span>
+                    <span class="vl">${fmt(seg.v)}</span>
+                    <span class="pc">${(seg.v/total*100).toFixed(0)}%</span>`;
+    li.addEventListener("mouseenter", handlers[i].show);
+    li.addEventListener("mouseleave", handlers[i].hide);
+    leg.appendChild(li);
+  });
+
+  const wr = ROWS.reduce((t,r) => t + num(r.bal)*num(r.rate), 0)/total;
+  const top = segs[0];
+  $("d-v").textContent = fmt(total);
+  $("d-s").textContent = top
+    ? `Mostly ${top.n.toLowerCase()} \u2014 ${(top.v/total*100).toFixed(0)}% of everything you owe`
+    : "";
+  $("mix-sub").textContent = `${ROWS.length} ${ROWS.length===1?"loan":"loans"} \u00B7 ${wr.toFixed(2)}% weighted average rate`
+    + (PLAN.length ? ` \u00B7 ${PLAN.length} planned ${PLAN.length===1?"loan":"loans"} not counted here` : "");
+}
+
+/* ================= SCHEDULE CHART ================= */
+const GW=1400, GH=320, GL=86, GR=20, GT=16, GB=38;
+const PW = GW-GL-GR, PH = GH-GT-GB;
+function niceStep(max){
+  const raw = max/4, p = Math.pow(10, Math.floor(Math.log10(raw||1)));
+  return [1,2,2.5,5,10].map(m => m*p).find(v => v >= raw) || p*10;
+}
+function series(years){
+  const one = (r, offset, planned) => {
+    const s = schedule(r), src = VIEW === "bal" ? s.balByYear : s.intByYear;
+    const pts = [];
+    for(let i=0;i<=years;i++){
+      const j = i - offset;                       /* nothing before the year it starts */
+      pts.push(j < 0 ? 0 : (j < src.length ? src[j] : (VIEW === "bal" ? 0 : src[src.length-1])));
+    }
+    return {n:(r.name || r.prov || catOf(r.cat).n) + (planned ? " (planned)" : ""),
+            c:catOf(r.cat).c, pts, never:s.never, planned};
+  };
+  return ROWS.filter(r => num(r.bal) > 0).map(r => one(r, 0, false))
+    .concat(PLAN.filter(r => num(r.bal) > 0).map(r => one(r, startOffset(r), true)));
+}
+function drawGrowth(){
+  const svg = $("growth"), leg = $("gleg"), tip = $("gtip");
+  const years = horizonYears(), SER = series(years);
+  const totals = new Array(years+1).fill(0);
+  SER.forEach(s => s.pts.forEach((v,i) => totals[i] += v));
+  const y0 = new Date().getFullYear();
+
+  if(!SER.length){
+    svg.innerHTML = `<text x="${GL+PW/2}" y="${GT+PH/2}" text-anchor="middle" fill="#9aa7bd" font-size="14">Add a loan below to see the schedule</text>`;
+    leg.innerHTML = ""; $("g-sub").innerHTML = "Nothing to schedule yet";
+    return;
+  }
+
+  const peak = Math.max(...totals, 1);
+  const step = niceStep(peak), top = Math.ceil(peak/step)*step;
+  const X = i => GL + (i/years)*PW;
+  const Y = v => GT + PH - (v/top)*PH;
+
+  let g = "";
+  for(let v=0; v<=top+1; v+=step){
+    const y = Y(v).toFixed(1);
+    g += `<line x1="${GL}" y1="${y}" x2="${GL+PW}" y2="${y}" stroke="#c7d1df" stroke-width="1" stroke-dasharray="4 5"/>`
+       + `<text x="${GL-10}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="#8ea0bd" font-size="11" font-weight="600">${fmt(v)}</text>`;
+  }
+  const tick = Math.max(1, Math.round(years/5));
+  for(let i=0;i<=years;i+=tick){
+    const x = X(i).toFixed(1);
+    g += `<line x1="${x}" y1="${GT}" x2="${x}" y2="${GT+PH}" stroke="#c7d1df" stroke-width="1" stroke-dasharray="4 5"/>`
+       + `<text x="${x}" y="${GT+PH+20}" text-anchor="${i===0?"start":(i>=years-0.5?"end":"middle")}" fill="#8ea0bd" font-size="11" font-weight="600">${i===0?"Now":y0+i}</text>`;
+  }
+
+  const area = `M${X(0).toFixed(1)},${Y(0).toFixed(1)} L`
+    + totals.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" L")
+    + ` L${X(years).toFixed(1)},${Y(0).toFixed(1)} Z`;
+  g += `<path d="${area}" fill="#174ee8" fill-opacity=".12" stroke="none"/>`;
+
+  const bands = [];
+  SER.forEach(sr => {
+    const d = sr.pts.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" L");
+    const dash = sr.never ? ' stroke-dasharray="7 4"' : (sr.planned ? ' stroke-dasharray="5 5"' : '');
+    g += `<path d="M${d}" fill="none" stroke="${sr.c}" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round"${dash}${sr.planned?' stroke-opacity=".85"':''}/>`;
+    g += sr.pts.map((v,i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.6" fill="#fff" fill-opacity=".55" stroke="${sr.c}" stroke-width="2"/>`).join("");
+    bands.push(sr);
+  });
+
+  const totalPath = totals.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" L");
+  g += `<path d="M${totalPath}" fill="none" stroke="#174ee8" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>`;
+  g += totals.map((v,i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4.2" fill="#fff" fill-opacity=".6" stroke="#174ee8" stroke-width="2.2"/>`).join("");
+
+  if(VIEW === "bal"){
+    const free = totals.findIndex((v,i) => i > 0 && v < 1);
+    if(free > 0){
+      g += `<line x1="${X(free)}" y1="${GT}" x2="${X(free)}" y2="${GT+PH}" stroke="#0d8a78" stroke-width="1.5" stroke-dasharray="4 4"/>`
+         + `<text x="${X(free)-7}" y="${GT+14}" text-anchor="end" fill="#0d8a78" font-size="11.5" font-weight="700">Debt-free ${y0+free}</text>`;
+    }
+  }
+
+  g += `<g id="gcross" opacity="0">
+          <line y1="${GT}" y2="${GT+PH}" stroke="#9aa6b6" stroke-width="1"/>
+          <circle r="5" fill="#fff" stroke="#174ee8" stroke-width="2.5"/>
+        </g>
+        <g id="gdots"></g>
+        <rect id="ghit" x="${GL}" y="${GT}" width="${PW}" height="${PH}" fill="transparent" style="cursor:crosshair"/>`;
+  svg.innerHTML = g;
+
+  /* in balance view every line ends at zero, so show the most it ever reaches */
+  const legVal = pts => VIEW === "bal" ? Math.max(...pts) : pts[years];
+  leg.innerHTML = SER.map(s =>
+    `<span class="gi"><i style="background:${s.c}"${s.planned?' data-planned="1"':''}></i>${esc(s.n)} <b>${fmt(legVal(s.pts))}</b></span>`
+  ).join("") + `<span class="gi" style="margin-left:auto"><i style="background:#174ee8"></i>`
+  + `${VIEW === "bal" ? "Peak owed" : "Total"} <b>${fmt(legVal(totals))}</b></span>`;
+
+  const anyNever = SER.some(s => s.never);
+  const freeIdx = totals.findIndex((v,i) => i > 0 && v < 1);
+  $("g-sub").innerHTML = VIEW === "bal"
+    ? (anyNever
+        ? `Owed today <b>${fmt(totals[0])}</b><span class="arrow">&rarr;</span>${y0+years} <b>${fmt(totals[years])}</b> &middot; one loan never clears, shown dashed`
+        : (freeIdx > 0
+            ? `Owed today <b>${fmt(totals[0])}</b><span class="arrow">&rarr;</span>debt-free in <b>${freeIdx} ${freeIdx===1?"year":"years"}</b>, ${y0+freeIdx}`
+            : `Owed today <b>${fmt(totals[0])}</b> &middot; still running after ${years} years`))
+    : `Interest paid by ${y0+years}: <b>${fmt(totals[years])}</b> on ${fmt(totalOwed())} borrowed`;
+
+  const cross = svg.querySelector("#gcross"), hit = svg.querySelector("#ghit"), dots = svg.querySelector("#gdots");
+  const line = cross.querySelector("line"), dot = cross.querySelector("circle");
+  const move = ev => {
+    const b = svg.getBoundingClientRect();
+    const px = (ev.clientX - b.left) / b.width * GW;
+    let i = Math.round((px - GL)/PW*years);
+    i = Math.max(0, Math.min(years, i));
+    const x = X(i), yv = Y(totals[i]);
+    line.setAttribute("x1", x); line.setAttribute("x2", x);
+    dot.setAttribute("cx", x); dot.setAttribute("cy", yv);
+    cross.setAttribute("opacity","1");
+    dots.innerHTML = bands.filter(s => s.pts[i] > 0).map(s =>
+      `<circle cx="${x.toFixed(1)}" cy="${Y(s.pts[i]).toFixed(1)}" r="4" fill="#fff" stroke="${s.c}" stroke-width="2"/>`).join("");
+
+    const parts = bands.map(s => ({n:s.n, c:s.c, v:s.pts[i]})).filter(p => p.v > 0).sort((a,b) => b.v-a.v);
+    const title = VIEW === "bal" ? "Total balance: " : "Interest paid: ";
+    tip.innerHTML = `<div class="yr">Year: ${y0+i}</div>
+      <div class="tt">${title}${full(totals[i])}</div>`
+      + (parts.length ? parts.map(p => `<div class="gl"><i style="background:${p.c}"></i><span>${esc(p.n)}</span><b>${fmt(p.v)}</b></div>`).join("") : `<div class="gl"><span>All cleared</span></div>`);
+    tip.classList.add("on");
+    tip.style.transform = "none";
+    const tipW = tip.offsetWidth;
+    const tipH = tip.offsetHeight;
+    const xPx = Math.max(0, Math.min(b.width, ev.clientX - b.left));
+    const yPx = (yv / GH) * b.height;
+    const gap = 12;
+    const sidePad = 8;
+    const leftPx = Math.min(Math.max(xPx - tipW / 2, sidePad), b.width - tipW - sidePad);
+    const topPx = yPx - tipH - gap;
+    tip.style.left = leftPx + "px";
+    tip.style.top = topPx + "px";
+  };
+  const leave = () => { cross.setAttribute("opacity","0"); dots.innerHTML=""; tip.classList.remove("on"); };
+  hit.addEventListener("mousemove", move);
+  hit.addEventListener("mouseleave", leave);
+  hit.addEventListener("touchstart", e => move(e.touches[0]), {passive:true});
+  hit.addEventListener("touchmove",  e => move(e.touches[0]), {passive:true});
+  hit.addEventListener("touchend", leave);
+}
+/* ================= ALERTS + CARDS ================= */
+function drawAlerts(){
+  const box = $("alerts");
+  const broken = ROWS.map((r,i) => ({r,i,s:schedule(r)})).filter(x => num(x.r.bal) > 0 && x.s.never);
+  let h = "";
+  broken.forEach(({r,s}) => {
+    h += `<div class="alert">
+      <span><b>${esc(r.name || r.prov || "This loan")} will never clear at this instalment</b>
+      <p>One period's interest is ${full(s.firstInterest)} but you are paying ${full(num(r.emi))}. The balance grows instead of falling &mdash; ${full(s.balByYear[Math.min(10,s.balByYear.length-1)])} after ten years. Raise the instalment above ${full(Math.ceil(s.firstInterest/1000)*1000)} or refinance.</p></span>
+      <a class="go" href="#sec-register">Fix it below &rarr;</a></div>`;
+  });
+  box.innerHTML = h;
+  box.style.display = h ? "flex" : "none";
+}
+function drawCards(){
+  const total = totalOwed();
+  const emiYear = ROWS.reduce((t,r) => t + annualEmi(r), 0);
+  const wr = total > 0 ? ROWS.reduce((t,r) => t + num(r.bal)*num(r.rate), 0)/total : 0;
+  const scheds = ROWS.map(schedule);
+  const interest = scheds.reduce((t,s) => t + (s.never ? 0 : s.interest), 0);
+  const anyNever = anyNeverClears();
+  const free = debtFreeIn();
+  const planTotal = PLAN.reduce((t,r) => t + num(r.bal), 0);
+  const planFirst = PLAN.filter(r => num(r.bal) > 0)
+                        .reduce((m,r) => Math.min(m, Math.round(num(r.start))), Infinity);
+  const y0 = THIS_YEAR;
+  $("cards").innerHTML =
+      `<div class="sum total"><div class="l">Total outstanding</div>
+         <div class="v">${fmt(total)}</div>
+         <div class="s">${ROWS.length} ${ROWS.length===1?"loan":"loans"}</div></div>`
+    + `<div class="sum" style="--tone:#e2574c"><div class="l">Instalments a month</div>
+         <div class="v" style="color:#e2574c">${fmt(emiYear/12)}</div>
+         <div class="s">${fmt(emiYear)} a year</div></div>`
+    + `<div class="sum" style="--tone:#5b93de"><div class="l">Weighted average rate</div>
+         <div class="v" style="color:#5b93de">${wr.toFixed(2)}%</div>
+         <div class="s">across every balance</div></div>`
+    + `<div class="sum" style="--tone:#e9a23b"><div class="l">Interest still to pay</div>
+         <div class="v" style="color:#e9a23b">${anyNever ? "\u2014" : fmt(interest)}</div>
+         <div class="s">${anyNever ? "one loan never clears" : (total? (interest/total*100).toFixed(0)+"% of what you owe" : "")}</div></div>`
+    + `<div class="sum" style="--tone:#0d8a78"><div class="l">Debt-free by</div>
+         <div class="v" style="color:${anyNever?"#e2574c":"#0d8a78"}">${
+           anyNever ? "Never" : (free > 0 ? y0 + free : (total + planTotal > 0 ? "\u2014" : "Now"))}</div>
+         <div class="s">${
+           anyNever ? "at current instalments"
+           : (free > 0 ? free + " years" + (planTotal > 0 ? ", planned loans included" : " at this pace")
+                       : (total + planTotal > 0 ? "still running at the horizon" : "nothing owed"))}</div></div>`
+    + (planTotal > 0
+        ? `<div class="sum" style="--tone:#8494ad"><div class="l">Planned borrowing</div>
+             <div class="v" style="color:#8494ad">${fmt(planTotal)}</div>
+             <div class="s">${PLAN.length} ${PLAN.length===1?"loan":"loans"}, first in ${planFirst}</div></div>`
+        : "");
+}
+
+/* ================= REGISTERS =================
+   One renderer drives both tables. `planned` adds the start-year column and
+   swaps the balance label; everything else is shared.
+============================================== */
+function visible(g){
+  const q = g.search.trim().toLowerCase();
+  return g.list.map((r,i) => ({r,i})).filter(({r}) => {
+    if(g.filter && catOf(r.cat).n !== g.filter) return false;
+    if(!q) return true;
+    return (r.prov+" "+r.name+" "+r.cat+" "+r.notes).toLowerCase().includes(q);
+  });
+}
+function renderRegister(g){
+  const tb = $("tbody-"+g.key), rows = visible(g);
+  tb.innerHTML = "";
+  $("empty-"+g.key).style.display = rows.length ? "none" : "block";
+  $("rowcount-"+g.key).textContent = rows.length === g.list.length
+    ? g.list.length + " " + g.noun + (g.list.length===1 ? "" : "s")
+    : rows.length + " of " + g.list.length + " shown";
+
+  rows.forEach(({r,i}) => {
+    const cat = catOf(r.cat), sc = schedule(r);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="stick"><input class="cell name" data-k="prov" value="${esc(r.prov)}" placeholder="Bank or NBFC"></td>
+      <td><input class="cell" data-k="name" value="${esc(r.name)}" placeholder="What it is for" style="min-width:150px"></td>
+      <td><button type="button" class="dd cell catpick" data-k="cat" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" style="background:${cat.c}"></span><span class="lbl">${esc(cat.n)}</span></button></td>
+      <td><input class="cell money" data-k="bal" type="number" value="${r.bal}" placeholder="0"></td>
+      <td><input class="cell money${sc.never?" warnval":""}" data-k="rate" type="number" step="0.05" value="${r.rate}"></td>
+      <td><input class="cell money${sc.never?" warnval":""}" data-k="emi" type="number" value="${r.emi}"></td>
+      <td><button type="button" class="dd cell small" data-k="freq" aria-haspopup="listbox" aria-expanded="false">
+          <span class="lbl">${esc(r.freq)}</span></button></td>`
+      + (g.planned
+          ? `<td><input class="cell money" data-k="start" type="number" step="1" min="${THIS_YEAR}" max="${THIS_YEAR+40}" value="${r.start}"></td>`
+          : "")
+      + `<td><input class="cell money${sc.never?" warnval":""}" data-k="end" type="number" step="1"
+             min="${startYearOf(r,g)+1}" max="${startYearOf(r,g)+40}" value="${r.end || ""}"
+             placeholder="${sc.never ? "never" : "year"}"></td>`
+      + `<td class="rt"><span class="pay${sc.never?" never":""}">${sc.never ? "\u2014" : fmt(sc.interest)}<small>${
+            sc.never ? "instalment too small" :
+            (num(r.bal) > 0
+              ? (g.planned
+                  ? "clears " + (Math.max(THIS_YEAR, Math.round(num(r.start))) + Math.ceil(sc.years))
+                  : (sc.interest/num(r.bal)*100).toFixed(0) + "% of the balance")
+              : "nothing owed")}</small></span></td>
+      <td><input class="cell" data-k="notes" value="${esc(r.notes)}" placeholder="Click to add" style="min-width:150px"></td>
+      <td><span class="acts">
+        <button class="rb save${r.saved?" done":""}" type="button">${r.saved?"Saved":"Save"}</button>
+        <button class="rb del" type="button">Remove</button></span></td>`;
+
+    const btnSave = tr.querySelector(".save");
+    const dirty = () => { r.saved = false; btnSave.classList.remove("done"); btnSave.textContent = "Save"; };
+
+    tr.querySelectorAll("input[data-k]").forEach(el => {
+      el.addEventListener("input", e => {
+        const k = e.target.dataset.k;
+        r[k] = ["bal","rate","emi","start","end"].includes(k) ? num(e.target.value) : e.target.value;
+        dirty();
+        if(k === "end"){
+          /* the tenure the user typed decides the instalment */
+          if(num(r.end) > startYearOf(r,g)) r.emi = emiFromEnd(r,g);
+        } else if(["bal","rate","emi","start"].includes(k)){
+          /* everything else decides the tenure */
+          r.end = endYearOf(r,g);
+        }
+        if(["bal","rate","emi","start","end"].includes(k)){
+          const rowIdx = rows.findIndex(x => x.r === r), pos = e.target.selectionStart;
+          renderRegister(g);                                  /* the row is rebuilt... */
+          const back = $("tbody-"+g.key).children[rowIdx];     /* ...so put the caret back */
+          const cell = back && back.querySelector(`[data-k="${k}"]`);
+          if(cell){ cell.focus(); try{ cell.setSelectionRange(pos,pos); }catch(_){} }
+        }
+        refresh(false);
+      });
+    });
+    /* loan type seeds a typical market rate */
+    tr.querySelector('[data-k="cat"]').addEventListener("click", e => {
+      ddToggle(e.currentTarget, CATS.map(c => ({n:c.n, c:c.c, rt:c.rate+"%"})), r.cat, v => {
+        r.cat = v; r.rate = catOf(v).rate; r.end = endYearOf(r,g); dirty(); refresh();
+      });
+    });
+    tr.querySelector('[data-k="freq"]').addEventListener("click", e => {
+      ddToggle(e.currentTarget, FREQ.map(f => ({n:f})), r.freq, v => {
+        r.freq = v; r.end = endYearOf(r,g); dirty(); refresh(); });
+    });
+    btnSave.addEventListener("click", () => { r.saved = true; btnSave.classList.add("done"); btnSave.textContent = "Saved"; });
+    tr.querySelector(".del").addEventListener("click", () => { g.list.splice(i,1); refresh(); });
+    tb.appendChild(tr);
+  });
+}
+function drawTable(){ renderRegister(REGS.cur); renderRegister(REGS.plan); }
+/* fill in each row's end year from the instalment it already carries */
+function seedEndYears(){
+  Object.values(REGS).forEach(g => g.list.forEach(r => { if(!r.end) r.end = endYearOf(r,g); }));
+}
+
+/* ================= REFRESH ================= */
+function refresh(redrawTable = true){
+  drawAlerts(); drawCards(); drawDonut(); drawGrowth();
+  if(redrawTable) drawTable();
+}
+
+/* ================= DROPDOWNS =================
+   Native <option> lists are drawn by the OS and can't be themed, so the
+   pickers are real elements. The panel lives on <body> as position:fixed so
+   the table's horizontal overflow can't clip it.
+============================================== */
+const DDPOP = document.createElement("div");
+DDPOP.className = "ddpop"; DDPOP.setAttribute("role","listbox");
+document.body.appendChild(DDPOP);
+let DD = null;                                  /* {btn, opts, pick, idx} */
+
+function ddClose(){
+  if(!DD) return;
+  DDPOP.classList.remove("on"); DDPOP.innerHTML = "";
+  DD.btn.setAttribute("aria-expanded","false");
+  DD = null;
+}
+function ddMark(scroll){
+  [...DDPOP.children].forEach((el,i) => el.classList.toggle("cur", i === DD.idx));
+  if(scroll && DDPOP.children[DD.idx]) DDPOP.children[DD.idx].scrollIntoView({block:"nearest"});
+}
+function ddPlace(){
+  const r = DD.btn.getBoundingClientRect();
+  DDPOP.style.minWidth = Math.max(r.width, 190) + "px";
+  DDPOP.style.left = "-9999px"; DDPOP.style.top = "0px";          /* measure clean */
+  const pw = DDPOP.offsetWidth, ph = DDPOP.offsetHeight;
+  let top = r.bottom + 6, left = r.left;
+  if(top + ph > innerHeight - 10) top = Math.max(10, r.top - ph - 6);   /* flip up */
+  if(left + pw > innerWidth - 10) left = Math.max(10, innerWidth - pw - 10);
+  DDPOP.style.left = Math.round(left) + "px"; DDPOP.style.top = Math.round(top) + "px";
+}
+function ddToggle(btn, opts, cur, pick){
+  if(DD && DD.btn === btn){ ddClose(); return; }
+  ddClose();
+  DDPOP.innerHTML = opts.map((o,i) =>
+      `<div class="ddopt" role="option" data-i="${i}" aria-selected="${o.n === cur}">`
+    + (o.c ? `<span class="sw" style="background:${o.c}"></span>` : "")
+    + `<span class="nm">${esc(o.n)}</span>`
+    + (o.rt ? `<span class="rt">${o.rt}</span>` : "")
+    + `</div>`).join("");
+  DDPOP.classList.add("on");
+  btn.setAttribute("aria-expanded","true");
+  DD = {btn, opts, pick, idx: Math.max(0, opts.findIndex(o => o.n === cur))};
+  ddPlace(); ddMark(true);
+  btn.focus();
+}
+function ddChoose(i){
+  const {opts, pick, btn} = DD; ddClose(); btn.focus(); pick(opts[i].n);
+}
+DDPOP.addEventListener("mousedown", e => {
+  const el = e.target.closest(".ddopt");
+  if(!el || !DD) return;
+  e.preventDefault(); ddChoose(+el.dataset.i);
+});
+DDPOP.addEventListener("mousemove", e => {
+  const el = e.target.closest(".ddopt");
+  if(el && DD){ DD.idx = +el.dataset.i; ddMark(false); }
+});
+document.addEventListener("mousedown", e => {
+  if(DD && !DDPOP.contains(e.target) && !DD.btn.contains(e.target)) ddClose();
+});
+document.addEventListener("keydown", e => {
+  if(!DD) return;
+  const n = DD.opts.length;
+  const k = e.key;
+  if(k === "Escape"){ e.preventDefault(); const b = DD.btn; ddClose(); b.focus(); }
+  else if(k === "ArrowDown"){ e.preventDefault(); DD.idx = (DD.idx+1)%n; ddMark(true); }
+  else if(k === "ArrowUp"){ e.preventDefault(); DD.idx = (DD.idx-1+n)%n; ddMark(true); }
+  else if(k === "Home"){ e.preventDefault(); DD.idx = 0; ddMark(true); }
+  else if(k === "End"){ e.preventDefault(); DD.idx = n-1; ddMark(true); }
+  else if(k === "Enter" || k === " "){ e.preventDefault(); ddChoose(DD.idx); }
+  else if(k === "Tab"){ ddClose(); }
+  else if(k.length === 1 && /\S/.test(k)){                      /* type to jump */
+    const q = k.toLowerCase();
+    const at = DD.opts.findIndex((o,i) => i > DD.idx && o.n.toLowerCase().startsWith(q));
+    const hit = at > -1 ? at : DD.opts.findIndex(o => o.n.toLowerCase().startsWith(q));
+    if(hit > -1){ DD.idx = hit; ddMark(true); }
+  }
+});
+/* keep the panel glued to its trigger while anything scrolls */
+window.addEventListener("scroll", () => { if(DD) ddPlace(); }, true);
+window.addEventListener("resize", ddClose);
+
+/* open on keyboard without a mouse press */
+document.addEventListener("keydown", e => {
+  if(DD) return;
+  const b = document.activeElement;
+  if(b && b.classList && b.classList.contains("dd") && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")){
+    e.preventDefault(); b.click();
+  }
+});
+
+
+/* ================= WIRING ================= */
+document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-view]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); VIEW = b.dataset.view; drawGrowth();
+}));
+
+/* both registers share one set of controls, bound per register */
+Object.values(REGS).forEach(g => {
+  const k = g.key, label = "All types";
+  const setFilter = v => {
+    g.filter = (v === label) ? "" : v;
+    const c = g.filter ? catOf(g.filter).c : null;
+    $("filter-"+k).innerHTML = (c ? `<span class="sw" style="background:${c}"></span>` : "")
+      + `<span class="lbl">${esc(g.filter || label)}</span>`;
+    renderRegister(g);
+  };
+  const add = () => {
+    const row = {prov:"", name:"", cat:"Personal loan", bal:0, rate:catOf("Personal loan").rate,
+                 emi:0, freq:"Monthly", notes:"", saved:false};
+    if(g.planned) row.start = THIS_YEAR + 1;
+    row.end = 0;
+    g.list.push(row);
+    g.search = ""; $("search-"+k).value = ""; setFilter(label);
+    refresh();
+    const last = $("tbody-"+k).lastElementChild;
+    if(last) last.querySelector('input[data-k="prov"]').focus();
+  };
+  $("btn-add-"+k).addEventListener("click", add);
+  $("btn-add2-"+k).addEventListener("click", add);
+  $("search-"+k).addEventListener("input", e => { g.search = e.target.value; renderRegister(g); });
+  $("filter-"+k).addEventListener("click", e =>
+    ddToggle(e.currentTarget, [{n:label}].concat(CATS.map(c => ({n:c.n, c:c.c, rt:c.rate+"%"}))),
+             g.filter || label, setFilter));
+  $("btn-reset-"+k).addEventListener("click", () => {
+    g.search = ""; $("search-"+k).value = ""; setFilter(label);
+  });
+  $("btn-csv-"+k).addEventListener("click", () => {
+    const head = ["Provider","Loan name","Loan type", g.planned ? "Amount" : "Outstanding",
+                  "Interest rate %","Instalment","Frequency"]
+                 .concat(g.planned ? ["Starts"] : [])
+                 .concat(["Ends in","Interest still to pay","Notes"]);
+    const q = v => `"${String(v==null?"":v).replace(/"/g,'""')}"`;
+    const csv = [head.map(q).join(",")].concat(
+      g.list.map(r => { const sc = schedule(r);
+        return [r.prov,r.name,r.cat,r.bal,r.rate,r.emi,r.freq]
+          .concat(g.planned ? [r.start] : [])
+          .concat([r.end || "", sc.never ? "" : Math.round(sc.interest), r.notes]).map(q).join(","); })
+    ).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
+    a.download = g.planned ? "lifemap-planned-loans.csv" : "lifemap-loans.csv";
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+});
+
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(drawGrowth, 120); });
+
+(function(){
+  const tabs = [...document.querySelectorAll(".tier2 .stab[data-go]")];
+  const jump = id => {
+    const el = $(id);
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  };
+  const mark = id => tabs.forEach(b => b.classList.toggle("on", b.dataset.go === id));
+  /* a click wins for a moment, so the smooth-scroll animation can't drag the
+     underline back through the sections it passes on the way */
+  let lock = 0;
+  tabs.forEach(b => b.addEventListener("click", () => {
+    lock = Date.now() + 900;
+    mark(b.dataset.go);
+    jump(b.dataset.go);
+  }));
+
+  /* the frozen bar lifts off the page once the header has scrolled past */
+  const bar = $("tier2wrap"), head = document.querySelector(".topbar");
+  if(bar && head){
+    const onStuck = () => bar.classList.toggle("stuck", window.scrollY > head.offsetHeight - 1);
+    window.addEventListener("scroll", onStuck, {passive:true});
+    window.addEventListener("resize", onStuck);
+    onStuck();
+  }
+
+  /* highlight whichever section is in view.
+     The last section is shorter than the one above it, so "biggest visible
+     section" picks the wrong tab at the foot of the page; take the last section
+     whose top has passed the frozen bar instead, and pin the last tab at the
+     very bottom where nothing can scroll further. */
+  const targets = tabs.map(b => ({b, el:$(b.dataset.go)})).filter(t => t.el);
+  const onSpy = () => {
+    if(Date.now() < lock || !targets.length) return;
+    const edge = (bar ? bar.getBoundingClientRect().bottom : 44) + 24;
+    const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+    let cur = atBottom ? targets[targets.length-1] : targets[0];
+    if(!atBottom) targets.forEach(t => { if(t.el.getBoundingClientRect().top <= edge) cur = t; });
+    mark(cur.b.dataset.go);
+  };
+  window.addEventListener("scroll", onSpy, {passive:true});
+  window.addEventListener("resize", onSpy);
+  onSpy();
+})();
+
+seedEndYears(); refresh();
+/* ---------- page description toggle ---------- */
+document.querySelectorAll(".pmore").forEach(btn => {
+  const box = document.getElementById(btn.getAttribute("aria-controls"));
+  if(!box) return;
+  const set = open => {
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    box.classList.toggle("open", open);
+    /* measured on every open: the text wraps differently at different widths */
+    box.style.maxHeight = open ? box.scrollHeight + "px" : "0px";
+  };
+  btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+  window.addEventListener("resize", () => {
+    if(btn.getAttribute("aria-expanded") === "true") box.style.maxHeight = box.scrollHeight + "px";
+  });
+});
+
+/* ---------- fold every section note behind a caret ----------
+   Done here rather than in the markup so the same rule covers notes that are
+   written by script as well as those already in the page, and so a note added
+   later is folded automatically. */
+(function(){
+  document.querySelectorAll(".rowfoot, .foot, .gfoot, .rnote").forEach(note => {
+    if(note.closest(".nfold")) return;
+    const host = note.parentNode;
+    const bar  = document.createElement("div");
+    bar.className = "notebar";
+    const btn  = document.createElement("button");
+    btn.type = "button"; btn.className = "nmore";
+    btn.setAttribute("aria-expanded","false");
+    btn.setAttribute("aria-label","Show the note for this section");
+    bar.appendChild(btn);
+    const fold = document.createElement("div");
+    fold.className = "nfold";
+    host.insertBefore(bar, note);
+    host.insertBefore(fold, note);
+    fold.appendChild(note);
+    const set = open => {
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      fold.classList.toggle("open", open);
+      fold.style.maxHeight = open ? fold.scrollHeight + "px" : "0px";
+    };
+    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+    /* the notes are rewritten as figures change, so the measured height goes stale */
+    new MutationObserver(() => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    }).observe(note, {childList:true, characterData:true, subtree:true});
+    window.addEventListener("resize", () => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    });
+  });
+})();
+
+</script>
+</body>
+</html>

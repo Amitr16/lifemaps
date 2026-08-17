@@ -1,23 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Plus, LogOut, Moon, Sun } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import Shell from '../components/Shell';
+import { LifemapAdminShell } from '../components/LifemapChrome';
 
 export default function AdminPage() {
   const { admin, adminLogout, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { theme, resolvedTheme, setTheme } = useTheme();
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -88,220 +80,131 @@ export default function AdminPage() {
   };
 
   if (loading) {
-    return <div className="p-8 text-slate-900 dark:text-white">Loading...</div>;
+    return (
+      <LifemapAdminShell title="Admin" kicker="BOX Wealth">
+        <div className="lm-card" style={{ padding: 48, textAlign: 'center', color: 'var(--lm-muted)' }}>Loading…</div>
+      </LifemapAdminShell>
+    );
+  }
+
+  if (selectedUser && activeTab === 'user-view') {
+    return (
+      <UserDataView
+        userId={selectedUser.id}
+        userName={selectedUser.name}
+        onBack={() => {
+          setActiveTab('users');
+          setSelectedUser(null);
+        }}
+      />
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      <div className="border-b bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Admin Dashboard</h1>
-            <p className="text-gray-600 dark:text-slate-300 text-sm">Welcome, {admin?.name || admin?.username || 'Admin'}</p>
+    <LifemapAdminShell
+      title="Your users"
+      kicker={`Signed in as ${admin?.name || admin?.username || 'Admin'}`}
+      actions={<button type="button" className="lm-btn" onClick={handleLogout}>Logout</button>}
+    >
+      <div className="lm-card">
+        <div className="lm-reghead">
+          <h3>User register</h3>
+          <span className="count">{users.length} people</span>
+          <div className="r">
+            <button type="button" className="lm-ghost primary" onClick={() => setShowCreateUser(true)}>+ Create user</button>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="lifemap-toggle"
-              data-theme={resolvedTheme || theme || 'light'}
-              aria-label="Toggle theme"
-              aria-pressed={(resolvedTheme || theme) === 'dark'}
-              onClick={() => setTheme((resolvedTheme || theme) === 'dark' ? 'light' : 'dark')}
-            >
-              <Moon className="h-3 w-3" />
-              <Sun className="h-3 w-3" />
-              <span className="lifemap-toggle-knob" />
-            </button>
-            <Button onClick={handleLogout} variant="outline" className="dark:border-slate-600 dark:text-white">
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-          </div>
+        </div>
+        <div className="lm-tblwrap">
+          <table className="lm-tbl">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr>
+                  <td className="empty" colSpan={4}>No users assigned to you yet</td>
+                </tr>
+              ) : users.map((user) => (
+                <tr
+                  key={user.id}
+                  className={selectedUser?.id === user.id ? 'on' : ''}
+                  onClick={() => {
+                    setSelectedUser(user);
+                    setActiveTab('user-view');
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td>{user.email}</td>
+                  <td>{user.name}</td>
+                  <td>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <button type="button" className="lm-iconbtn danger" onClick={() => handleDeleteUser(user.id)} aria-label="Delete user">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
-            <TabsTrigger value="user-view" disabled={!selectedUser}>
-              {selectedUser ? `${selectedUser.name}'s Data` : 'Select User'}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="users" className="mt-4">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Your Users</CardTitle>
-                  <Dialog open={showCreateUser} onOpenChange={setShowCreateUser}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create User
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="dark:bg-slate-800 dark:border-slate-700">
-                      <DialogHeader>
-                        <DialogTitle className="dark:text-white">Create New User</DialogTitle>
-                      </DialogHeader>
-                      <form onSubmit={handleCreateUser} className="space-y-4">
-                        <div>
-                          <Label className="dark:text-white">Email *</Label>
-                          <Input
-                            type="email"
-                            value={userForm.email}
-                            onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                            required
-                            className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <Label className="dark:text-white">Password *</Label>
-                          <Input
-                            type="password"
-                            value={userForm.password}
-                            onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                            required
-                            minLength={6}
-                            className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <Label className="dark:text-white">Name *</Label>
-                          <Input
-                            value={userForm.name}
-                            onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                            required
-                            className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                          />
-                        </div>
-                        <Button type="submit" className="w-full dark:text-white">Create User</Button>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500 dark:text-slate-400">
-                          No users assigned to you yet
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      users.map((user) => (
-                        <TableRow
-                          key={user.id}
-                          className={selectedUser?.id === user.id ? 'bg-blue-50 dark:bg-blue-900/30' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800'}
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setActiveTab('user-view');
-                          }}
-                        >
-                          <TableCell className="dark:text-white">{user.email}</TableCell>
-                          <TableCell className="dark:text-white">{user.name}</TableCell>
-                          <TableCell className="dark:text-slate-300">{new Date(user.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="dark:border-slate-600 dark:text-white"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="user-view" className="mt-4">
-            {selectedUser ? (
-              <UserDataView userId={selectedUser.id} userName={selectedUser.name} />
-            ) : (
-              <Card className="dark:bg-slate-800 dark:border-slate-700">
-                <CardContent className="p-8 text-center text-gray-500 dark:text-slate-400">
-                  Please select a user from the Users tab
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+      {showCreateUser ? (
+        <div className="lm-modal-overlay" onClick={() => setShowCreateUser(false)}>
+          <div className="lm-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Create user</h2>
+            <p className="sub">They will be able to sign in and save a plan.</p>
+            <form onSubmit={handleCreateUser} className="stack">
+              <div>
+                <label htmlFor="new-email">Email</label>
+                <input id="new-email" className="lm-inp" type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} required />
+              </div>
+              <div>
+                <label htmlFor="new-password">Password</label>
+                <input id="new-password" className="lm-inp" type="password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} required minLength={6} />
+              </div>
+              <div>
+                <label htmlFor="new-name">Name</label>
+                <input id="new-name" className="lm-inp" value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} required />
+              </div>
+              <div className="lm-modal-acts">
+                <button type="button" className="lm-ghost" onClick={() => setShowCreateUser(false)}>Cancel</button>
+                <button type="submit" className="lm-btn">Create user</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+    </LifemapAdminShell>
   );
 }
 
 // Component to view and edit user data
-function UserDataView({ userId, userName }) {
+function UserDataView({ userId, userName, onBack }) {
   const [activeSection, setActiveSection] = useState('dashboard');
   const { admin } = useAuth();
 
   return (
-    <Shell 
+    <Shell
       adminMode={true}
       activeSection={activeSection}
       onSectionChange={setActiveSection}
       adminUserName={admin?.name || admin?.username}
       userName={userName}
+      onBack={onBack}
     >
-      <Tabs value={activeSection} onValueChange={setActiveSection} className="w-full">
-        <div className="hidden">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="assets">Assets</TabsTrigger>
-            <TabsTrigger value="work-assets">Work Assets</TabsTrigger>
-            <TabsTrigger value="goals">Goals</TabsTrigger>
-            <TabsTrigger value="loans">Loans</TabsTrigger>
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="insurance">Insurance</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="dashboard" className="mt-0">
-          <AdminUserDashboard userId={userId} />
-        </TabsContent>
-
-        <TabsContent value="assets" className="mt-0">
-          <AdminUserAssets userId={userId} />
-        </TabsContent>
-
-        <TabsContent value="work-assets" className="mt-0">
-          <AdminUserWorkAssets userId={userId} />
-        </TabsContent>
-
-        <TabsContent value="goals" className="mt-0">
-          <AdminUserGoals userId={userId} />
-        </TabsContent>
-
-        <TabsContent value="loans" className="mt-0">
-          <AdminUserLoans userId={userId} />
-        </TabsContent>
-
-        <TabsContent value="expenses" className="mt-0">
-          <AdminUserExpenses userId={userId} />
-        </TabsContent>
-
-        <TabsContent value="insurance" className="mt-0">
-          <AdminUserInsurance userId={userId} />
-        </TabsContent>
-      </Tabs>
+      {activeSection === 'dashboard' && <AdminUserDashboard userId={userId} />}
+      {activeSection === 'assets' && <AdminUserAssets userId={userId} />}
+      {activeSection === 'work-assets' && <AdminUserWorkAssets userId={userId} />}
+      {activeSection === 'goals' && <AdminUserGoals userId={userId} />}
+      {activeSection === 'loans' && <AdminUserLoans userId={userId} />}
+      {activeSection === 'expenses' && <AdminUserExpenses userId={userId} />}
+      {activeSection === 'insurance' && <AdminUserInsurance userId={userId} />}
     </Shell>
   );
 }

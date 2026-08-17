@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeMap &mdash; Goals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font:"Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --navy:#003c8f; --ink:#0a1f44; --teal:#75cfc2; --aqua:#b5e6e5;
+  --paper:#f6f8fb; --line:#e2e8f2; --muted:#66799a; --coral:#e2574c;
+  --amber:#e9a23b; --slate:#9aa7bd; --green:#0d8a78; --r:14px;
+  --shadow:0 1px 2px rgba(10,31,68,.04), 0 8px 24px rgba(10,31,68,.06);
+  --navh:44px;   /* height of the frozen bottom bar only */
+  --bar:#e8f4f5; --bar-line:#cfe6e8;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--font);
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums}
+h1,h2,h3,h4{font-family:var(--font); font-weight:700; letter-spacing:-.02em; margin:0}
+.num{font-variant-numeric:tabular-nums; font-weight:700; letter-spacing:-.02em}
+button,input,select,textarea{font-family:var(--font)}
+a{text-decoration:none; color:inherit}
+
+/* ---------- top bar ---------- */
+/* ---------- stacked top navigation ---------- */
+.topbar{background:#fff; position:relative}
+.topbar::before{content:""; display:block; height:3px;
+  background:linear-gradient(90deg, var(--navy) 0%, #2f6fd0 26%, #0d8a78 52%, var(--teal) 76%, var(--aqua) 100%)}
+.tier{max-width:1200px; margin:0 auto; padding:0 28px}
+@media(max-width:640px){.tier{padding:0 16px}}
+
+/* tier 0 — identity and actions */
+.tier0{display:flex; align-items:center; gap:16px; height:56px}
+.brand{display:flex; align-items:center; gap:10px; text-decoration:none}
+.mark{width:20px; height:20px; background:var(--navy); transform:rotate(45deg); border-radius:3px; position:relative; flex:none}
+.mark::after{content:""; position:absolute; inset:0 0 50% 50%; background:var(--teal); border-radius:0 3px 0 0}
+.brand .name{font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.03em}
+.brand .by{font-size:10.5px; color:var(--muted); letter-spacing:.09em; text-transform:uppercase; font-weight:600}
+.tier0 .acts{margin-left:auto; display:flex; align-items:center; gap:8px}
+.tlink{padding:8px 12px; font-size:14px; color:var(--navy); text-decoration:none; border-radius:8px; font-weight:600}
+.tlink:hover{color:var(--navy); background:#eef3fa}
+
+/* tier 1 — the product's main areas, centred */
+.tier1{display:flex; gap:1px; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none}
+.tier1::-webkit-scrollbar{display:none}
+/* auto margins centre the row, then collapse to zero when it overflows so nothing is unreachable */
+.tier1 > :first-child{margin-left:auto}
+.tier1 > :last-child{margin-right:auto}
+.ptab{padding:11px 14px 12px; font-size:14px; font-weight:600; color:var(--muted);
+  white-space:nowrap; text-decoration:none; border-radius:9px 9px 0 0; transition:background .13s, color .13s}
+/* each tab still carries its area's own colour, but only on hover and when active */
+.ptab:hover{color:var(--tone, var(--navy)); background:#f4f8fd}
+.ptab.on{background:var(--bar); color:var(--tone, var(--ink)); font-weight:700}
+/* Insurance is not built yet: the tab stays visible so the shape of the product
+   is legible, but reads as unavailable rather than merely unvisited. */
+.ptab.gate{opacity:.45; cursor:not-allowed}
+.ptab.gate:hover{background:transparent; color:var(--muted)}
+
+/* tier 2 — what is on this page, centred */
+.tier2wrap{position:sticky; top:0; z-index:80;
+  background:linear-gradient(180deg,#eef8f9,var(--bar));
+  border-top:1px solid var(--bar-line); border-bottom:1px solid var(--bar-line); transition:box-shadow .18s}
+.tier2wrap.stuck{box-shadow:0 6px 18px rgba(10,31,68,.09)}
+.tier2{display:flex; flex-wrap:wrap; justify-content:center; gap:0}
+.stab{padding:10px 14px 10px; font-size:13px; font-weight:600; color:#4a6274; white-space:nowrap;
+  background:none; border:0; border-bottom:2px solid transparent; cursor:pointer; transition:color .13s, border-color .13s}
+.stab:hover{color:var(--navy)}
+.stab.on{font-weight:700}
+.stab.on{color:var(--navy); border-bottom-color:var(--navy)}
+@media(max-width:640px){
+  .ptab{font-size:13px; padding:10px 12px 11px}
+  .stab{font-size:12.5px; padding:9px 12px}
+}
+
+.btn{border:0; cursor:pointer; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700;
+  background:linear-gradient(135deg,#0b52b8,var(--navy)); color:#fff; text-decoration:none;
+  display:inline-block; transition:filter .15s, box-shadow .15s; box-shadow:0 2px 10px rgba(0,60,143,.24)}
+.btn:hover{filter:brightness(1.08); box-shadow:0 4px 16px rgba(0,60,143,.32)}
+.btn-ghost{background:transparent; color:var(--navy); border:1px solid var(--line)}
+.btn-ghost:hover{background:#eef3fa}
+@media(max-width:640px){.tlink{display:none}}
+
+/* ---------- body ---------- */
+.body{max-width:1200px; margin:0 auto; padding:26px 28px 70px}
+@media(max-width:640px){.body{padding:20px 16px 56px}}
+#sec-mix,#sec-growth,#sec-register{scroll-margin-top:calc(var(--navh) + 14px)}
+.phead{margin-bottom:18px}
+.phead h1{font-size:25px}
+.phead p{margin:3px 0 0; color:var(--muted); font-size:14px; max-width:78ch}
+.card{background:#fff; border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+
+/* donut card — one full-width section */
+.mixcard{padding:18px 22px 20px; margin-bottom:16px}
+.mixbody{display:grid; grid-template-columns:300px minmax(0,1fr); gap:10px 34px; align-items:center; margin-top:6px}
+@media(max-width:900px){.mixbody{grid-template-columns:1fr; gap:18px}}
+.mixhead{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+.mixhead h3{font-size:16px}
+.seg2{margin-left:auto; display:flex; background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:2px}
+.seg2 button{border:0; background:none; padding:5px 11px; font-size:12.5px; border-radius:7px; color:var(--muted); cursor:pointer; font-weight:600}
+.seg2 button.on{background:var(--navy); color:#fff}
+.mixsub{font-size:12.5px; color:var(--muted); margin-bottom:10px}
+.donutbox{position:relative; width:100%; max-width:282px; margin:0 auto}
+.donutbox svg{width:100%; height:auto; display:block; overflow:visible}
+.wedge{transition:transform .16s cubic-bezier(.3,.9,.3,1), filter .16s; cursor:pointer}
+.wedge:hover{filter:brightness(1.08)}
+.dcenter{position:absolute; left:27%; top:27%; width:46%; height:46%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none; padding:2px}
+.dcenter .k{max-width:104px; font-size:8.8px; line-height:1.25; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); font-weight:700; white-space:normal}
+.dcenter .v{font-size:25px; line-height:1.05; margin-top:4px; font-weight:800; letter-spacing:-.03em; color:var(--navy); white-space:nowrap}
+.dcenter .s{font-size:10.5px; color:var(--muted); margin-top:5px; max-width:108px; line-height:1.25}
+.dtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:var(--ink); color:#fff; border-radius:10px; padding:10px 13px; min-width:158px;
+  box-shadow:0 12px 32px rgba(10,31,68,.34); transform:translate(-50%,-116%)}
+.dtip.on{opacity:1}
+.dtip .n{font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:7px}
+.dtip .n i{width:9px; height:9px; border-radius:2px; display:block; flex:none}
+.dtip .a{font-size:19px; font-weight:800; letter-spacing:-.02em; margin:3px 0 1px}
+.dtip .d{font-size:11.5px; color:#a9bcda; line-height:1.45}
+.dkey{margin-top:12px; font-size:11.5px; color:var(--slate); text-align:center; line-height:1.5}
+.dleg{display:grid; grid-template-columns:repeat(auto-fill,minmax(208px,1fr)); gap:1px 18px; align-content:center}
+/* the grouping is a heading over its rows, not a row beside them */
+.dleg .lhead{grid-column:1/-1; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--slate); font-weight:700; padding:12px 6px 6px;
+  display:flex; align-items:center; justify-content:center; text-align:center}
+.dleg .lhead::before, .dleg .lhead::after{content:""; flex:1; height:1px; background:currentColor; opacity:.22}
+.dleg .lhead::before{margin-right:12px} .dleg .lhead::after{margin-left:12px}
+.dleg .lhead.second{margin-top:8px}
+.dleg .li{display:flex; align-items:center; gap:9px; font-size:13px; padding:5px 6px; border-radius:7px; transition:background .13s}
+.dleg .li:hover{background:var(--paper)}
+.dleg .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dleg .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#33456b}
+.dleg .vl{font-weight:700}
+.dleg .pc{color:var(--slate); font-size:11.5px; width:40px; text-align:right}
+
+/* ---------- growth chart ---------- */
+.gcard{padding:18px 20px 14px; margin-bottom:16px}
+.ghead{display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:2px}
+.ghead h3{font-size:16px}
+.gsub{font-size:12.5px; color:var(--muted)}
+.gsub b{color:var(--ink)}
+.gsub .arrow{color:var(--slate); margin:0 5px}
+.gright{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.chartbox{position:relative; margin-top:14px}
+.chartbox svg{width:100%; height:auto; display:block; overflow:visible}
+.gtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:#fff; color:#234566; border:1px solid #d8dee8; border-radius:0; padding:13px 16px; min-width:340px; max-width:410px;
+  max-height:70vh; overflow-y:auto; box-shadow:0 10px 24px rgba(10,31,68,.10)}
+.gtip.on{opacity:1}
+.gtip .yr{font-size:11px; letter-spacing:.02em; text-transform:none; color:#1b657b; font-weight:500}
+.gtip .tt{font-size:18px; font-weight:800; letter-spacing:-.02em; margin:6px 0 10px; color:#2453dd}
+.gtip .gcols{display:grid; grid-template-columns:1fr 1fr; gap:0 14px; align-items:start}
+.gtip .gcol{min-width:0}
+.gtip .gl{display:flex; align-items:center; gap:7px; font-size:10.9px; padding:4px 0; color:#355272}
+.gtip .gl i{width:10px; height:10px; border-radius:50%; flex:none}
+.gtip .gl span{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.gtip .gl b{font-weight:700; color:#234566; margin-left:8px}
+.gleg{display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
+.gleg .gi{display:flex; align-items:center; gap:8px; font-size:12.5px; color:#33456b}
+.gleg .gi i{width:10px; height:10px; border-radius:50%; flex:none}
+.gleg .gi b{font-weight:700; color:var(--ink)}
+.gfoot{margin-top:10px; font-size:12px; color:var(--slate); line-height:1.55}
+
+/* ---------- register ---------- */
+.reghead{display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.reghead h3{font-size:17px}
+.reghead .count{font-size:12.5px; color:var(--slate); font-weight:600}
+.reghead .r{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap}
+.srch{border:1px solid var(--line); border-radius:9px; padding:8px 12px; font-size:13.5px; background:var(--paper); width:190px}
+.srch:focus{outline:none; border-color:var(--navy); background:#fff}
+.sel{border:1px solid var(--line); border-radius:9px; padding:8px 11px; font-size:13.5px; background:#fff; color:var(--muted); cursor:pointer}
+.ghost{background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 14px; font-size:13.5px; color:var(--muted); cursor:pointer; font-weight:600}
+.ghost:hover{background:#f0f4fa; color:var(--navy)}
+.ghost.primary{background:var(--navy); color:#fff; border-color:var(--navy)}
+.ghost.primary:hover{background:#00307a; color:#fff}
+
+.tblwrap{overflow:auto; max-height:max(330px, min(560px, calc(100vh - var(--navh) - 150px))); overscroll-behavior:contain}
+table{border-collapse:separate; border-spacing:0; width:100%; min-width:1520px}
+th{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--slate); font-weight:700;
+  text-align:left; padding:12px 12px; background:var(--paper); border-bottom:1px solid var(--line); white-space:nowrap; position:sticky; top:0; z-index:3}
+td{padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:middle; background:#fff}
+/* frozen name column */
+th.stick,td.stick{position:sticky; left:0; z-index:2}
+td.stick{background:#fff; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+th.stick{background:var(--paper); z-index:5; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+tr:hover td{background:#fbfcfe}
+tr:hover td.stick{background:#fbfcfe}
+td.rt{text-align:right}
+.cell{width:100%; border:1px solid transparent; border-radius:8px; padding:8px 9px; font-size:14px;
+  background:transparent; color:var(--ink); transition:border-color .13s, background .13s}
+.cell:hover{background:var(--paper)}
+.cell:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.cell.name{font-weight:600; min-width:170px}
+.cell.money{text-align:right; font-variant-numeric:tabular-nums; min-width:118px}
+.cell.small{min-width:96px}
+.tagpick{min-width:138px}
+.catpick{min-width:190px}
+.freqpick{min-width:118px}
+
+/* ---- theme-matched dropdown ---- */
+.dd{width:100%; display:flex; align-items:center; gap:8px; position:relative; text-align:left; cursor:pointer;
+  border:1px solid transparent; border-radius:8px; padding:8px 26px 8px 9px; font-size:14px;
+  background:transparent; color:var(--ink); transition:border-color .13s, background .13s}
+.dd:hover{background:var(--paper)}
+.dd[aria-expanded="true"]{border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.dd .lbl{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dd .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dd::after{content:""; position:absolute; right:11px; top:50%; width:6px; height:6px; margin-top:-5px;
+  border-right:1.8px solid var(--slate); border-bottom:1.8px solid var(--slate);
+  transform:rotate(45deg); transition:transform .16s, border-color .16s}
+.dd[aria-expanded="true"]::after{transform:rotate(225deg); margin-top:-2px; border-color:var(--navy)}
+.dd.filter{border-color:var(--line); background:#fff; width:auto; min-width:152px; color:var(--muted); font-size:13.5px; padding:8px 28px 8px 12px}
+.dd.filter:hover{border-color:#c8d5e8; color:var(--navy)}
+
+.ddpop{position:fixed; z-index:200; display:none; padding:6px; min-width:190px; max-height:296px; overflow-y:auto;
+  background:#fff; border:1px solid var(--line); border-radius:12px; font-family:var(--font);
+  box-shadow:0 20px 48px rgba(10,31,68,.20), 0 2px 6px rgba(10,31,68,.07)}
+.ddpop.on{display:block; animation:ddin .14s cubic-bezier(.2,.9,.3,1)}
+@keyframes ddin{from{opacity:0; transform:translateY(-5px)} to{opacity:1; transform:none}}
+.ddopt{display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:8px; font-size:14px;
+  color:#33456b; cursor:pointer; white-space:nowrap; line-height:1.35}
+.ddopt .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.ddopt .nm{flex:1}
+.ddopt .rt{font-size:11.5px; color:var(--slate); font-variant-numeric:tabular-nums; font-weight:600}
+.ddopt.cur{background:#eef3fa; color:var(--navy)}
+.ddopt[aria-selected="true"]{background:#eaf1fc; color:var(--navy); font-weight:700}
+.ddopt[aria-selected="true"] .rt{color:var(--navy)}
+.ddopt[aria-selected="true"]::before{content:""; width:6px; height:10px; flex:none; margin-right:-3px;
+  border-right:2px solid var(--navy); border-bottom:2px solid var(--navy); transform:rotate(40deg) translateY(-2px)}
+.ddpop::-webkit-scrollbar{width:11px}
+.ddpop::-webkit-scrollbar-track{background:transparent}
+.ddpop::-webkit-scrollbar-thumb{background:#ccd7e8; border-radius:99px; border:3px solid #fff}
+.ddpop::-webkit-scrollbar-thumb:hover{background:#b3c2da}
+.ddpop{scrollbar-width:thin; scrollbar-color:#ccd7e8 transparent}
+.swatch{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px; vertical-align:1px}
+.proj{font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; white-space:nowrap}
+.proj small{display:block; font-weight:500; color:var(--slate); font-size:11px; letter-spacing:0}
+.acts{display:flex; gap:6px; justify-content:flex-end}
+.rb{border:1px solid var(--line); background:#fff; border-radius:8px; height:34px; padding:0 11px; cursor:pointer;
+  font-size:12px; font-weight:700; color:var(--muted); white-space:nowrap; transition:.14s}
+.rb.save{color:var(--navy)}
+.rb.save:hover{background:#eef3fa; border-color:var(--navy)}
+.rb.save.done{background:#e9f6f4; border-color:#bfe6df; color:#0d6e60}
+.rb.del:hover{color:var(--coral); border-color:#f3c9c5; background:#fef6f5}
+.addbar{padding:14px 20px 18px}
+.addrow{width:100%; border:1px dashed #c8d5e8; background:#fbfcfe; color:var(--navy); border-radius:9px;
+  padding:12px; font-size:14px; font-weight:700; cursor:pointer}
+.addrow:hover{background:#eef3fa; border-color:var(--navy)}
+.empty{padding:52px 20px; text-align:center; color:var(--slate)}
+.empty b{display:block; color:var(--ink); font-size:16px; margin-bottom:4px}
+.foot{padding:14px 20px 18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--slate); line-height:1.6}
+.pager{display:flex; gap:10px; margin-top:20px}
+.btn-nav{background:#fff; border:1px solid var(--line); color:var(--navy); padding:11px 18px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer}
+.btn-nav:hover{background:#eef3fa}
+.btn-nav.sp{margin-left:auto}
+:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important} html{scroll-behavior:auto}}
+@media(max-width:760px){
+  /* the frozen column eats too much of a narrow screen otherwise */
+  .cell.name{min-width:124px}
+  .catpick{min-width:164px}
+  .tagpick{min-width:126px}
+}
+
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:12px; margin-bottom:16px}
+.sum{padding:14px 16px; position:relative; overflow:hidden; background:#fff;
+  border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+.sum::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--tone,var(--line))}
+.sum .l{font-size:12.5px; color:var(--muted); font-weight:600}
+.sum .v{font-size:24px; font-weight:800; letter-spacing:-.03em; margin-top:2px}
+.sum .s{font-size:11.5px; color:var(--slate); margin-top:2px}
+.sum.total{background:var(--ink); border-color:var(--ink)}
+.sum.total .l{color:#8fa6c9} .sum.total .v{color:#fff} .sum.total .s{color:#8fa6c9}
+
+
+/* ---------- goals page additions ---------- */
+.assume{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); font-weight:600}
+.assume input{width:64px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper);
+  font-size:13.5px; font-family:var(--font); font-variant-numeric:tabular-nums; color:var(--ink); text-align:center}
+.assume input:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+
+/* the editorial note that sets this page apart from goal-based planning */
+
+/* ---------- when the money is needed ---------- */
+.tlbox{position:relative; margin-top:10px}
+.tlsvg{width:100%; display:block}
+.ybar{cursor:pointer; transition:opacity .14s}
+.tlsvg.focusing .ybar{opacity:.24}
+.tlsvg.focusing .ybar.hot{opacity:1}
+.ytip{position:absolute; z-index:40; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:#fff; color:#234566; border:1px solid #d8dee8; border-radius:2px;
+  padding:12px 14px; width:262px; box-shadow:0 8px 22px rgba(10,31,68,.14)}
+.ytip.on{opacity:1}
+.ytip .yh{font-size:11px; color:#1b657b; font-weight:600; letter-spacing:.02em}
+.ytip .yv{font-size:18px; font-weight:800; letter-spacing:-.02em; margin:4px 0 8px; color:#2453dd}
+.ytip .gl{display:flex; align-items:center; gap:8px; font-size:11.5px; padding:3px 0; color:#355272}
+.ytip .gl i{width:9px; height:9px; border-radius:50%; flex:none}
+.ytip .gl span{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.ytip .gl b{font-weight:700; color:#234566; font-variant-numeric:tabular-nums}
+.ytip .n{font-size:10.5px; color:#8290a6; margin-top:8px; padding-top:8px; border-top:1px solid #eef1f6; line-height:1.45}
+
+/* pill for the flexibility band in the register */
+.fpill{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 9px; border-radius:99px; white-space:nowrap}
+.badrow{color:var(--coral); font-size:11px; font-weight:700}
+.cell.warnval{border-color:#f0c9a8; background:#fdf6ec}
+
+/* ---------- page description, folded away behind a caret ----------
+   The description expands in the flow rather than floating over the page, so
+   opening it pushes everything below it down instead of covering it. Height is
+   measured at the moment it opens, which keeps the transition honest when the
+   text wraps to a different number of lines on a narrow screen. */
+.phead h1{display:flex; align-items:center; gap:11px; flex-wrap:wrap}
+.pmore{width:23px; height:23px; flex:none; border-radius:50%; border:1px solid var(--line);
+  background:#fff; color:var(--slate); cursor:pointer; padding:0; position:relative;
+  display:inline-flex; align-items:center; justify-content:center; transition:.15s}
+.pmore::before{content:""; width:6px; height:6px; margin-top:-3px;
+  border-right:1.9px solid currentColor; border-bottom:1.9px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.pmore:hover{color:var(--navy); border-color:var(--navy); background:#eef3fa}
+.pmore[aria-expanded="true"]{color:#fff; background:var(--navy); border-color:var(--navy)}
+.pmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:3px}
+.pdesc{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.pdesc.open{opacity:1}
+
+/* Padded on all sides: the bar is the last thing in its card, so without a
+   bottom pad the caret sat astride the card's rounded edge. */
+.notebar{display:flex; align-items:center; justify-content:center; width:100%; padding:12px 18px 16px}
+/* Just the chevron. A ring around it competed with the row of real controls
+   directly above; the navy alone is enough to read as pressable. */
+.nmore{width:30px; height:26px; flex:none; border:0; background:none; padding:0; cursor:pointer;
+  color:var(--navy); border-radius:7px; transition:background .15s, color .15s;
+  display:inline-flex; align-items:center; justify-content:center}
+.nmore::before{content:""; width:9px; height:9px; margin-top:-4px;
+  border-right:2.2px solid currentColor; border-bottom:2.2px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.nmore:hover{background:rgba(0,60,143,.08)}
+.nmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:4px}
+.nfold{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.nfold.open{opacity:1}
+.nfold .foot{border-top:0}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tier tier0">
+    <a class="brand" href="lifemap-fp-calculator.html"><span class="mark"></span>
+      <span><span class="name">LifeMap</span> <span class="by">by BOX Wealth</span></span></a>
+    <span class="acts">
+      <a class="tlink" href="#">Sign in</a>
+      <a class="btn" href="#">Save my plan</a>
+    </span>
+  </div>
+  <nav class="tier tier1" aria-label="Main areas">
+    <a class="ptab" style="--tone:#003c8f" href="lifemap-fp-calculator.html">FP Calculator</a>
+    <a class="ptab" style="--tone:#2f6fd0" href="lifemap-assets.html">Assets</a>
+    <a class="ptab" style="--tone:#0d8a78" href="lifemap-work-assets.html">Work Assets</a>
+    <a class="ptab on" style="--tone:#e9a23b" href="lifemap-goals.html" aria-current="page">Goals</a>
+    <a class="ptab" style="--tone:#e2574c" href="lifemap-loans.html">Loans</a>
+    <a class="ptab" style="--tone:#8494ad" href="lifemap-expenses.html">Expenses</a>
+    <a class="ptab gate" style="--tone:#4fb9ab" href="#" title="Sign in to open Insurance">Insurance</a>
+  </nav>
+</header>
+
+<div class="tier2wrap" id="tier2wrap">
+  <nav class="tier tier2" aria-label="Sections on this page">
+    <button class="stab on" type="button" data-go="sec-mix">What it adds up to</button>
+    <button class="stab" type="button" data-go="sec-when">When the money is needed</button>
+    <button class="stab" type="button" data-go="sec-register">Goal register</button>
+  </nav>
+</div>
+
+<div class="body">
+  <div class="phead">
+    <h1>What you are saving for
+      <button class="pmore" type="button" aria-expanded="false" aria-controls="phead-desc" aria-label="Show what this page is for"></button></h1>
+    <div class="pdesc" id="phead-desc"><p>The one-off, dated commitments that sit on top of ordinary living costs &mdash; a degree, a wedding, a down payment, a corpus for your parents. Enter what each would cost if it happened today and the age you expect to need it. LifeMap prices it for the year it actually lands, and shows you what the whole list is worth in today&rsquo;s money.</p></div>
+    <div class="assume">
+      <label for="i-age">Your age today</label><input id="i-age" type="number" value="32" min="16" max="99">
+      <label for="i-ret">&middot; expected return</label><input id="i-ret" type="number" value="11" step="0.25" min="0" max="30">
+      <label for="i-ret">%</label>
+    </div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <!-- ===== what it adds up to ===== -->
+  <div class="card mixcard" id="sec-mix">
+    <div class="mixhead">
+      <h3>What it adds up to</h3>
+    </div>
+    <div class="mixsub" id="mix-sub">&nbsp;</div>
+    <div class="mixbody">
+      <div>
+        <div class="donutbox">
+          <svg viewBox="0 0 220 220" id="donut" role="img" aria-label="Goals by size"></svg>
+          <div class="dcenter">
+            <div class="k" id="d-k">Total</div>
+            <div class="v" id="d-v">&mdash;</div>
+            <div class="s" id="d-s">&nbsp;</div>
+          </div>
+          <div class="dtip" id="dtip"></div>
+        </div>
+        <div class="dkey">Each slice is one kind of goal &nbsp;&middot;&nbsp; Centre: the whole list</div>
+      </div>
+      <div class="dleg" id="dleg"></div>
+    </div>
+  </div>
+
+  <!-- ===== when the money is needed ===== -->
+  <div class="card gcard" id="sec-when">
+    <div class="ghead">
+      <div>
+        <h3>When the money is needed</h3>
+        <div class="gsub" id="w-sub">&nbsp;</div>
+      </div>
+      <div class="gright">
+        <div class="seg2" id="basisseg">
+          <button data-basis="today">Today&rsquo;s price</button>
+          <button class="on" data-basis="future">Cost on arrival</button>
+          <button data-basis="pv">Worth today</button>
+        </div>
+      </div>
+    </div>
+    <div class="tlbox">
+      <svg class="tlsvg" id="years" role="img" aria-label="Goal outflows by age"></svg>
+      <div class="ytip" id="ytip"></div>
+    </div>
+    <div class="gleg" id="gleg"></div>
+    <div class="gfoot" id="w-foot"></div>
+  </div>
+
+  <!-- ===== register ===== -->
+  <div class="card" id="sec-register">
+    <div class="reghead">
+      <h3>Goal register</h3>
+      <span class="count" id="rowcount">&mdash;</span>
+      <div class="r">
+        <input class="srch" id="search" type="search" placeholder="Search goal, type or note">
+        <button type="button" class="dd filter" id="filter" aria-haspopup="listbox" aria-expanded="false">
+          <span class="lbl">All goals</span></button>
+        <button class="ghost" id="btn-reset">Reset</button>
+        <button class="ghost" id="btn-csv">Export CSV</button>
+        <button class="ghost primary" id="btn-add">+ Add goal</button>
+      </div>
+    </div>
+
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="stick">Goal</th>
+            <th>Type</th>
+            <th>How fixed</th>
+            <th style="text-align:right">Cost today &#8377;</th>
+            <th style="text-align:right">Needed at age</th>
+            <th style="text-align:right">Spread over</th>
+            <th style="text-align:right">Inflation %</th>
+            <th style="text-align:right">Cost on arrival</th>
+            <th style="text-align:right">Worth today</th>
+            <th>Notes</th>
+            <th style="text-align:right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" style="display:none"><b>No goals match</b>Clear the search or the filter to see everything.</div>
+    <div class="addbar"><button class="addrow" id="btn-add2">+ Add another goal</button></div>
+    <div class="foot" id="reg-foot">
+      Inflation rates are long-run Indian averages for each kind of spending, filled in as a starting point and fully editable. Private higher education has run at roughly 10&ndash;12% a year against headline inflation of 5&ndash;6%, and the published CPI education series understates this because it averages in government institutions. Weddings and property track construction and gold rather than the consumer basket. Use your own figure wherever you have one.
+      <br><br>
+      <b>Spread over</b> matters more than it looks. A four-year degree is not one bill in one year; each year is priced separately, and the later years cost more. Setting it to 1 will understate a multi-year commitment.
+      <br><br>
+      <b>On double counting:</b> anything you pay every year &mdash; school fees, insurance premiums, instalments &mdash; belongs in Expenses or Loans, not here. This register is for the lumpy, dated commitments that ordinary monthly spending never covers.
+    </div>
+  </div>
+
+  <div class="pager">
+    <a class="btn-nav" href="lifemap-work-assets.html">&larr; Work Assets</a>
+    <a class="btn-nav sp" href="lifemap-loans.html">Loans &rarr;</a>
+  </div>
+</div>
+
+<script>
+/* ================= GOAL TYPES =================
+   inf = long-run Indian inflation for that kind of spending. Private higher
+   education has run near 10-12% against headline 5-6%; the published CPI
+   education series is lower because it averages in government institutions.
+   Every figure here is a starting point and every row can override it.
+============================================================ */
+const CATS = [
+  {n:"Higher education, India",   inf:10.0, flex:"Non-negotiable", c:"#e9a23b"},
+  {n:"Education abroad",          inf:9.0,  flex:"Non-negotiable", c:"#d98f5a"},
+  {n:"Professional course",       inf:10.0, flex:"Committed",      c:"#c98a2e"},
+  {n:"Wedding",                   inf:8.0,  flex:"Committed",      c:"#e2574c"},
+  {n:"Home purchase",             inf:7.0,  flex:"Committed",      c:"#2f6fd0"},
+  {n:"Home renovation",           inf:7.0,  flex:"Deferrable",     c:"#5b93de"},
+  {n:"Vehicle",                   inf:5.0,  flex:"Deferrable",     c:"#8fb8ea"},
+  {n:"Parental care",             inf:10.0, flex:"Non-negotiable", c:"#b8352c"},
+  {n:"Medical corpus",            inf:10.0, flex:"Non-negotiable", c:"#ea8377"},
+  {n:"Business capital",          inf:6.0,  flex:"Deferrable",     c:"#0d8a78"},
+  {n:"Sabbatical or long travel", inf:6.0,  flex:"Aspirational",   c:"#75cfc2"},
+  {n:"Second property",           inf:7.0,  flex:"Aspirational",   c:"#4fb9ab"},
+  {n:"Gift or endowment",         inf:6.0,  flex:"Aspirational",   c:"#a3e0d6"},
+  {n:"Other",                     inf:6.0,  flex:"Deferrable",     c:"#94a3bd"}
+];
+
+/* How fixed the commitment is. This is the only grouping on the page, and it
+   deliberately describes the goal itself rather than where the money comes
+   from: it answers "what comes off the list first if the pool falls short". */
+const TAGS = [
+  {n:"Non-negotiable", c:"#e2574c", d:"Happens on its date whatever else is true. A degree does not wait for a better market."},
+  {n:"Committed",      c:"#e9a23b", d:"Dated and socially hard to move, but not survival. A year of slippage is uncomfortable, not damaging."},
+  {n:"Deferrable",     c:"#2f6fd0", d:"Can slide several years with no real cost. The car still runs; the kitchen still works."},
+  {n:"Aspirational",   c:"#0d8a78", d:"The first things to come off the list if the pool falls short, and the last to be regretted."}
+];
+
+const catOf = n => CATS.find(c => c.n === n) || CATS[CATS.length-1];
+const tagOf = n => TAGS.find(t => t.n === n) || TAGS[1];
+
+/* ================= STATE ================= */
+let ROWS = [
+  {name:"Home down payment",       cat:"Home purchase",           flex:"Committed",      cost:3500000, at:36, span:1, inf:7.0,  notes:"20% on a 1.75Cr flat", saved:true},
+  {name:"Replace the car",         cat:"Vehicle",                 flex:"Deferrable",     cost:1200000, at:39, span:1, inf:5.0,  notes:"", saved:true},
+  {name:"Parents' medical corpus", cat:"Parental care",           flex:"Non-negotiable", cost:2000000, at:42, span:1, inf:10.0, notes:"Set aside as a lump, not spent at once", saved:true},
+  {name:"Kitchen and bathrooms",   cat:"Home renovation",         flex:"Deferrable",     cost:800000,  at:44, span:1, inf:7.0,  notes:"", saved:true},
+  {name:"Six months off",          cat:"Sabbatical or long travel",flex:"Aspirational",  cost:1500000, at:48, span:1, inf:6.0,  notes:"Includes the lost income", saved:true},
+  {name:"Daughter's degree",       cat:"Higher education, India", flex:"Non-negotiable", cost:2500000, at:50, span:4, inf:10.0, notes:"Private engineering, four years", saved:true},
+  {name:"Daughter's masters",      cat:"Education abroad",        flex:"Committed",      cost:4000000, at:55, span:2, inf:9.0,  notes:"Assumes no scholarship", saved:true},
+  {name:"Daughter's wedding",      cat:"Wedding",                 flex:"Committed",      cost:2500000, at:57, span:1, inf:8.0,  notes:"", saved:true}
+];
+let BASIS = "future", SEARCH = "", FILTER = "";
+let AGE = 32, RET = 11;
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const esc = v => String(v==null?"":v).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+function fmt(n){
+  n = Math.round(n||0); const a = Math.abs(n), s = n<0 ? "\u2212" : "";
+  if(a >= 1e7) return s+"\u20B9"+(a/1e7).toFixed(a/1e7>=100?0:2)+"Cr";
+  if(a >= 1e5) return s+"\u20B9"+(a/1e5).toFixed(a/1e5>=100?0:2)+"L";
+  if(a >= 1e3) return s+"\u20B9"+(a/1e3).toFixed(a/1e3>=100?0:1)+"K";
+  return s+"\u20B9"+a;
+}
+const full = n => (n<0?"\u2212":"")+"\u20B9"+Math.abs(Math.round(n)).toLocaleString("en-IN");
+
+/* ---- pricing one goal ----------------------------------------------
+   A goal is a lump sum quoted in TODAY'S prices, due at a given age, and
+   optionally spread over several consecutive years.
+
+     spanOf(g)      how many years it runs
+     perYear(g)     today's price of one year's tranche
+     tOf(g,k)       years from now that tranche k lands
+     nominalAt      that tranche inflated to the year it is actually paid
+     pvAt           that tranche discounted back at the expected return
+
+   Present value is the honest single number for the whole list: the amount
+   that, invested today at the expected return, exactly meets every tranche
+   on its date. It is what makes the pooled view work — one figure to test a
+   pool against, rather than a pile of separate targets.
+   Note that when a goal inflates faster than the pool grows, its present
+   value RISES the further away it is. Distance is not always your friend.
+--------------------------------------------------------------------- */
+const spanOf  = g => Math.max(1, Math.round(num(g.span) || 1));
+const perYear = g => num(g.cost) / spanOf(g);
+const startT  = g => Math.max(0, Math.round(num(g.at)) - AGE);
+const tOf     = (g,k) => startT(g) + k;
+const nominalAt = (g,k) => perYear(g) * Math.pow(1 + num(g.inf)/100, tOf(g,k));
+const pvAt      = (g,k) => nominalAt(g,k) / Math.pow(1 + RET/100, tOf(g,k));
+function sumOver(g, f){ let s = 0; const n = spanOf(g); for(let k=0;k<n;k++) s += f(g,k); return s; }
+const futureTotal = g => sumOver(g, nominalAt);
+const pvTotal     = g => sumOver(g, pvAt);
+const todayTotal  = g => num(g.cost);
+/* what a goal is worth on whichever basis is selected */
+const valueOf = g => BASIS === "today" ? todayTotal(g) : BASIS === "pv" ? pvTotal(g) : futureTotal(g);
+const trancheOn = (g,k) => BASIS === "today" ? perYear(g) : BASIS === "pv" ? pvAt(g,k) : nominalAt(g,k);
+const basisNote = () => BASIS === "today" ? "at today\u2019s prices"
+                      : BASIS === "pv"    ? "discounted to today at " + RET + "%"
+                                          : "in the rupees of the year it lands";
+const lastAge  = g => Math.round(num(g.at)) + spanOf(g) - 1;
+const passed   = g => Math.round(num(g.at)) < AGE;
+const horizon  = () => Math.max(AGE + 1, ...ROWS.filter(g => num(g.cost) > 0).map(lastAge));
+
+/* ================= SUMMARY CARDS ================= */
+function drawCards(){
+  const live = ROWS.filter(g => num(g.cost) > 0);
+  const today = live.reduce((s,g) => s + todayTotal(g), 0);
+  const fut   = live.reduce((s,g) => s + futureTotal(g), 0);
+  const pv    = live.reduce((s,g) => s + pvTotal(g), 0);
+
+  /* heaviest single year, always measured in the rupees actually paid */
+  const byAge = new Map();
+  live.forEach(g => { const n = spanOf(g); for(let k=0;k<n;k++){
+    const a = AGE + tOf(g,k); byAge.set(a, (byAge.get(a)||0) + nominalAt(g,k)); } });
+  let hAge = null, hVal = 0;
+  byAge.forEach((v,a) => { if(v > hVal){ hVal = v; hAge = a; } });
+
+  const next = live.slice().sort((a,b) => startT(a) - startT(b))[0];
+  const span = live.length ? (Math.max(...live.map(lastAge)) - AGE) : 0;
+
+  $("cards").innerHTML =
+      `<div class="sum total"><div class="l">Set aside today</div>
+         <div class="v">${fmt(pv)}</div>
+         <div class="s">at ${RET}% this meets every goal below, on its date</div></div>`
+    + `<div class="sum" style="--tone:#003c8f"><div class="l">Priced at today&rsquo;s rates</div>
+         <div class="v" style="color:#003c8f">${fmt(today)}</div>
+         <div class="s">${live.length} ${live.length===1?"goal":"goals"} over the next ${span} years</div></div>`
+    + `<div class="sum" style="--tone:#e9a23b"><div class="l">Cost on arrival</div>
+         <div class="v" style="color:#e9a23b">${fmt(fut)}</div>
+         <div class="s">${today ? "inflation adds " + fmt(fut-today) : "&nbsp;"}</div></div>`
+    + `<div class="sum" style="--tone:#e2574c"><div class="l">Heaviest year</div>
+         <div class="v" style="color:#e2574c">${hAge ? fmt(hVal) : "\u2014"}</div>
+         <div class="s">${hAge ? "at age " + hAge : "nothing dated yet"}</div></div>`
+    + `<div class="sum" style="--tone:#0d8a78"><div class="l">First one due</div>
+         <div class="v" style="color:#0d8a78">${next ? "Age " + Math.round(num(next.at)) : "\u2014"}</div>
+         <div class="s">${next ? esc(next.name || catOf(next.cat).n) : "add a goal below"}</div></div>`;
+}
+
+/* ================= DONUT ================= */
+/* One ring: goals are grouped by kind and nothing else, so there is no second
+   level to nest. RING_IN is set where the old inner ring began, which keeps the
+   band a comfortable weight and leaves the centre clear for the total. */
+const CX=110, CY=110, RO_OUT=92, RO_IN=72, RI_OUT=66, RI_IN=54, RING_IN=62, POP=8, TAU=Math.PI*2;
+const track=(ro,ri,c)=>`<circle cx="${CX}" cy="${CY}" r="${(ro+ri)/2}" fill="none" stroke="${c}" stroke-width="${ro-ri}"/>`;
+function wedgePath(a0,a1,rOut,rIn){
+  const sp = Math.min(a1-a0, TAU-0.0001); a1 = a0+sp;
+  const P=(rad,a)=>[(CX+rad*Math.cos(a)).toFixed(2),(CY+rad*Math.sin(a)).toFixed(2)];
+  const big = sp > Math.PI ? 1 : 0;
+  const [x1,y1]=P(rOut,a0),[x2,y2]=P(rOut,a1),[x3,y3]=P(rIn,a1),[x4,y4]=P(rIn,a0);
+  return `M${x1},${y1} A${rOut},${rOut} 0 ${big} 1 ${x2},${y2} L${x3},${y3} A${rIn},${rIn} 0 ${big} 0 ${x4},${y4} Z`;
+}
+function buckets(){
+  const by = "cat";
+  const src = by === "cat" ? CATS : TAGS;
+  const out = src.map(s => ({n:s.n, c:s.c, v:0,
+    d: by === "cat" ? "Inflating at " + s.inf + "% a year." : s.d}));
+  ROWS.forEach(g => {
+    const key = by === "cat" ? catOf(g.cat).n : tagOf(g.flex).n;
+    const b = out.find(o => o.n === key);
+    if(b) b.v += valueOf(g);
+  });
+  return out.filter(o => o.v > 0).sort((a,b) => b.v - a.v);
+}
+function drawDonut(){
+  const svg = $("donut"), leg = $("dleg"), tip = $("dtip");
+  const outer = buckets();
+  const total = outer.reduce((t,s) => t+s.v, 0);
+  leg.innerHTML = "";
+
+  if(total <= 0){
+    svg.innerHTML = track(RO_OUT,RING_IN,"#eef1f6");
+    $("d-v").textContent = "\u20B90";
+    $("d-s").textContent = "Add your first goal below";
+    $("mix-sub").textContent = "Nothing recorded yet";
+    leg.innerHTML = `<div class="li"><span class="nm" style="color:var(--slate)">Add a goal to see the split</span></div>`;
+    return;
+  }
+
+  let s = track(RO_OUT,RING_IN,"#eef1f6");
+  const meta = [];
+  const lay = (segs, rOut, rIn, tipR) => {
+    let a = -Math.PI/2;
+    segs.forEach(seg => {
+      const f = seg.v/total, sp = f*TAU;
+      if(sp <= 0) return;
+      const gap = Math.min(0.014, sp*0.16), mid = a + sp/2;
+      s += `<path class="wedge" tabindex="0" role="img" fill="${seg.c}"`
+         + ` aria-label="${esc(seg.n)}: ${full(seg.v)}, ${(f*100).toFixed(1)} percent"`
+         + ` d="${wedgePath(a+gap, a+sp, rOut, rIn)}"></path>`;
+      meta.push({seg, mid, tipR});
+      a += sp;
+    });
+  };
+  lay(outer, RO_OUT, RING_IN, (RO_OUT+RING_IN)/2);
+  svg.innerHTML = s;
+
+  const handlers = [...svg.querySelectorAll(".wedge")].map((el,i) => {
+    const m = meta[i], dx = Math.cos(m.mid)*POP, dy = Math.sin(m.mid)*POP;
+    const show = () => {
+      el.setAttribute("transform", `translate(${dx.toFixed(2)},${dy.toFixed(2)})`);
+      tip.classList.add("on");
+      tip.style.left = ((CX + Math.cos(m.mid)*m.tipR)/220*100) + "%";
+      tip.style.top  = ((CY + Math.sin(m.mid)*m.tipR)/220*100) + "%";
+      tip.innerHTML = `<div class="n"><i style="background:${m.seg.c}"></i>${esc(m.seg.n)}</div>
+                       <div class="a">${full(m.seg.v)}</div>
+                       <div class="d">${(m.seg.v/total*100).toFixed(1)}% of the list<br>${esc(m.seg.d)}</div>`;
+    };
+    const hide = () => { el.removeAttribute("transform"); tip.classList.remove("on"); };
+    el.addEventListener("mouseenter", show); el.addEventListener("mouseleave", hide);
+    el.addEventListener("focus", show);      el.addEventListener("blur", hide);
+    return {show, hide};
+  });
+
+  let n = 0;
+  const block = (title, segs) => {
+    const h = document.createElement("div");
+    h.className = "lhead"; h.textContent = title; leg.appendChild(h);
+    segs.forEach(seg => {
+      const i = n++;
+      const li = document.createElement("div");
+      li.className = "li";
+      li.innerHTML = `<span class="sw" style="background:${seg.c}"></span>
+                      <span class="nm">${esc(seg.n)}</span>
+                      <span class="vl">${fmt(seg.v)}</span>
+                      <span class="pc">${(seg.v/total*100).toFixed(0)}%</span>`;
+      li.addEventListener("mouseenter", handlers[i].show);
+      li.addEventListener("mouseleave", handlers[i].hide);
+      leg.appendChild(li);
+    });
+  };
+  block("By goal", outer);
+
+
+  $("d-v").textContent = fmt(total);
+  const biggest = outer[0];
+  $("d-s").textContent = biggest ? `${(biggest.v/total*100).toFixed(0)}% of it is ${biggest.n.toLowerCase()}` : "";
+  $("d-k").textContent = BASIS === "today" ? "At today\u2019s prices" : BASIS === "pv" ? "Worth today" : "Cost on arrival";
+  const count = ROWS.filter(g => num(g.cost) > 0).length;
+  $("mix-sub").textContent = `${count} ${count===1?"goal":"goals"} across ${outer.length} ${outer.length===1?"kind":"kinds"} \u00B7 ${basisNote()}`;
+}
+
+/* ================= WHEN THE MONEY IS NEEDED =================
+   One column per year of your life, built from the tranches that fall due in
+   it. This is the section the page exists for: goals rarely arrive evenly,
+   and a cluster is a liquidity problem however healthy the total looks.
+============================================================ */
+const GW=1400, GH=330, GL=86, GR=22, GT=18, GB=42;
+const PW = GW-GL-GR, PH = GH-GT-GB;
+function niceStep(max){
+  const raw = max/4, p = Math.pow(10, Math.floor(Math.log10(raw||1)));
+  return [1,2,2.5,5,10].map(m => m*p).find(v => v >= raw) || p*10;
+}
+function yearMap(){
+  const end = horizon(), out = [];
+  for(let a=AGE; a<=end; a++) out.push({age:a, total:0, parts:[]});
+  ROWS.filter(g => num(g.cost) > 0).forEach((g,gi) => {
+    const n = spanOf(g), col = catOf(g.cat).c;
+    for(let k=0;k<n;k++){
+      const a = AGE + tOf(g,k), row = out[a-AGE];
+      if(!row) continue;
+      const v = trancheOn(g,k);
+      if(v <= 0) continue;
+      row.total += v;
+      row.parts.push({n:(g.name || catOf(g.cat).n) + (n>1 ? ` \u00B7 year ${k+1} of ${n}` : ""), c:col, v});
+    }
+  });
+  return out;
+}
+function drawYears(){
+  const svg = $("years"), tip = $("ytip"), leg = $("gleg");
+  const rows = yearMap();
+  const peak = Math.max(...rows.map(r => r.total), 0);
+  svg.setAttribute("viewBox", `0 0 ${GW} ${GH}`);
+  svg.classList.remove("focusing");
+
+  if(peak <= 0){
+    svg.innerHTML = `<text x="${GW/2}" y="${GH/2}" text-anchor="middle" fill="#9aa7bd" font-size="14">Add a goal below to see when the money is needed</text>`;
+    leg.innerHTML = ""; $("w-sub").textContent = "Nothing dated yet"; $("w-foot").textContent = "";
+    return;
+  }
+
+  const step = niceStep(peak), top = Math.ceil(peak/step)*step;
+  const n = rows.length;
+  const X = i => GL + (n === 1 ? PW/2 : (i/(n-1))*PW);
+  const Y = v => GT + PH - (v/top)*PH;
+  const bw = Math.max(6, Math.min(30, PW/n*0.62));
+
+  let g = "";
+  for(let v=0; v<=top+1; v+=step){
+    const y = Y(v).toFixed(1);
+    g += `<line x1="${GL}" y1="${y}" x2="${GL+PW}" y2="${y}" stroke="#c7d1df" stroke-width="1" stroke-dasharray="4 5"/>`
+       + `<text x="${GL-10}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="#8ea0bd" font-size="11" font-weight="600">${fmt(v)}</text>`;
+  }
+  /* age ticks: now, then each round decade inside the range */
+  const marks = [AGE];
+  for(let a = Math.ceil((AGE+1)/5)*5; a < rows[n-1].age; a += 5) marks.push(a);
+  marks.push(rows[n-1].age);
+  marks.forEach(a => {
+    const x = X(a-AGE).toFixed(1);
+    g += `<text x="${x}" y="${GT+PH+22}" text-anchor="${a===AGE?"start":(a===rows[n-1].age?"end":"middle")}" fill="#8ea0bd" font-size="11" font-weight="600">${a}</text>`;
+  });
+  g += `<text x="${GL-10}" y="${GT+PH+22}" text-anchor="end" fill="#c3cbd8" font-size="10" font-weight="700" letter-spacing="1">AGE</text>`;
+  g += `<line x1="${GL}" y1="${GT+PH}" x2="${GL+PW}" y2="${GT+PH}" stroke="#aab6c6" stroke-width="1.2"/>`;
+
+  /* stacked column per year */
+  rows.forEach((r,i) => {
+    if(r.total <= 0) return;
+    const x = X(i) - bw/2;
+    let acc = 0;
+    r.parts.slice().sort((a,b) => b.v - a.v).forEach(p => {
+      const y0 = Y(acc + p.v), y1 = Y(acc);
+      g += `<rect x="${x.toFixed(1)}" y="${y0.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1,y1-y0).toFixed(1)}" fill="${p.c}"/>`;
+      acc += p.v;
+    });
+    g += `<text x="${X(i).toFixed(1)}" y="${(Y(r.total)-7).toFixed(1)}" text-anchor="middle" fill="#66799a" font-size="10.5" font-weight="700">${fmt(r.total)}</text>`;
+    g += `<rect class="ybar" data-i="${i}" x="${(X(i)-bw/2-3).toFixed(1)}" y="${GT}" width="${(bw+6).toFixed(1)}" height="${PH}" fill="transparent" tabindex="0" role="img"`
+       + ` aria-label="Age ${r.age}: ${full(r.total)} falls due"/>`;
+  });
+  svg.innerHTML = g;
+
+  /* the honest headline: where the claims bunch up */
+  let bAt = AGE, bSum = 0;
+  rows.forEach((r,i) => {
+    let s = 0;
+    for(let k=i; k<Math.min(n, i+5); k++) s += rows[k].total;
+    if(s > bSum){ bSum = s; bAt = r.age; }
+  });
+  const grand = rows.reduce((s,r) => s + r.total, 0);
+  const active = rows.filter(r => r.total > 0);
+  $("w-sub").innerHTML = `${active.length} ${active.length===1?"year":"years"} carry a bill`
+    + ` &middot; heaviest stretch is <b>ages ${bAt} to ${Math.min(bAt+4, rows[n-1].age)}</b>, holding <b>${(bSum/grand*100).toFixed(0)}%</b> of everything on the list`
+    + ` &middot; <span style="color:var(--slate)">${basisNote()}</span>`;
+
+  const cats = [...new Set(ROWS.filter(g2 => num(g2.cost) > 0).map(g2 => catOf(g2.cat).n))];
+  leg.innerHTML = cats.map(cn => {
+    const c = catOf(cn);
+    const v = ROWS.filter(g2 => catOf(g2.cat).n === cn).reduce((t,g2) => t + valueOf(g2), 0);
+    return `<span class="gi"><i style="background:${c.c}"></i>${esc(cn)} <b>${fmt(v)}</b></span>`;
+  }).join("");
+
+  $("w-foot").innerHTML = "Each column is one year of your life and every bar is a bill that falls due in it. "
+    + "A tall column is not in itself a problem &mdash; a run of them with nothing in between is, because the pool has to be liquid on those dates rather than merely large on average. "
+    + "Multi-year goals are split into their separate years, each priced for the year it is actually paid, which is why the later years of a degree stand taller than the first.";
+
+  /* hover */
+  const bars = [...svg.querySelectorAll(".ybar")];
+  const show = (i, ev) => {
+    const r = rows[i];
+    if(!r || r.total <= 0) return;
+    const parts = r.parts.slice().sort((a,b) => b.v - a.v);
+    tip.innerHTML = `<div class="yh">Age ${r.age} &middot; in ${r.age-AGE} ${r.age-AGE===1?"year":"years"}</div>
+      <div class="yv">${full(r.total)}</div>`
+      + parts.map(p => `<div class="gl"><i style="background:${p.c}"></i><span>${esc(p.n)}</span><b>${fmt(p.v)}</b></div>`).join("")
+      + `<div class="n">${(r.total/grand*100).toFixed(0)}% of the whole list falls in this single year. Figures ${basisNote()}.</div>`;
+    tip.classList.add("on");
+    const box = svg.getBoundingClientRect();
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    const scale = box.height / GH;
+    const cx = (ev && ev.clientX != null) ? ev.clientX - box.left : (X(i)/GW)*box.width;
+    let left = cx + 20;
+    if(left + w > box.width - 8) left = cx - w - 20;
+    left = Math.max(8, Math.min(box.width - w - 8, left));
+    let topPx = Y(r.total)*scale - h - 12;
+    if(topPx < 2) topPx = Math.min(box.height - h - 2, Y(r.total)*scale + 14);
+    tip.style.left = left + "px";
+    tip.style.top  = Math.max(2, topPx) + "px";
+    svg.classList.add("focusing");
+    bars.forEach(el => el.classList.toggle("hot", +el.dataset.i === i));
+  };
+  const hide = () => { tip.classList.remove("on"); svg.classList.remove("focusing"); bars.forEach(el => el.classList.remove("hot")); };
+  bars.forEach(el => {
+    const i = +el.dataset.i;
+    el.addEventListener("mouseenter", e => show(i, e));
+    el.addEventListener("mousemove",  e => show(i, e));
+    el.addEventListener("mouseleave", hide);
+    el.addEventListener("focus", () => show(i, null));
+    el.addEventListener("blur", hide);
+  });
+  svg.addEventListener("mouseleave", hide);
+}
+
+/* ================= REGISTER ================= */
+function visible(){
+  const q = SEARCH.trim().toLowerCase();
+  return ROWS.map((g,i) => ({g,i})).filter(({g}) => {
+    if(FILTER && tagOf(g.flex).n !== FILTER) return false;
+    if(!q) return true;
+    return (g.name+" "+g.cat+" "+g.notes).toLowerCase().includes(q);
+  });
+}
+function drawTable(){
+  const tb = $("tbody"), rows = visible();
+  tb.innerHTML = "";
+  $("empty").style.display = rows.length ? "none" : "block";
+  $("rowcount").textContent = rows.length === ROWS.length
+    ? ROWS.length + (ROWS.length===1 ? " goal" : " goals")
+    : rows.length + " of " + ROWS.length + " shown";
+
+  rows.forEach(({g,i}) => {
+    const cat = catOf(g.cat), tag = tagOf(g.flex);
+    const bad = passed(g), sp = spanOf(g);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="stick"><input class="cell name" data-k="name" value="${esc(g.name)}" placeholder="Name this goal"></td>
+      <td><button type="button" class="dd cell catpick" data-k="cat" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" style="background:${cat.c}"></span><span class="lbl">${esc(cat.n)}</span></button></td>
+      <td><button type="button" class="dd cell tagpick" data-k="flex" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" style="background:${tag.c}"></span><span class="lbl">${esc(tag.n)}</span></button></td>
+      <td><input class="cell money" data-k="cost" type="number" value="${g.cost}" placeholder="0"></td>
+      <td><input class="cell money small${bad?" warnval":""}" data-k="at" type="number" value="${g.at}" style="min-width:88px"></td>
+      <td><input class="cell money small" data-k="span" type="number" min="1" value="${sp}" style="min-width:82px"></td>
+      <td><input class="cell money small" data-k="inf" type="number" step="0.1" value="${g.inf}"></td>
+      <td class="rt">${bad
+          ? `<span class="badrow">age has passed</span>`
+          : `<span class="proj" style="color:var(--amber)">${fmt(futureTotal(g))}<small>at age ${g.at}${sp>1?" to "+lastAge(g):""} \u00B7 ${(todayTotal(g)?futureTotal(g)/todayTotal(g):0).toFixed(1)}\u00D7</small></span>`}</td>
+      <td class="rt"><span class="proj">${fmt(pvTotal(g))}<small>set aside now at ${RET}%</small></span></td>
+      <td><input class="cell" data-k="notes" value="${esc(g.notes)}" placeholder="Click to add" style="min-width:160px"></td>
+      <td><span class="acts">
+        <button class="rb save${g.saved?" done":""}" type="button">${g.saved?"Saved":"Save"}</button>
+        <button class="rb del" type="button">Remove</button></span></td>`;
+
+    const btnSave = tr.querySelector(".save");
+    const dirty = () => { g.saved = false; btnSave.classList.remove("done"); btnSave.textContent = "Save"; };
+
+    tr.querySelectorAll("input[data-k]").forEach(el => {
+      el.addEventListener("input", e => {
+        const k = e.target.dataset.k;
+        g[k] = ["cost","at","span","inf"].includes(k) ? num(e.target.value) : e.target.value;
+        dirty();
+        if(["at","span","inf","cost"].includes(k)) drawTable();
+        refresh(false);
+      });
+    });
+    /* choosing a type seeds both the inflation rate and how fixed it usually is */
+    tr.querySelector('[data-k="cat"]').addEventListener("click", e => {
+      ddToggle(e.currentTarget, CATS.map(c => ({n:c.n, c:c.c, rt:c.inf+"%"})), g.cat, v => {
+        g.cat = v; g.inf = catOf(v).inf; g.flex = catOf(v).flex; dirty(); refresh();
+      });
+    });
+    tr.querySelector('[data-k="flex"]').addEventListener("click", e => {
+      ddToggle(e.currentTarget, TAGS.map(t => ({n:t.n, c:t.c})), g.flex, v => { g.flex = v; dirty(); refresh(); });
+    });
+    btnSave.addEventListener("click", () => { g.saved = true; btnSave.classList.add("done"); btnSave.textContent = "Saved"; });
+    tr.querySelector(".del").addEventListener("click", () => { ROWS.splice(i,1); refresh(); });
+    tb.appendChild(tr);
+  });
+}
+
+/* ================= REFRESH ================= */
+function refresh(redrawTable = true){
+  drawCards(); drawDonut(); drawYears();
+  if(redrawTable) drawTable();
+}
+
+/* ================= DROPDOWNS =================
+   Native <option> lists are drawn by the OS and can't be themed, so the
+   pickers are real elements. The panel lives on <body> as position:fixed so
+   the table's horizontal overflow can't clip it.
+============================================== */
+const DDPOP = document.createElement("div");
+DDPOP.className = "ddpop"; DDPOP.setAttribute("role","listbox");
+document.body.appendChild(DDPOP);
+let DD = null;                                  /* {btn, opts, pick, idx} */
+
+function ddClose(){
+  if(!DD) return;
+  DDPOP.classList.remove("on"); DDPOP.innerHTML = "";
+  DD.btn.setAttribute("aria-expanded","false");
+  DD = null;
+}
+function ddMark(scroll){
+  [...DDPOP.children].forEach((el,i) => el.classList.toggle("cur", i === DD.idx));
+  if(scroll && DDPOP.children[DD.idx]) DDPOP.children[DD.idx].scrollIntoView({block:"nearest"});
+}
+function ddPlace(){
+  const r = DD.btn.getBoundingClientRect();
+  DDPOP.style.minWidth = Math.max(r.width, 190) + "px";
+  DDPOP.style.left = "-9999px"; DDPOP.style.top = "0px";          /* measure clean */
+  const pw = DDPOP.offsetWidth, ph = DDPOP.offsetHeight;
+  let top = r.bottom + 6, left = r.left;
+  if(top + ph > innerHeight - 10) top = Math.max(10, r.top - ph - 6);   /* flip up */
+  if(left + pw > innerWidth - 10) left = Math.max(10, innerWidth - pw - 10);
+  DDPOP.style.left = Math.round(left) + "px"; DDPOP.style.top = Math.round(top) + "px";
+}
+function ddToggle(btn, opts, cur, pick){
+  if(DD && DD.btn === btn){ ddClose(); return; }
+  ddClose();
+  DDPOP.innerHTML = opts.map((o,i) =>
+      `<div class="ddopt" role="option" data-i="${i}" aria-selected="${o.n === cur}">`
+    + (o.c ? `<span class="sw" style="background:${o.c}"></span>` : "")
+    + `<span class="nm">${esc(o.n)}</span>`
+    + (o.rt ? `<span class="rt">${o.rt}</span>` : "")
+    + `</div>`).join("");
+  DDPOP.classList.add("on");
+  btn.setAttribute("aria-expanded","true");
+  DD = {btn, opts, pick, idx: Math.max(0, opts.findIndex(o => o.n === cur))};
+  ddPlace(); ddMark(true);
+  btn.focus();
+}
+function ddChoose(i){
+  const {opts, pick, btn} = DD; ddClose(); btn.focus(); pick(opts[i].n);
+}
+DDPOP.addEventListener("mousedown", e => {
+  const el = e.target.closest(".ddopt");
+  if(!el || !DD) return;
+  e.preventDefault(); ddChoose(+el.dataset.i);
+});
+DDPOP.addEventListener("mousemove", e => {
+  const el = e.target.closest(".ddopt");
+  if(el && DD){ DD.idx = +el.dataset.i; ddMark(false); }
+});
+document.addEventListener("mousedown", e => {
+  if(DD && !DDPOP.contains(e.target) && !DD.btn.contains(e.target)) ddClose();
+});
+document.addEventListener("keydown", e => {
+  if(!DD) return;
+  const n = DD.opts.length;
+  const k = e.key;
+  if(k === "Escape"){ e.preventDefault(); const b = DD.btn; ddClose(); b.focus(); }
+  else if(k === "ArrowDown"){ e.preventDefault(); DD.idx = (DD.idx+1)%n; ddMark(true); }
+  else if(k === "ArrowUp"){ e.preventDefault(); DD.idx = (DD.idx-1+n)%n; ddMark(true); }
+  else if(k === "Home"){ e.preventDefault(); DD.idx = 0; ddMark(true); }
+  else if(k === "End"){ e.preventDefault(); DD.idx = n-1; ddMark(true); }
+  else if(k === "Enter" || k === " "){ e.preventDefault(); ddChoose(DD.idx); }
+  else if(k === "Tab"){ ddClose(); }
+  else if(k.length === 1 && /\S/.test(k)){                      /* type to jump */
+    const q = k.toLowerCase();
+    const at = DD.opts.findIndex((o,i) => i > DD.idx && o.n.toLowerCase().startsWith(q));
+    const hit = at > -1 ? at : DD.opts.findIndex(o => o.n.toLowerCase().startsWith(q));
+    if(hit > -1){ DD.idx = hit; ddMark(true); }
+  }
+});
+/* keep the panel glued to its trigger while anything scrolls */
+window.addEventListener("scroll", () => { if(DD) ddPlace(); }, true);
+window.addEventListener("resize", ddClose);
+
+/* open on keyboard without a mouse press */
+document.addEventListener("keydown", e => {
+  if(DD) return;
+  const b = document.activeElement;
+  if(b && b.classList && b.classList.contains("dd") && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")){
+    e.preventDefault(); b.click();
+  }
+});
+
+
+
+
+/* ================= WIRING ================= */
+document.querySelectorAll("[data-basis]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-basis]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); BASIS = b.dataset.basis; refresh(false);
+}));
+$("i-age").addEventListener("input", e => {
+  const v = Math.round(num(e.target.value));
+  if(v >= 16 && v <= 99){ AGE = v; refresh(); }
+});
+$("i-ret").addEventListener("input", e => {
+  const v = num(e.target.value);
+  if(v >= 0 && v <= 30){ RET = v; refresh(); }
+});
+
+const addGoal = () => {
+  ROWS.push({name:"", cat:"Other", flex:catOf("Other").flex, cost:0,
+             at:Math.min(99, AGE+5), span:1, inf:catOf("Other").inf, notes:"", saved:false});
+  SEARCH = ""; FILTER = ""; $("search").value = "";
+  $("filter").querySelector(".lbl").textContent = "All goals";
+  refresh();
+  const last = $("tbody").lastElementChild;
+  if(last) last.querySelector('input[data-k="name"]').focus();
+};
+$("btn-add").addEventListener("click", addGoal);
+$("btn-add2").addEventListener("click", addGoal);
+$("search").addEventListener("input", e => { SEARCH = e.target.value; drawTable(); });
+$("filter").addEventListener("click", e => {
+  const opts = [{n:"All goals"}].concat(TAGS.map(t => ({n:t.n, c:t.c})));
+  ddToggle(e.currentTarget, opts, FILTER || "All goals", v => {
+    FILTER = (v === "All goals") ? "" : v;
+    $("filter").querySelector(".lbl").textContent = v;
+    drawTable();
+  });
+});
+$("btn-reset").addEventListener("click", () => {
+  SEARCH = ""; FILTER = ""; $("search").value = "";
+  $("filter").querySelector(".lbl").textContent = "All goals";
+  drawTable();
+});
+$("btn-csv").addEventListener("click", () => {
+  const head = ["Goal","Type","How fixed","Cost today","Needed at age","Spread over years","Inflation %","Cost on arrival","Worth today"];
+  const q = v => `"${String(v==null?"":v).replace(/"/g,'""')}"`;
+  const csv = [head.map(q).join(",")].concat(
+    ROWS.map(g => [g.name,g.cat,g.flex,g.cost,g.at,spanOf(g),g.inf,
+                   Math.round(futureTotal(g)),Math.round(pvTotal(g))].map(q).join(","))
+  ).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
+  a.download = "lifemap-goals.csv"; a.click(); URL.revokeObjectURL(a.href);
+});
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(drawYears, 120); });
+
+(function(){
+  const tabs = [...document.querySelectorAll(".tier2 .stab[data-go]")];
+  const jump = id => {
+    const el = $(id);
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  };
+  tabs.forEach(b => b.addEventListener("click", () => {
+    tabs.forEach(x => x.classList.toggle("on", x === b));
+    jump(b.dataset.go);
+  }));
+
+  /* the frozen bar lifts off the page once the header has scrolled past */
+  const bar = $("tier2wrap"), head = document.querySelector(".topbar");
+  if(bar && head){
+    const onStuck = () => bar.classList.toggle("stuck", window.scrollY > head.offsetHeight - 1);
+    window.addEventListener("scroll", onStuck, {passive:true});
+    window.addEventListener("resize", onStuck);
+    onStuck();
+  }
+
+  /* highlight whichever section is in view */
+  const mark = id => tabs.forEach(b => b.classList.toggle("on", b.dataset.go === id));
+  const targets = tabs.map(b => $(b.dataset.go)).filter(Boolean);
+  if("IntersectionObserver" in window && targets.length){
+    const nav = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--navh")) || 44;
+    const seen = new Map();
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => seen.set(e.target.id, e));
+      let best = null;
+      seen.forEach(e => {
+        if(!e.isIntersecting) return;
+        if(!best || e.intersectionRatio > best.intersectionRatio) best = e;
+      });
+      if(best) mark(best.target.id);
+    }, {rootMargin:"-" + (nav + 10) + "px 0px -55% 0px", threshold:[0,.1,.25,.5,1]});
+    targets.forEach(t => obs.observe(t));
+  }
+})();
+
+refresh();
+
+refresh();
+/* ---------- page description toggle ---------- */
+document.querySelectorAll(".pmore").forEach(btn => {
+  const box = document.getElementById(btn.getAttribute("aria-controls"));
+  if(!box) return;
+  const set = open => {
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    box.classList.toggle("open", open);
+    /* measured on every open: the text wraps differently at different widths */
+    box.style.maxHeight = open ? box.scrollHeight + "px" : "0px";
+  };
+  btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+  window.addEventListener("resize", () => {
+    if(btn.getAttribute("aria-expanded") === "true") box.style.maxHeight = box.scrollHeight + "px";
+  });
+});
+
+/* ---------- fold every section note behind a caret ----------
+   Done here rather than in the markup so the same rule covers notes that are
+   written by script as well as those already in the page, and so a note added
+   later is folded automatically. */
+(function(){
+  document.querySelectorAll(".rowfoot, .foot, .gfoot, .rnote").forEach(note => {
+    if(note.closest(".nfold")) return;
+    const host = note.parentNode;
+    const bar  = document.createElement("div");
+    bar.className = "notebar";
+    const btn  = document.createElement("button");
+    btn.type = "button"; btn.className = "nmore";
+    btn.setAttribute("aria-expanded","false");
+    btn.setAttribute("aria-label","Show the note for this section");
+    bar.appendChild(btn);
+    const fold = document.createElement("div");
+    fold.className = "nfold";
+    host.insertBefore(bar, note);
+    host.insertBefore(fold, note);
+    fold.appendChild(note);
+    const set = open => {
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      fold.classList.toggle("open", open);
+      fold.style.maxHeight = open ? fold.scrollHeight + "px" : "0px";
+    };
+    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+    /* the notes are rewritten as figures change, so the measured height goes stale */
+    new MutationObserver(() => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    }).observe(note, {childList:true, characterData:true, subtree:true});
+    window.addEventListener("resize", () => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    });
+  });
+})();
+
+
+/* === LIFEMAP_BRIDGE_START === */
+(function(){
+  var PAGE = "goals";
+  var ROUTES = {
+    "lifemap-fp-calculator.html": "/",
+    "fp-calculator.html": "/",
+    "lifemap-assets.html": "/assets",
+    "assets.html": "/assets",
+    "lifemap-work-assets.html": "/work-assets",
+    "work-assets.html": "/work-assets",
+    "lifemap-goals.html": "/goals",
+    "goals.html": "/goals",
+    "lifemap-loans.html": "/loans",
+    "loans.html": "/loans",
+    "lifemap-expenses.html": "/expenses",
+    "expenses.html": "/expenses",
+    "lifemap-insurance.html": "/insurance",
+    "insurance.html": "/insurance"
+  };
+
+  function post(type, payload){
+    try { parent.postMessage({ source:"lifemap-mockup", type:type, page:PAGE, payload:payload||null }, "*"); }
+    catch (e) {}
+  }
+
+  function fileOf(href){
+    if (!href) return "";
+    var clean = String(href).split("#")[0].split("?")[0];
+    var parts = clean.split("/");
+    return parts[parts.length-1];
+  }
+
+  function replaceList(target, next){
+    if (!target || !next) return;
+    target.splice.apply(target, [0, target.length].concat(next));
+  }
+
+  function getState(){
+    try {
+      if (PAGE === "fp") {
+        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
+      }
+      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ };
+      if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
+      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS };
+      if (PAGE === "loans") return { ROWS: ROWS.slice(), PLAN: PLAN.slice(), VIEW: VIEW };
+      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE };
+    } catch (e) { console.error(e); }
+    return {};
+  }
+
+  function hydrateFp(st){
+    if (!st || !st.S) return;
+    var src = st.S;
+    S.age = src.age; S.salary = src.salary; S.gSal = src.gSal; S.workTill = src.workTill;
+    S.finAssets = src.finAssets; S.personalAssets = src.personalAssets;
+    S.gRet = src.gRet; S.gInf = src.gInf; S.lifeTo = src.lifeTo;
+    if (src.loans) replaceList(S.loans, src.loans);
+    if (src.goals) replaceList(S.goals, src.goals);
+    if (src.exp) replaceList(S.exp, src.exp);
+    var set = function(id, val){ var el = $(id); if (el) el.value = val; };
+    var setTxt = function(id, val){ var el = $(id); if (el) el.textContent = val; };
+    set("i-age", S.age);
+    set("i-salary", S.salary);
+    set("i-gsal", S.gSal);
+    set("i-gsal2", S.gSal);
+    set("i-work-age", S.workTill);
+    set("i-fin-assets", S.finAssets);
+    set("i-personal-assets", S.personalAssets);
+    set("i-gret", S.gRet); setTxt("o-gret", Number(S.gRet).toFixed(1)+"%");
+    set("i-ginf", S.gInf); setTxt("o-ginf", Number(S.gInf).toFixed(1)+"%");
+    setTxt("o-gsal2", Number(S.gSal).toFixed(1)+"%");
+    set("i-life", S.lifeTo); setTxt("o-life", S.lifeTo);
+    ["loans","goals","exp"].forEach(renderRows);
+    refresh();
+  }
+
+  function setState(st){
+    if (!st) return;
+    try {
+      if (PAGE === "fp") { hydrateFp(st); return; }
+      if (PAGE === "assets") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
+        if (st.MODE) MODE = st.MODE;
+        if (st.HZ) HZ = st.HZ;
+        refresh();
+        return;
+      }
+      if (PAGE === "work") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") {
+          AGE = st.AGE;
+          var ageEl = $("i-age");
+          if (ageEl) ageEl.value = AGE;
+        }
+        var maxId = 0;
+        ROWS.forEach(function(r){ if (r.id > maxId) maxId = r.id; });
+        try { NEXT_ID = maxId + 1; } catch(e) {}
+        refresh();
+        return;
+      }
+      if (PAGE === "goals") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
+        if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
+        if (st.BASIS) BASIS = st.BASIS;
+        refresh();
+        return;
+      }
+      if (PAGE === "loans") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (st.PLAN) replaceList(PLAN, st.PLAN);
+        if (typeof REGS !== "undefined") {
+          REGS.cur.list = ROWS;
+          REGS.plan.list = PLAN;
+        }
+        if (st.VIEW) VIEW = st.VIEW;
+        refresh();
+        return;
+      }
+      if (PAGE === "expenses") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var e1=$("i-age"); if(e1) e1.value=AGE; }
+        if (typeof st.LIFE === "number") { LIFE = st.LIFE; var e2=$("i-life"); if(e2) e2.value=LIFE; }
+        if (typeof st.GINF === "number") { GINF = st.GINF; var e3=$("i-ginf"); if(e3) e3.value=GINF; }
+        if (st.BASIS) BASIS = st.BASIS;
+        if (st.MODE) MODE = st.MODE;
+        refresh();
+      }
+    } catch (err) {
+      console.error("LifeMap setState failed", err);
+    }
+  }
+
+  function setAccount(label){
+    var link = document.querySelector(".tier0 .tlink");
+    if (link && label) link.textContent = label;
+  }
+
+  document.querySelectorAll(".ptab.gate").forEach(function(a){
+    var label = (a.textContent || "").replace(/\s+/g," ").trim();
+    if (/insurance/i.test(label)) {
+      a.classList.remove("gate");
+      a.removeAttribute("title");
+      a.setAttribute("href", "/insurance");
+    }
+  });
+
+  document.querySelectorAll("a").forEach(function(a){
+    a.addEventListener("click", function(e){
+      var href = a.getAttribute("href") || "";
+      var file = fileOf(href);
+      var label = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/^insurance$/i.test(label) && (a.classList.contains("ptab") || href === "/insurance" || href === "#")) {
+        e.preventDefault();
+        post("navigate", { path: "/insurance" });
+        return;
+      }
+      if (a.classList.contains("gate")) { e.preventDefault(); return; }
+      if (ROUTES[file]) {
+        e.preventDefault();
+        post("navigate", { path: ROUTES[file] });
+      }
+    });
+  });
+
+  document.querySelectorAll(".tier0 .tlink, .tier0 .btn").forEach(function(a){
+    a.addEventListener("click", function(e){
+      e.preventDefault();
+      var text = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/sign in|account/i.test(text)) post("auth", { action: "signin", label: text });
+      else if (/save/i.test(text)) post("save", getState());
+    });
+  });
+
+  document.addEventListener("click", function(e){
+    var saveBtn = e.target.closest && e.target.closest(".rb.save");
+    var delBtn = e.target.closest && e.target.closest(".rb.del");
+    if (saveBtn || delBtn) {
+      setTimeout(function(){ post(delBtn ? "row-delete" : "row-save", getState()); }, 30);
+    }
+  }, true);
+
+  window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  post("ready", getState());
+})();
+/* === LIFEMAP_BRIDGE_END === */
+
+</script>
+</body>
+</html>

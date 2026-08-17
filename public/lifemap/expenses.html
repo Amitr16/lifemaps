@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeMap &mdash; Expenses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font:"Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --navy:#003c8f; --ink:#0a1f44; --teal:#75cfc2; --aqua:#b5e6e5;
+  --paper:#f6f8fb; --line:#e2e8f2; --muted:#66799a; --coral:#e2574c;
+  --amber:#e9a23b; --slate:#9aa7bd; --green:#0d8a78; --r:14px;
+  --shadow:0 1px 2px rgba(10,31,68,.04), 0 8px 24px rgba(10,31,68,.06);
+  --navh:44px;   /* height of the frozen bottom bar only */
+  --bar:#e8f4f5; --bar-line:#cfe6e8;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--font);
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums}
+h1,h2,h3,h4{font-family:var(--font); font-weight:700; letter-spacing:-.02em; margin:0}
+.num{font-variant-numeric:tabular-nums; font-weight:700; letter-spacing:-.02em}
+button,input,select,textarea{font-family:var(--font)}
+a{text-decoration:none; color:inherit}
+
+/* ---------- top bar ---------- */
+/* ---------- stacked top navigation ---------- */
+.topbar{background:#fff; position:relative}
+.topbar::before{content:""; display:block; height:3px;
+  background:linear-gradient(90deg, var(--navy) 0%, #2f6fd0 26%, #0d8a78 52%, var(--teal) 76%, var(--aqua) 100%)}
+.tier{max-width:1200px; margin:0 auto; padding:0 28px}
+@media(max-width:640px){.tier{padding:0 16px}}
+
+/* tier 0 — identity and actions */
+.tier0{display:flex; align-items:center; gap:16px; height:56px}
+.brand{display:flex; align-items:center; gap:10px; text-decoration:none}
+.mark{width:20px; height:20px; background:var(--navy); transform:rotate(45deg); border-radius:3px; position:relative; flex:none}
+.mark::after{content:""; position:absolute; inset:0 0 50% 50%; background:var(--teal); border-radius:0 3px 0 0}
+.brand .name{font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.03em}
+.brand .by{font-size:10.5px; color:var(--muted); letter-spacing:.09em; text-transform:uppercase; font-weight:600}
+.tier0 .acts{margin-left:auto; display:flex; align-items:center; gap:8px}
+.tlink{padding:8px 12px; font-size:14px; color:var(--navy); text-decoration:none; border-radius:8px; font-weight:600}
+.tlink:hover{color:var(--navy); background:#eef3fa}
+
+/* tier 1 — the product's main areas, centred */
+.tier1{display:flex; gap:1px; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none}
+.tier1::-webkit-scrollbar{display:none}
+/* auto margins centre the row, then collapse to zero when it overflows so nothing is unreachable */
+.tier1 > :first-child{margin-left:auto}
+.tier1 > :last-child{margin-right:auto}
+.ptab{padding:11px 14px 12px; font-size:14px; font-weight:600; color:var(--muted);
+  white-space:nowrap; text-decoration:none; border-radius:9px 9px 0 0; transition:background .13s, color .13s}
+/* each tab still carries its area's own colour, but only on hover and when active */
+.ptab:hover{color:var(--tone, var(--navy)); background:#f4f8fd}
+.ptab.on{background:var(--bar); color:var(--tone, var(--ink)); font-weight:700}
+/* Insurance is not built yet: the tab stays visible so the shape of the product
+   is legible, but reads as unavailable rather than merely unvisited. */
+.ptab.gate{opacity:.45; cursor:not-allowed}
+.ptab.gate:hover{background:transparent; color:var(--muted)}
+
+/* tier 2 — what is on this page, centred */
+.tier2wrap{position:sticky; top:0; z-index:80;
+  background:linear-gradient(180deg,#eef8f9,var(--bar));
+  border-top:1px solid var(--bar-line); border-bottom:1px solid var(--bar-line); transition:box-shadow .18s}
+.tier2wrap.stuck{box-shadow:0 6px 18px rgba(10,31,68,.09)}
+.tier2{display:flex; flex-wrap:wrap; justify-content:center; gap:0}
+.stab{padding:10px 14px 10px; font-size:13px; font-weight:600; color:#4a6274; white-space:nowrap;
+  background:none; border:0; border-bottom:2px solid transparent; cursor:pointer; transition:color .13s, border-color .13s}
+.stab:hover{color:var(--navy)}
+.stab.on{font-weight:700}
+.stab.on{color:var(--navy); border-bottom-color:var(--navy)}
+@media(max-width:640px){
+  .ptab{font-size:13px; padding:10px 12px 11px}
+  .stab{font-size:12.5px; padding:9px 12px}
+}
+
+.btn{border:0; cursor:pointer; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700;
+  background:linear-gradient(135deg,#0b52b8,var(--navy)); color:#fff; text-decoration:none;
+  display:inline-block; transition:filter .15s, box-shadow .15s; box-shadow:0 2px 10px rgba(0,60,143,.24)}
+.btn:hover{filter:brightness(1.08); box-shadow:0 4px 16px rgba(0,60,143,.32)}
+.btn-ghost{background:transparent; color:var(--navy); border:1px solid var(--line)}
+.btn-ghost:hover{background:#eef3fa}
+@media(max-width:640px){.tlink{display:none}}
+
+/* ---------- body ---------- */
+.body{max-width:1200px; margin:0 auto; padding:26px 28px 70px}
+@media(max-width:640px){.body{padding:20px 16px 56px}}
+#sec-mix,#sec-growth,#sec-register{scroll-margin-top:calc(var(--navh) + 14px)}
+.phead{margin-bottom:18px}
+.phead h1{font-size:25px}
+.phead p{margin:3px 0 0; color:var(--muted); font-size:14px; max-width:78ch}
+.card{background:#fff; border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+
+/* donut card — one full-width section */
+.mixcard{padding:18px 22px 20px; margin-bottom:16px}
+.mixbody{display:grid; grid-template-columns:300px minmax(0,1fr); gap:10px 34px; align-items:center; margin-top:6px}
+@media(max-width:900px){.mixbody{grid-template-columns:1fr; gap:18px}}
+.mixhead{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+.mixhead h3{font-size:16px}
+.seg2{margin-left:auto; display:flex; background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:2px}
+.seg2 button{border:0; background:none; padding:5px 11px; font-size:12.5px; border-radius:7px; color:var(--muted); cursor:pointer; font-weight:600}
+.seg2 button.on{background:var(--navy); color:#fff}
+.mixsub{font-size:12.5px; color:var(--muted); margin-bottom:10px}
+.donutbox{position:relative; width:100%; max-width:282px; margin:0 auto}
+.donutbox svg{width:100%; height:auto; display:block; overflow:visible}
+.wedge{transition:transform .16s cubic-bezier(.3,.9,.3,1), filter .16s; cursor:pointer}
+.wedge:hover{filter:brightness(1.08)}
+.dcenter{position:absolute; left:27%; top:27%; width:46%; height:46%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none; padding:2px}
+.dcenter .k{max-width:104px; font-size:8.8px; line-height:1.25; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); font-weight:700; white-space:normal}
+.dcenter .v{font-size:25px; line-height:1.05; margin-top:4px; font-weight:800; letter-spacing:-.03em; color:var(--navy); white-space:nowrap}
+.dcenter .s{font-size:10.5px; color:var(--muted); margin-top:5px; max-width:108px; line-height:1.25}
+.dtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:var(--ink); color:#fff; border-radius:10px; padding:10px 13px; min-width:158px;
+  box-shadow:0 12px 32px rgba(10,31,68,.34); transform:translate(-50%,-116%)}
+.dtip.on{opacity:1}
+.dtip .n{font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:7px}
+.dtip .n i{width:9px; height:9px; border-radius:2px; display:block; flex:none}
+.dtip .a{font-size:19px; font-weight:800; letter-spacing:-.02em; margin:3px 0 1px}
+.dtip .d{font-size:11.5px; color:#a9bcda; line-height:1.45}
+.dkey{margin-top:12px; font-size:11.5px; color:var(--slate); text-align:center; line-height:1.5}
+.dleg{display:grid; grid-template-columns:repeat(auto-fill,minmax(208px,1fr)); gap:1px 18px; align-content:center}
+.dleg .lhead{grid-column:1/-1; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--slate); font-weight:700; padding:12px 6px 5px}
+.dleg .lhead.second{border-top:1px solid var(--line); margin-top:8px}
+.dleg .li{display:flex; align-items:center; gap:9px; font-size:13px; padding:5px 6px; border-radius:7px; transition:background .13s}
+.dleg .li:hover{background:var(--paper)}
+.dleg .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dleg .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#33456b}
+.dleg .vl{font-weight:700}
+.dleg .pc{color:var(--slate); font-size:11.5px; width:40px; text-align:right}
+
+/* ---------- growth chart ---------- */
+.gcard{padding:18px 20px 14px; margin-bottom:16px}
+.ghead{display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:2px}
+.ghead h3{font-size:16px}
+.gsub{font-size:12.5px; color:var(--muted)}
+.gsub b{color:var(--ink)}
+.gsub .arrow{color:var(--slate); margin:0 5px}
+.gright{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.chartbox{position:relative; margin-top:14px}
+.chartbox svg{width:100%; height:auto; display:block; overflow:visible}
+.gtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:#fff; color:#234566; border:1px solid #d8dee8; border-radius:0; padding:13px 16px; min-width:340px; max-width:410px;
+  max-height:70vh; overflow-y:auto; box-shadow:0 10px 24px rgba(10,31,68,.10)}
+.gtip.on{opacity:1}
+.gtip .yr{font-size:11px; letter-spacing:.02em; text-transform:none; color:#1b657b; font-weight:500}
+.gtip .tt{font-size:18px; font-weight:800; letter-spacing:-.02em; margin:6px 0 10px; color:#2453dd}
+.gtip .gcols{display:grid; grid-template-columns:1fr 1fr; gap:0 14px; align-items:start}
+.gtip .gcol{min-width:0}
+.gtip .gl{display:flex; align-items:center; gap:7px; font-size:10.9px; padding:4px 0; color:#355272}
+.gtip .gl i{width:10px; height:10px; border-radius:50%; flex:none}
+.gtip .gl span{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.gtip .gl b{font-weight:700; color:#234566; margin-left:8px}
+.gleg{display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
+.gleg .gi{display:flex; align-items:center; gap:8px; font-size:12.5px; color:#33456b}
+.gleg .gi i{width:10px; height:10px; border-radius:50%; flex:none}
+.gleg .gi b{font-weight:700; color:var(--ink)}
+.gfoot{margin-top:10px; font-size:12px; color:var(--slate); line-height:1.55}
+
+/* ---------- register ---------- */
+.reghead{display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.reghead h3{font-size:17px}
+.reghead .count{font-size:12.5px; color:var(--slate); font-weight:600}
+.reghead .r{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap}
+.srch{border:1px solid var(--line); border-radius:9px; padding:8px 12px; font-size:13.5px; background:var(--paper); width:190px}
+.srch:focus{outline:none; border-color:var(--navy); background:#fff}
+.sel{border:1px solid var(--line); border-radius:9px; padding:8px 11px; font-size:13.5px; background:#fff; color:var(--muted); cursor:pointer}
+.ghost{background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 14px; font-size:13.5px; color:var(--muted); cursor:pointer; font-weight:600}
+.ghost:hover{background:#f0f4fa; color:var(--navy)}
+.ghost.primary{background:var(--navy); color:#fff; border-color:var(--navy)}
+.ghost.primary:hover{background:#00307a; color:#fff}
+
+.tblwrap{overflow:auto; max-height:max(330px, min(560px, calc(100vh - var(--navh) - 150px))); overscroll-behavior:contain}
+table{border-collapse:separate; border-spacing:0; width:100%; min-width:1520px}
+th{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--slate); font-weight:700;
+  text-align:left; padding:12px 12px; background:var(--paper); border-bottom:1px solid var(--line); white-space:nowrap; position:sticky; top:0; z-index:3}
+td{padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:middle; background:#fff}
+/* frozen name column */
+th.stick,td.stick{position:sticky; left:0; z-index:2}
+td.stick{background:#fff; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+th.stick{background:var(--paper); z-index:5; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+tr:hover td{background:#fbfcfe}
+tr:hover td.stick{background:#fbfcfe}
+td.rt{text-align:right}
+.cell{width:100%; border:1px solid transparent; border-radius:8px; padding:8px 9px; font-size:14px;
+  background:transparent; color:var(--ink); transition:border-color .13s, background .13s}
+.cell:hover{background:var(--paper)}
+.cell:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.cell.name{font-weight:600; min-width:170px}
+.cell.money{text-align:right; font-variant-numeric:tabular-nums; min-width:118px}
+.cell.small{min-width:96px}
+.tagpick{min-width:138px}
+.catpick{min-width:190px}
+.freqpick{min-width:118px}
+
+/* ---- theme-matched dropdown ---- */
+.dd{width:100%; display:flex; align-items:center; gap:8px; position:relative; text-align:left; cursor:pointer;
+  border:1px solid transparent; border-radius:8px; padding:8px 26px 8px 9px; font-size:14px;
+  background:transparent; color:var(--ink); transition:border-color .13s, background .13s}
+.dd:hover{background:var(--paper)}
+.dd[aria-expanded="true"]{border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.dd .lbl{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dd .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dd::after{content:""; position:absolute; right:11px; top:50%; width:6px; height:6px; margin-top:-5px;
+  border-right:1.8px solid var(--slate); border-bottom:1.8px solid var(--slate);
+  transform:rotate(45deg); transition:transform .16s, border-color .16s}
+.dd[aria-expanded="true"]::after{transform:rotate(225deg); margin-top:-2px; border-color:var(--navy)}
+.dd.filter{border-color:var(--line); background:#fff; width:auto; min-width:152px; color:var(--muted); font-size:13.5px; padding:8px 28px 8px 12px}
+.dd.filter:hover{border-color:#c8d5e8; color:var(--navy)}
+
+.ddpop{position:fixed; z-index:200; display:none; padding:6px; min-width:190px; max-height:296px; overflow-y:auto;
+  background:#fff; border:1px solid var(--line); border-radius:12px; font-family:var(--font);
+  box-shadow:0 20px 48px rgba(10,31,68,.20), 0 2px 6px rgba(10,31,68,.07)}
+.ddpop.on{display:block; animation:ddin .14s cubic-bezier(.2,.9,.3,1)}
+@keyframes ddin{from{opacity:0; transform:translateY(-5px)} to{opacity:1; transform:none}}
+.ddopt{display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:8px; font-size:14px;
+  color:#33456b; cursor:pointer; white-space:nowrap; line-height:1.35}
+.ddopt .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.ddopt .nm{flex:1}
+.ddopt .rt{font-size:11.5px; color:var(--slate); font-variant-numeric:tabular-nums; font-weight:600}
+.ddopt.cur{background:#eef3fa; color:var(--navy)}
+.ddopt[aria-selected="true"]{background:#eaf1fc; color:var(--navy); font-weight:700}
+.ddopt[aria-selected="true"] .rt{color:var(--navy)}
+.ddopt[aria-selected="true"]::before{content:""; width:6px; height:10px; flex:none; margin-right:-3px;
+  border-right:2px solid var(--navy); border-bottom:2px solid var(--navy); transform:rotate(40deg) translateY(-2px)}
+.ddpop::-webkit-scrollbar{width:11px}
+.ddpop::-webkit-scrollbar-track{background:transparent}
+.ddpop::-webkit-scrollbar-thumb{background:#ccd7e8; border-radius:99px; border:3px solid #fff}
+.ddpop::-webkit-scrollbar-thumb:hover{background:#b3c2da}
+.ddpop{scrollbar-width:thin; scrollbar-color:#ccd7e8 transparent}
+.swatch{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px; vertical-align:1px}
+.proj{font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; white-space:nowrap}
+.proj small{display:block; font-weight:500; color:var(--slate); font-size:11px; letter-spacing:0}
+.acts{display:flex; gap:6px; justify-content:flex-end}
+.rb{border:1px solid var(--line); background:#fff; border-radius:8px; height:34px; padding:0 11px; cursor:pointer;
+  font-size:12px; font-weight:700; color:var(--muted); white-space:nowrap; transition:.14s}
+.rb.save{color:var(--navy)}
+.rb.save:hover{background:#eef3fa; border-color:var(--navy)}
+.rb.save.done{background:#e9f6f4; border-color:#bfe6df; color:#0d6e60}
+.rb.del:hover{color:var(--coral); border-color:#f3c9c5; background:#fef6f5}
+.addbar{padding:14px 20px 18px}
+.addrow{width:100%; border:1px dashed #c8d5e8; background:#fbfcfe; color:var(--navy); border-radius:9px;
+  padding:12px; font-size:14px; font-weight:700; cursor:pointer}
+.addrow:hover{background:#eef3fa; border-color:var(--navy)}
+.empty{padding:52px 20px; text-align:center; color:var(--slate)}
+.empty b{display:block; color:var(--ink); font-size:16px; margin-bottom:4px}
+.foot{padding:14px 20px 18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--slate); line-height:1.6}
+.pager{display:flex; gap:10px; margin-top:20px}
+.btn-nav{background:#fff; border:1px solid var(--line); color:var(--navy); padding:11px 18px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer}
+.btn-nav:hover{background:#eef3fa}
+.btn-nav.sp{margin-left:auto}
+:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important} html{scroll-behavior:auto}}
+@media(max-width:760px){
+  /* the frozen column eats too much of a narrow screen otherwise */
+  .cell.name{min-width:124px}
+  .catpick{min-width:164px}
+  .tagpick{min-width:126px}
+}
+
+/* ---------- expenses page additions ---------- */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:12px; margin-bottom:16px}
+.sum{padding:14px 16px; position:relative; overflow:hidden; background:#fff;
+  border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+.sum::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--tone,var(--line))}
+.sum .l{font-size:12.5px; color:var(--muted); font-weight:600}
+.sum .v{font-size:24px; font-weight:800; letter-spacing:-.03em; margin-top:2px}
+.sum .s{font-size:11.5px; color:var(--slate); margin-top:2px}
+.sum.total{background:var(--ink); border-color:var(--ink)}
+.sum.total .l{color:#8fa6c9} .sum.total .v{color:#fff} .sum.total .s{color:#8fa6c9}
+
+/* 50/30/20 comparison */
+.rulebox{margin-top:4px}
+.rrow{display:grid; grid-template-columns:104px 1fr 128px; gap:12px; align-items:center; padding:9px 0;
+  transition:background .16s, transform .16s}
+.rrow + .rrow{border-top:1px solid var(--line)}
+.rrow:hover{background:#fbfcfe; transform:translateY(-1px)}
+.rrow .nm{font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:8px}
+.rrow .nm i{width:9px; height:9px; border-radius:2px; flex:none}
+.rtrack{position:relative; height:12px; background:var(--paper); border-radius:99px; overflow:visible;
+  transition:height .16s, box-shadow .16s, background .16s}
+.rrow:hover .rtrack{height:16px; background:#eef3f8; box-shadow:0 5px 14px rgba(10,31,68,.10)}
+.rtrack .bar{position:absolute; left:0; top:0; bottom:0; border-radius:99px;
+  transition:width .25s, filter .16s, box-shadow .16s}
+.rrow:hover .bar{filter:saturate(1.08) brightness(1.03); box-shadow:0 4px 10px rgba(10,31,68,.14)}
+.rtrack .tgt{position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--ink); opacity:.58; border-radius:2px;
+  cursor:help; transition:opacity .15s, width .15s, transform .15s; outline:none}
+.rtrack .tgt::before{content:""; position:absolute; left:50%; top:-8px; width:18px; height:calc(100% + 16px); transform:translateX(-50%)}
+.rtrack .tgt::after{content:attr(data-tip); position:absolute; left:50%; bottom:calc(100% + 11px); transform:translateX(-50%) translateY(4px);
+  width:max-content; max-width:210px; padding:7px 9px; border-radius:7px; background:var(--ink); color:#fff;
+  font-size:10.5px; line-height:1.35; font-weight:600; white-space:normal; text-align:center;
+  box-shadow:0 8px 20px rgba(10,31,68,.22); opacity:0; visibility:hidden; pointer-events:none; z-index:20;
+  transition:opacity .14s, transform .14s, visibility .14s}
+.rtrack .tgt:hover,.rtrack .tgt:focus-visible{opacity:.92; width:3px; transform:scaleY(1.08)}
+.rtrack .tgt:hover::after,.rtrack .tgt:focus-visible::after{opacity:1; visibility:visible; transform:translateX(-50%) translateY(0)}
+.rrow .fig{text-align:right; font-size:13px; font-variant-numeric:tabular-nums}
+.rrow .fig b{font-weight:800; font-size:15px}
+.rrow .fig span{display:block; font-size:11px; color:var(--slate)}
+.rlegend{display:flex; gap:16px; flex-wrap:wrap; font-size:11.5px; color:var(--slate); margin-top:10px}
+.rnote{font-size:12.5px; color:var(--muted); margin-top:12px; padding-top:12px; border-top:1px solid var(--line); line-height:1.6}
+
+/* type pill in the table */
+.tpill{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 9px; border-radius:99px; white-space:nowrap}
+.cell.warnval{border-color:#f0c9a8; background:#fdf6ec}
+.flagwrap{display:flex; align-items:center; gap:6px}
+.flag{font-size:10.5px; font-weight:700; color:#a56d10; white-space:nowrap; cursor:help}
+
+/* ---------- life-stage timeline ---------- */
+.tlbox{position:relative; margin-top:2px}
+.tlsvg{width:100%; display:block}
+.tlbar{cursor:pointer; transition:opacity .14s}
+.tlrowbg{opacity:0; transition:opacity .14s}
+/* dim everything else while one bar is being read */
+.tlsvg.focusing .tlbar{opacity:.2}
+.tlsvg.focusing .tlbar.hot{opacity:1}
+.tlsvg.focusing .tllab{opacity:.32}
+.tlsvg.focusing .tllab.hot{opacity:1; font-weight:700}
+.tlsvg.focusing .tlamt,.tlsvg.focusing .tlend{opacity:.32}
+.tlsvg.focusing .tlamt.hot,.tlsvg.focusing .tlend.hot{opacity:1}
+.tllab,.tlamt,.tlend{transition:opacity .14s}
+.tltip{position:absolute; z-index:40; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:#fff; color:#234566; border:1px solid #d8dee8; border-radius:2px;
+  padding:11px 13px; width:236px; box-shadow:0 8px 22px rgba(10,31,68,.14)}
+.tltip.on{opacity:1}
+.tltip .h{font-size:12.5px; font-weight:800; color:#0a1f44; display:flex; align-items:center; gap:7px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.tltip .h i{width:9px; height:9px; border-radius:50%; flex:none}
+.tltip .amt{font-size:17px; font-weight:800; letter-spacing:-.02em; margin:5px 0 7px; color:#2453dd}
+.tltip .l{display:flex; justify-content:space-between; gap:12px; font-size:11.5px; padding:2px 0; color:#6b7f96}
+.tltip .l b{font-variant-numeric:tabular-nums; color:#234566; font-weight:700}
+.tltip .n{font-size:10.5px; color:#8290a6; margin-top:7px; padding-top:7px; border-top:1px solid #eef1f6; line-height:1.45}
+.agebox{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); font-weight:600}
+.agebox input{width:62px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper);
+  font-size:13.5px; font-family:var(--font); font-variant-numeric:tabular-nums; color:var(--ink); text-align:center}
+.agebox input:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.badrow{color:var(--coral); font-size:11px; font-weight:700}
+
+/* ---------- page description, folded away behind a caret ----------
+   The description expands in the flow rather than floating over the page, so
+   opening it pushes everything below it down instead of covering it. Height is
+   measured at the moment it opens, which keeps the transition honest when the
+   text wraps to a different number of lines on a narrow screen. */
+.phead h1{display:flex; align-items:center; gap:11px; flex-wrap:wrap}
+.pmore{width:23px; height:23px; flex:none; border-radius:50%; border:1px solid var(--line);
+  background:#fff; color:var(--slate); cursor:pointer; padding:0; position:relative;
+  display:inline-flex; align-items:center; justify-content:center; transition:.15s}
+.pmore::before{content:""; width:6px; height:6px; margin-top:-3px;
+  border-right:1.9px solid currentColor; border-bottom:1.9px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.pmore:hover{color:var(--navy); border-color:var(--navy); background:#eef3fa}
+.pmore[aria-expanded="true"]{color:#fff; background:var(--navy); border-color:var(--navy)}
+.pmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:3px}
+.pdesc{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.pdesc.open{opacity:1}
+
+/* Padded on all sides: the bar is the last thing in its card, so without a
+   bottom pad the caret sat astride the card's rounded edge. */
+.notebar{display:flex; align-items:center; justify-content:center; width:100%; padding:12px 18px 16px}
+/* Just the chevron. A ring around it competed with the row of real controls
+   directly above; the navy alone is enough to read as pressable. */
+.nmore{width:30px; height:26px; flex:none; border:0; background:none; padding:0; cursor:pointer;
+  color:var(--navy); border-radius:7px; transition:background .15s, color .15s;
+  display:inline-flex; align-items:center; justify-content:center}
+.nmore::before{content:""; width:9px; height:9px; margin-top:-4px;
+  border-right:2.2px solid currentColor; border-bottom:2.2px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.nmore:hover{background:rgba(0,60,143,.08)}
+.nmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:4px}
+.nfold{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.nfold.open{opacity:1}
+.nfold .foot{border-top:0}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tier tier0">
+    <a class="brand" href="lifemap-fp-calculator.html"><span class="mark"></span>
+      <span><span class="name">LifeMap</span> <span class="by">by BOX Wealth</span></span></a>
+    <span class="acts">
+      <a class="tlink" href="#">Sign in</a>
+      <a class="btn" href="#">Save my plan</a>
+    </span>
+  </div>
+
+  <nav class="tier tier1" aria-label="Main areas">
+    <a class="ptab" style="--tone:#003c8f" href="lifemap-fp-calculator.html">FP Calculator</a>
+    <a class="ptab" style="--tone:#2f6fd0" href="lifemap-assets.html">Assets</a>
+    <a class="ptab" style="--tone:#0d8a78" href="lifemap-work-assets.html">Work Assets</a>
+    <a class="ptab" style="--tone:#e9a23b" href="lifemap-goals.html">Goals</a>
+    <a class="ptab" style="--tone:#e2574c" href="lifemap-loans.html">Loans</a>
+    <a class="ptab on" style="--tone:#8494ad" href="lifemap-expenses.html" aria-current="page">Expenses</a>
+    <a class="ptab gate" style="--tone:#4fb9ab" href="#" title="Sign in to open Insurance">Insurance</a>
+  </nav>
+</header>
+
+<div class="tier2wrap" id="tier2wrap">
+  <nav class="tier tier2" aria-label="Sections on this page">
+    <button class="stab on" type="button" data-go="sec-mix">Expense mix</button>
+    <button class="stab" type="button" data-go="sec-rule">Needs / wants / savings</button>
+    <button class="stab" type="button" data-go="sec-growth">Cost over time</button>
+    <button class="stab" type="button" data-go="sec-stage">Life-stage spending</button>
+    <button class="stab" type="button" data-go="sec-register">Expense register</button>
+  </nav>
+</div>
+
+<div class="body">
+  <div class="phead">
+    <h1>What you spend
+      <button class="pmore" type="button" aria-expanded="false" aria-controls="phead-desc" aria-label="Show what this page is for"></button></h1>
+    <div class="pdesc" id="phead-desc"><p>Every recurring cost, in one register, with the years of your life it actually applies to. School fees stop, instalments end, healthcare climbs &mdash; so the curve steps rather than sweeps. Choosing a category fills in a realistic inflation rate and a needs/wants/savings type, both of which you can override.</p></div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <!-- ===== expense mix ===== -->
+  <div class="card mixcard" id="sec-mix">
+    <div class="mixhead">
+      <h3>Your expense mix</h3>
+      <div class="seg2">
+        <button class="on" data-mode="cat">By category</button>
+        <button data-mode="tag">By type</button>
+      </div>
+    </div>
+    <div class="mixsub" id="mix-sub">&nbsp;</div>
+    <div class="mixsub" style="margin-top:-8px; color:var(--slate)">Only what is running at your current age. Expenses that start later appear once you reach them.</div>
+    <div class="mixbody">
+      <div>
+        <div class="donutbox">
+          <svg viewBox="0 0 220 220" id="donut" role="img" aria-label="Expense mix"></svg>
+          <div class="dcenter">
+            <div class="k" id="d-k">A year of spending</div>
+            <div class="v" id="d-v">&mdash;</div>
+            <div class="s" id="d-s">&nbsp;</div>
+          </div>
+          <div class="dtip" id="dtip"></div>
+        </div>
+        <div class="dkey" id="d-key">Outer ring: what it is &nbsp;&middot;&nbsp; Inner arc: need, want or saving</div>
+      </div>
+      <div class="dleg" id="dleg"></div>
+    </div>
+  </div>
+
+  <!-- ===== 50/30/20 ===== -->
+  <div class="card mixcard" id="sec-rule">
+    <div class="mixhead"><h3>Needs, wants and savings</h3></div>
+    <div class="mixsub">Your split against the 50 / 30 / 20 guideline. The marker on each bar is the guideline; the bar is you.</div>
+    <div class="rulebox" id="rulebox"></div>
+    <div class="rnote" id="rule-note">&nbsp;</div>
+  </div>
+
+  <!-- ===== cost over time ===== -->
+  <div class="card gcard" id="sec-growth">
+    <div class="ghead">
+      <div>
+        <h3>What the same life costs later</h3>
+        <div class="gsub" id="g-sub">&nbsp;</div>
+      </div>
+      <div class="gright">
+        <div class="agebox">
+          <label for="i-age">Age</label><input id="i-age" type="number" value="32" min="1" max="99">
+          <label for="i-life">to</label><input id="i-life" type="number" value="90" min="2" max="110">
+          <label for="i-ginf">&middot; inflation</label><input id="i-ginf" type="number" value="6" step="0.5" min="0" max="15">
+        </div>
+        <div class="seg2" id="basisseg">
+          <button class="on" data-basis="real">Today&rsquo;s money</button>
+          <button data-basis="nom">Future rupees</button>
+        </div>
+      </div>
+    </div>
+    <div class="chartbox">
+      <svg viewBox="0 0 1400 320" id="growth" role="img" aria-label="Projected annual cost over time"></svg>
+      <div class="gtip" id="gtip"></div>
+    </div>
+    <div class="gleg" id="gleg"></div>
+    <div class="gfoot" id="g-foot">
+      Each line is one category, inflated at the rate set against it and counted only in the years it runs. Nothing here assumes your habits change &mdash; it is the same life, repriced and switched on and off. Loan EMIs are fixed in rupee terms, so in today&rsquo;s money they visibly shrink until they stop altogether. The general inflation figure beside the ages is only used to convert to today&rsquo;s money; each row still inflates at its own rate.
+    </div>
+  </div>
+
+
+  <!-- ===== life-stage spending ===== -->
+  <div class="card gcard" id="sec-stage">
+    <div class="ghead">
+      <div>
+        <h3>Life-stage spending</h3>
+        <div class="gsub" id="tl-sub">&nbsp;</div>
+      </div>
+    </div>
+    <div class="tlbox">
+      <svg class="tlsvg" id="timeline" role="img" aria-label="Years over which each expense applies"></svg>
+      <div class="tltip" id="tltip"></div>
+    </div>
+    <div class="gfoot" id="tl-foot">
+      <b>Bar length is time, not money.</b> Each bar marks the stretch of your life an expense applies to, laid on a track that runs the full span of the plan &mdash; a long bar means a long run, not a large bill. What it costs is in the column on the right. The curve above is the sum of whatever is running in a given year, which is why it steps down as school fees finish and instalments end. Hover any bar for what it costs and what it adds up to over its run, on whichever money basis you have selected above.
+    </div>
+  </div>
+
+  <!-- ===== register ===== -->
+  <div class="card" id="sec-register">
+    <div class="reghead">
+      <h3>Expense register</h3>
+      <span class="count" id="rowcount">&mdash;</span>
+      <div class="r">
+        <input class="srch" id="search" type="search" placeholder="Search category, subcategory or note">
+        <button type="button" class="dd filter" id="filter" aria-haspopup="listbox" aria-expanded="false">
+          <span class="lbl">All types</span></button>
+        <button class="ghost" id="btn-reset">Reset</button>
+        <button class="ghost" id="btn-csv">Export CSV</button>
+        <button class="ghost primary" id="btn-add">+ Add expense</button>
+      </div>
+    </div>
+
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="stick">Category</th>
+            <th>Subcategory</th>
+            <th>Type</th>
+            <th style="text-align:right">Amount &#8377;</th>
+            <th>Frequency</th>
+            <th style="text-align:right">A year</th>
+            <th style="text-align:right">From age</th>
+            <th style="text-align:right">To age</th>
+            <th style="text-align:right">Inflation %</th>
+            <th style="text-align:right">Total over its run</th>
+            <th>Paid from</th>
+            <th>Notes</th>
+            <th style="text-align:right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" style="display:none"><b>No expenses match</b>Clear the search or the type filter to see everything.</div>
+    <div class="addbar"><button class="addrow" id="btn-add2">+ Add another expense</button></div>
+    <div class="foot" id="reg-foot">
+      Inflation rates are long-run Indian averages for each kind of spending, filled in as a starting point and fully editable. Healthcare and education have historically run well ahead of headline inflation; loan instalments do not inflate at all. Enter the rate as a whole number &mdash; 6 means six percent, not 0.06.
+    </div>
+  </div>
+
+  <div class="pager">
+    <a class="btn-nav" href="lifemap-loans.html">&larr; Loans</a>
+    <button class="btn-nav sp" disabled>Insurance &rarr;</button>
+  </div>
+</div>
+
+<script>
+/* ================= CATEGORIES =================
+   inf  = long-run Indian average inflation for that kind of spending
+   type = the needs/wants/savings bucket it usually falls in
+   Both are starting points; every row can override them.
+============================================== */
+const CATS = [
+  {n:"Housing & rent",         inf:7.0,  type:"Need",   c:"#2f6fd0"},
+  {n:"Food & groceries",       inf:6.5,  type:"Need",   c:"#5b93de"},
+  {n:"Utilities & bills",      inf:5.0,  type:"Need",   c:"#8fb8ea"},
+  {n:"Transport & fuel",       inf:6.0,  type:"Need",   c:"#003c8f"},
+  {n:"Healthcare",             inf:10.0, type:"Need",   c:"#e2574c"},
+  {n:"Education",              inf:10.0, type:"Need",   c:"#e9a23b"},
+  {n:"Insurance premiums",     inf:7.0,  type:"Need",   c:"#4fb9ab"},
+  {n:"Loan EMI",               inf:0.0,  type:"Need",   c:"#94a3bd"},
+  {n:"Domestic help",          inf:8.0,  type:"Need",   c:"#d98f5a"},
+  {n:"Dining & entertainment", inf:6.0,  type:"Want",   c:"#75cfc2"},
+  {n:"Travel & holidays",      inf:7.0,  type:"Want",   c:"#0d8a78"},
+  {n:"Shopping & personal",    inf:6.0,  type:"Want",   c:"#a3e0d6"},
+  {n:"Subscriptions",          inf:5.0,  type:"Want",   c:"#6c7f9f"},
+  {n:"Savings & investments",  inf:0.0,  type:"Saving", c:"#b6c0d0"},
+  {n:"Other",                  inf:6.0,  type:"Want",   c:"#cbd3e0"}
+];
+const TAGS = [
+  {n:"Need",   c:"#2f6fd0", target:50, d:"Roof, food, travel to work, medicine, school fees, instalments. The spending you cannot switch off quickly."},
+  {n:"Want",   c:"#e9a23b", target:30, d:"Everything that makes life pleasant rather than possible. The first place to look when the numbers do not work."},
+  {n:"Saving", c:"#0d8a78", target:20, d:"Money leaving your account to work for you later. It shows here as an outgo, but it is the one that builds the plan."}
+];
+const FREQ = ["Monthly","Quarterly","Half-yearly","Annually"];
+const PER_YEAR = {Monthly:12, Quarterly:4, "Half-yearly":2, Annually:1};
+
+const catOf = n => CATS.find(c => c.n === n) || CATS[CATS.length-1];
+const tagOf = n => TAGS.find(t => t.n === n) || TAGS[0];
+
+/* ================= STATE ================= */
+let ROWS = [
+  {cat:"Housing & rent",        sub:"Rent, 2BHK",           type:"Need",   amt:25000,  freq:"Monthly",   inf:7.0,  from:32, to:90, src:"HDFC a/c",   notes:"Renews each April", saved:true},
+  {cat:"Food & groceries",      sub:"Groceries & household",type:"Need",   amt:12000,  freq:"Monthly",   inf:6.5,  from:32, to:90, src:"HDFC a/c",   notes:"", saved:true},
+  {cat:"Utilities & bills",     sub:"Power, water, gas",    type:"Need",   amt:3500,   freq:"Monthly",   inf:5.0,  from:32, to:90, src:"Auto-debit", notes:"", saved:true},
+  {cat:"Transport & fuel",      sub:"Fuel and cabs",        type:"Need",   amt:6000,   freq:"Monthly",   inf:6.0,  from:32, to:78, src:"Credit card",notes:"Stops when we give up the car", saved:true},
+  {cat:"Loan EMI",              sub:"Home loan",            type:"Need",   amt:20000,  freq:"Monthly",   inf:0.0,  from:32, to:47, src:"Auto-debit", notes:"Fixed rupee amount, 15 years left", saved:true},
+  {cat:"Healthcare",            sub:"Doctors & medicine",   type:"Need",   amt:5000,   freq:"Monthly",   inf:10.0, from:32, to:90, src:"Credit card",notes:"", saved:true},
+  {cat:"Insurance premiums",    sub:"Term and health cover",type:"Need",   amt:45000,  freq:"Annually",  inf:7.0,  from:32, to:70, src:"HDFC a/c",   notes:"Term cover ends at 70", saved:true},
+  {cat:"Education",             sub:"MBA fees",             type:"Need",   amt:100000, freq:"Annually",  inf:10.0, from:32, to:34, src:"HDFC a/c",   notes:"Two years left", saved:true},
+  {cat:"Education",             sub:"Child\u2019s school",     type:"Need",   amt:15000,  freq:"Monthly",   inf:10.0, from:35, to:50, src:"HDFC a/c",   notes:"Starts when she turns 4", saved:true},
+  {cat:"Education",             sub:"Child\u2019s college",    type:"Need",   amt:400000, freq:"Annually",  inf:10.0, from:50, to:54, src:"Earmarked",  notes:"Four years", saved:true},
+  {cat:"Dining & entertainment",sub:"Eating out and OTT",   type:"Want",   amt:8000,   freq:"Monthly",   inf:6.0,  from:32, to:90, src:"Credit card",notes:"", saved:true},
+  {cat:"Travel & holidays",     sub:"One trip a year",      type:"Want",   amt:120000, freq:"Annually",  inf:7.0,  from:32, to:75, src:"Credit card",notes:"", saved:true},
+  {cat:"Savings & investments", sub:"SIPs",                 type:"Saving", amt:27500,  freq:"Monthly",   inf:0.0,  from:32, to:60, src:"Auto-debit", notes:"Until you stop earning", saved:true}
+];
+let MODE = "cat", SEARCH = "", FILTER = "";
+let AGE = 32, LIFE = 90, GINF = 6, BASIS = "real";
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const esc = v => String(v==null?"":v).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+function fmt(n){
+  n = Math.round(n||0); const a = Math.abs(n), s = n<0 ? "\u2212" : "";
+  if(a >= 1e7) return s+"\u20B9"+(a/1e7).toFixed(a/1e7>=100?0:2)+"Cr";
+  if(a >= 1e5) return s+"\u20B9"+(a/1e5).toFixed(a/1e5>=100?0:2)+"L";
+  if(a >= 1e3) return s+"\u20B9"+(a/1e3).toFixed(a/1e3>=100?0:1)+"K";
+  return s+"\u20B9"+a;
+}
+const full = n => (n<0?"\u2212":"")+"\u20B9"+Math.abs(Math.round(n)).toLocaleString("en-IN");
+
+/* ---- the cost of one row, and the years it applies to ----
+   annual(r)   the yearly cost in today's prices
+   startOf/endOf  the ages the expense runs between, clamped to the plan
+   costAt(r,t) what it costs in year t from now: today's price inflated t years,
+               but only while the expense is actually running
+   Inflation always runs from today, not from the start age, because the amount
+   entered is a present-day price.
+--------------------------------------------------------- */
+const annual = r => num(r.amt) * (PER_YEAR[r.freq] || 0);
+const startOf = r => Math.max(AGE, num(r.from) || AGE);
+const endOf   = r => Math.min(LIFE, (r.to === "" || r.to == null) ? LIFE : num(r.to));
+const runs    = r => endOf(r) >= startOf(r);
+const yearsOf = r => runs(r) ? (endOf(r) - startOf(r) + 1) : 0;
+const activeAt = (r, t) => { const a = AGE + t; return runs(r) && a >= startOf(r) && a <= endOf(r); };
+const costAt   = (r, t) => activeAt(r, t) ? annual(r) * Math.pow(1 + num(r.inf)/100, t) : 0;
+/* What gets displayed. Nominal figures 58 years out are dominated by compounding,
+   which hides the thing this page is about: expenses starting and stopping. In
+   today's money the steps stay legible, and a rate above general inflation still
+   climbs while a fixed EMI visibly shrinks. */
+const deflate = t => Math.pow(1 + GINF/100, t);
+const showAt  = (r, t) => BASIS === "real" ? costAt(r, t)/deflate(t) : costAt(r, t);
+const showTotalAt = t => ROWS.reduce((s,r) => s + showAt(r, t), 0);
+const basisNote = () => BASIS === "real" ? "in today's money" : "in future rupees";
+/* everything this row costs across its whole run, on the basis being shown */
+const runTotal = r => { let s = 0; for(let t=0; t<=SPAN(); t++) s += showAt(r, t); return s; };
+const SPAN = () => Math.max(1, Math.round(LIFE - AGE));
+const totalAt = t => ROWS.reduce((s,r) => s + costAt(r, t), 0);
+const totalAnnual = () => totalAt(0);
+const later = (r, years) => costAt(r, years);
+/* a rate typed as 0.06 almost always means 6 */
+const suspectRate = r => num(r.inf) > 0 && num(r.inf) < 0.5;
+const badWindow = r => !runs(r);
+
+/* ================= DONUT ================= */
+const CX=110, CY=110, RO_OUT=92, RO_IN=72, RI_OUT=66, RI_IN=54, POP=8, TAU=Math.PI*2;
+const track=(ro,ri,c)=>`<circle cx="${CX}" cy="${CY}" r="${(ro+ri)/2}" fill="none" stroke="${c}" stroke-width="${ro-ri}"/>`;
+function wedgePath(a0,a1,rOut,rIn){
+  const sp = Math.min(a1-a0, TAU-0.0001); a1 = a0+sp;
+  const P=(rad,a)=>[(CX+rad*Math.cos(a)).toFixed(2),(CY+rad*Math.sin(a)).toFixed(2)];
+  const big = sp > Math.PI ? 1 : 0;
+  const [x1,y1]=P(rOut,a0),[x2,y2]=P(rOut,a1),[x3,y3]=P(rIn,a1),[x4,y4]=P(rIn,a0);
+  return `M${x1},${y1} A${rOut},${rOut} 0 ${big} 1 ${x2},${y2} L${x3},${y3} A${rIn},${rIn} 0 ${big} 0 ${x4},${y4} Z`;
+}
+/* group the register by category or by type */
+function buckets(by){
+  const src = by === "cat" ? CATS : TAGS;
+  const out = src.map(s => ({
+    n:s.n, c:s.c, v:0,
+    d: by === "cat" ? "Inflating at " + s.inf + "% a year." : s.d
+  }));
+  ROWS.forEach(r => {
+    const key = by === "cat" ? catOf(r.cat).n : tagOf(r.type).n;
+    const b = out.find(o => o.n === key);
+    if(b) b.v += costAt(r, 0);          /* the mix is what you spend now */
+  });
+  return out.filter(o => o.v > 0).sort((a,b) => b.v - a.v);
+}
+function drawDonut(){
+  const svg = $("donut"), leg = $("dleg"), tip = $("dtip");
+  const outer = buckets(MODE);
+  const inner = buckets(MODE === "cat" ? "tag" : "cat");
+  const total = outer.reduce((t,s) => t+s.v, 0);
+  leg.innerHTML = "";
+
+  if(total <= 0){
+    svg.innerHTML = track(RO_OUT,RO_IN,"#eef1f6") + track(RI_OUT,RI_IN,"#f4f6fa");
+    $("d-v").textContent = "\u20B90";
+    $("d-s").textContent = "Add your first expense below";
+    $("mix-sub").textContent = "Nothing recorded yet";
+    leg.innerHTML = `<div class="li"><span class="nm" style="color:var(--slate)">Add an expense to see the mix</span></div>`;
+    return;
+  }
+
+  let s = track(RO_OUT,RO_IN,"#eef1f6") + track(RI_OUT,RI_IN,"#f4f6fa");
+  const meta = [];
+  const lay = (segs, rOut, rIn, tipR) => {
+    let a = -Math.PI/2;
+    segs.forEach(seg => {
+      const f = seg.v/total, sp = f*TAU;
+      if(sp <= 0) return;
+      const gap = Math.min(0.014, sp*0.16), mid = a + sp/2;
+      s += `<path class="wedge" tabindex="0" role="img" fill="${seg.c}"`
+         + ` aria-label="${esc(seg.n)}: ${full(seg.v)}, ${(f*100).toFixed(1)} percent"`
+         + ` d="${wedgePath(a+gap, a+sp, rOut, rIn)}"></path>`;
+      meta.push({seg, mid, tipR});
+      a += sp;
+    });
+  };
+  lay(outer, RO_OUT, RO_IN, (RO_OUT+RO_IN)/2);
+  lay(inner, RI_OUT, RI_IN, (RI_OUT+RI_IN)/2);
+  svg.innerHTML = s;
+
+  const handlers = [...svg.querySelectorAll(".wedge")].map((el,i) => {
+    const m = meta[i], dx = Math.cos(m.mid)*POP, dy = Math.sin(m.mid)*POP;
+    const show = () => {
+      el.setAttribute("transform", `translate(${dx.toFixed(2)},${dy.toFixed(2)})`);
+      tip.classList.add("on");
+      tip.style.left = ((CX + Math.cos(m.mid)*m.tipR)/220*100) + "%";
+      tip.style.top  = ((CY + Math.sin(m.mid)*m.tipR)/220*100) + "%";
+      tip.innerHTML = `<div class="n"><i style="background:${m.seg.c}"></i>${esc(m.seg.n)}</div>
+                       <div class="a">${full(m.seg.v)}</div>
+                       <div class="d">${(m.seg.v/total*100).toFixed(1)}% of ${fmt(total)} &middot; ${fmt(m.seg.v/12)} a month<br>${esc(m.seg.d)}</div>`;
+    };
+    const hide = () => { el.removeAttribute("transform"); tip.classList.remove("on"); };
+    el.addEventListener("mouseenter", show); el.addEventListener("mouseleave", hide);
+    el.addEventListener("focus", show);      el.addEventListener("blur", hide);
+    return {show, hide};
+  });
+
+  let n = 0;
+  const block = (title, segs) => {
+    const h = document.createElement("div");
+    h.className = "lhead"; h.textContent = title; leg.appendChild(h);
+    segs.forEach(seg => {
+      const i = n++;
+      const li = document.createElement("div");
+      li.className = "li";
+      li.innerHTML = `<span class="sw" style="background:${seg.c}"></span>
+                      <span class="nm">${esc(seg.n)}</span>
+                      <span class="vl">${fmt(seg.v)}</span>
+                      <span class="pc">${(seg.v/total*100).toFixed(0)}%</span>`;
+      li.addEventListener("mouseenter", handlers[i].show);
+      li.addEventListener("mouseleave", handlers[i].hide);
+      leg.appendChild(li);
+    });
+  };
+  block(MODE === "cat" ? "By category" : "By type", outer);
+  block(MODE === "cat" ? "By type" : "By category", inner);
+
+  const top = outer[0];
+  $("d-v").textContent = fmt(total);
+  $("d-s").textContent = top ? `${(top.v/total*100).toFixed(0)}% goes on ${top.n.toLowerCase()}` : "";
+  $("mix-sub").textContent = MODE === "cat"
+    ? `${fmt(total/12)} a month across ${outer.length} ${outer.length===1?"category":"categories"}`
+    : `${fmt(total/12)} a month across ${outer.length} ${outer.length===1?"type":"types"}`;
+  $("d-key").innerHTML = MODE === "cat"
+    ? "Outer ring: what it is &nbsp;&middot;&nbsp; Inner arc: need, want or saving"
+    : "Outer ring: need, want or saving &nbsp;&middot;&nbsp; Inner arc: what it is";
+}
+
+/* ================= 50 / 30 / 20 ================= */
+function drawRule(){
+  const box = $("rulebox");
+  /* Only what is actually running at your current age, matching the donut and the
+     cards. The total is summed from these three buckets rather than fetched
+     separately, so the shares always add to 100 by construction. */
+  const rows = TAGS.map(t => {
+    const v = ROWS.filter(r => tagOf(r.type).n === t.n).reduce((s,r) => s + costAt(r, 0), 0);
+    return {...t, v};
+  });
+  const total = rows.reduce((s,r) => s + r.v, 0);
+  rows.forEach(r => r.pc = total > 0 ? r.v/total*100 : 0);
+  const span = Math.max(60, ...rows.map(r => Math.max(r.pc, r.target)) ) * 1.05;
+  box.innerHTML = rows.map(r => `
+    <div class="rrow">
+      <span class="nm"><i style="background:${r.c}"></i>${r.n}s</span>
+      <span class="rtrack">
+        <span class="bar" style="width:${Math.min(100, r.pc/span*100).toFixed(1)}%; background:${r.c}"></span>
+        <span class="tgt" tabindex="0" style="left:${(r.target/span*100).toFixed(1)}%" data-tip="Recommended ${r.target}% share for ${r.n.toLowerCase()}s."></span>
+      </span>
+      <span class="fig"><b>${r.pc.toFixed(0)}%</b><span>${fmt(r.v)} &middot; target ${r.target}%</span></span>
+    </div>`).join("")
+    + `<div class="rlegend"><span>Bar = your split</span><span>Vertical marker = the 50 / 30 / 20 guideline</span></div>`;
+
+  const need = rows[0], want = rows[1], save = rows[2];
+  let msg;
+  if(total <= 0) msg = "Add a few expenses and this will fill in.";
+  else if(save.pc >= 20 && need.pc <= 55)
+    msg = "A comfortable shape. Savings are at " + save.pc.toFixed(0) + "% and essentials are not crowding you out.";
+  else if(save.pc >= 20)
+    msg = "Savings are healthy at " + save.pc.toFixed(0) + "%, but essentials take " + need.pc.toFixed(0)
+        + "% of your outgo. That leaves little room to absorb a bad year, because needs are the hardest spending to cut.";
+  else if(want.pc > 30)
+    msg = "Savings are " + save.pc.toFixed(0) + "% against a 20% guideline, and wants are " + want.pc.toFixed(0)
+        + "%. Moving roughly " + fmt((20-save.pc)/100*total) + " a year from wants to savings would close the gap.";
+  else
+    msg = "Savings are " + save.pc.toFixed(0) + "% against a 20% guideline, and wants are already lean at " + want.pc.toFixed(0)
+        + "%. The gap is in essentials rather than indulgence, which usually means housing, EMIs or school fees.";
+  $("rule-note").innerHTML = esc(msg)
+    + " <br><br>One caveat: the 50 / 30 / 20 rule is normally read against take-home pay. This page only knows what leaves your account, so the percentages here are shares of total outgo. If you spend everything you earn the two are the same; if you do not, your true savings rate is higher than the figure above.";
+}
+
+/* ================= COST OVER TIME ================= */
+const GW=1400, GH=320, GL=86, GR=20, GT=16, GB=38;
+const PW = GW-GL-GR, PH = GH-GT-GB;
+function growthSeries(years){
+  const by = MODE;
+  const order = buckets(by).map(b => b.n);
+  const map = new Map();
+  ROWS.forEach(r => {
+    const key = by === "cat" ? catOf(r.cat).n : tagOf(r.type).n;
+    const col = by === "cat" ? catOf(r.cat).c : tagOf(r.type).c;
+    if(!map.has(key)) map.set(key, {n:key, c:col, pts:new Array(years+1).fill(0)});
+    const e = map.get(key);
+    for(let i=0;i<=years;i++) e.pts[i] += showAt(r, i);
+  });
+  /* keep a line if it is ever non-zero, not just at the end: things stop */
+  const arr = [...map.values()].filter(s => s.pts.some(v => v > 0));
+  arr.sort((a,b) => order.indexOf(a.n) - order.indexOf(b.n));
+  return arr;
+}
+function niceStep(max){
+  const raw = max/4, p = Math.pow(10, Math.floor(Math.log10(raw||1)));
+  return [1,2,2.5,5,10].map(m => m*p).find(v => v >= raw) || p*10;
+}
+function drawGrowth(){
+  const svg = $("growth"), leg = $("gleg"), tip = $("gtip");
+  const years = SPAN(), SER = growthSeries(years);
+  const totals = new Array(years+1).fill(0);
+  SER.forEach(s => s.pts.forEach((v,i) => totals[i] += v));
+  const y0 = new Date().getFullYear();
+
+  if(!SER.length || totals[years] <= 0){
+    svg.innerHTML = `<text x="${GL+PW/2}" y="${GT+PH/2}" text-anchor="middle" fill="#9aa7bd" font-size="14">Add an expense below to see the cost curve</text>`;
+    leg.innerHTML = ""; $("g-sub").innerHTML = "Nothing to project yet";
+    return;
+  }
+
+  const peak = Math.max(...totals, 1);
+  const step = niceStep(peak), top = Math.ceil(peak/step)*step;
+  const X = i => GL + (i/years)*PW;
+  const Y = v => GT + PH - (v/top)*PH;
+
+  let g = "";
+  for(let v=0; v<=top+1; v+=step){
+    const y = Y(v).toFixed(1);
+    g += `<line x1="${GL}" y1="${y}" x2="${GL+PW}" y2="${y}" stroke="#c7d1df" stroke-width="1" stroke-dasharray="4 5"/>`
+       + `<text x="${GL-10}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="#8ea0bd" font-size="11" font-weight="600">${fmt(v)}</text>`;
+  }
+  const tick = Math.max(1, Math.round(years/5));
+  for(let i=0;i<=years;i+=tick){
+    const x = X(i).toFixed(1);
+    g += `<line x1="${x}" y1="${GT}" x2="${x}" y2="${GT+PH}" stroke="#c7d1df" stroke-width="1" stroke-dasharray="4 5"/>`
+       + `<text x="${x}" y="${GT+PH+20}" text-anchor="${i===0?"start":(i>=years-0.5?"end":"middle")}" fill="#8ea0bd" font-size="11" font-weight="600">${i===0?"Now":y0+i}</text>`;
+  }
+
+  const area = `M${X(0).toFixed(1)},${Y(0).toFixed(1)} L`
+    + totals.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" L")
+    + ` L${X(years).toFixed(1)},${Y(0).toFixed(1)} Z`;
+  g += `<path d="${area}" fill="#174ee8" fill-opacity=".12" stroke="none"/>`;
+
+  const bands = [];
+  SER.forEach(sr => {
+    const d = sr.pts.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" L");
+    g += `<path d="M${d}" fill="none" stroke="${sr.c}" stroke-width="2.1" stroke-linejoin="round" stroke-linecap="round"/>`;
+    g += sr.pts.map((v,i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.6" fill="#fff" fill-opacity=".55" stroke="${sr.c}" stroke-width="2"/>`).join("");
+    bands.push(sr);
+  });
+
+  const totalPath = totals.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" L");
+  g += `<path d="M${totalPath}" fill="none" stroke="#174ee8" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>`;
+  g += totals.map((v,i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="4.2" fill="#fff" fill-opacity=".6" stroke="#174ee8" stroke-width="2.2"/>`).join("");
+
+  g += `<g id="gcross" opacity="0">
+          <line y1="${GT}" y2="${GT+PH}" stroke="#9aa6b6" stroke-width="1"/>
+          <circle r="5" fill="#fff" stroke="#174ee8" stroke-width="2.5"/>
+        </g>
+        <g id="gdots"></g>
+        <rect id="ghit" x="${GL}" y="${GT}" width="${PW}" height="${PH}" fill="transparent" style="cursor:crosshair"/>`;
+  svg.innerHTML = g;
+
+  leg.innerHTML = SER.map(s =>
+    `<span class="gi"><i style="background:${s.c}"></i>${esc(s.n)} <b>${fmt(s.pts[years])}</b></span>`
+  ).join("") + `<span class="gi" style="margin-left:auto"><i style="background:#174ee8"></i>Total <b>${fmt(totals[years])}</b></span>`;
+
+  let pk = 0; totals.forEach((v,i) => { if(v > totals[pk]) pk = i; });
+  $("g-sub").innerHTML = `At ${AGE} <b>${fmt(totals[0])}</b><span class="arrow">&rarr;</span>`
+    + `peaks at ${AGE+pk} on <b>${fmt(totals[pk])}</b>`
+    + ` &middot; ${fmt(totals[years])} still running at ${LIFE}`
+    + ` &middot; <span style="color:var(--slate)">${basisNote()}</span>`;
+
+  const cross = svg.querySelector("#gcross"), hit = svg.querySelector("#ghit"), dots = svg.querySelector("#gdots");
+  const line = cross.querySelector("line"), dot = cross.querySelector("circle");
+  const move = ev => {
+    const b = svg.getBoundingClientRect();
+    const px = (ev.clientX - b.left) / b.width * GW;
+    let i = Math.round((px - GL)/PW*years);
+    i = Math.max(0, Math.min(years, i));
+    const x = X(i), yv = Y(totals[i]);
+    line.setAttribute("x1", x); line.setAttribute("x2", x);
+    dot.setAttribute("cx", x); dot.setAttribute("cy", yv);
+    cross.setAttribute("opacity","1");
+    dots.innerHTML = bands.filter(s => s.pts[i] > 0).map(s =>
+      `<circle cx="${x.toFixed(1)}" cy="${Y(s.pts[i]).toFixed(1)}" r="4" fill="#fff" stroke="${s.c}" stroke-width="2"/>`).join("");
+
+    const parts = bands.map(s => ({n:s.n, c:s.c, v:s.pts[i]})).filter(p => p.v > 0).sort((a,b) => b.v - a.v);
+    const mid = Math.ceil(parts.length / 2);
+    const leftCol = parts.slice(0, mid);
+    const rightCol = parts.slice(mid);
+    const renderCol = arr => arr.map(p => `<div class="gl"><i style="background:${p.c}"></i><span>${esc(p.n)}</span><b>${fmt(p.v)}</b></div>`).join("");
+    tip.innerHTML = `<div class="yr">Age ${AGE+i} &middot; ${y0+i}</div>
+      <div class="tt">Total cost: ${full(totals[i])}</div>
+      <div class="gcols">
+        <div class="gcol">${renderCol(leftCol)}</div>
+        <div class="gcol">${renderCol(rightCol)}</div>
+      </div>`;
+    tip.classList.add("on");
+    tip.style.transform = "none";
+    const tipW = tip.offsetWidth;
+    const tipH = tip.offsetHeight;
+    const xPx = Math.max(0, Math.min(b.width, ev.clientX - b.left));
+    const yPx = (yv / GH) * b.height;
+    const gap = 12;
+    const sidePad = 8;
+    const leftPx = Math.min(Math.max(xPx - tipW / 2, sidePad), b.width - tipW - sidePad);
+    const topPx = yPx - tipH - gap;
+    tip.style.left = leftPx + "px";
+    tip.style.top = topPx + "px";
+  };
+  const leave = () => { cross.setAttribute("opacity","0"); dots.innerHTML=""; tip.classList.remove("on"); };
+  hit.addEventListener("mousemove", move);
+  hit.addEventListener("mouseleave", leave);
+  hit.addEventListener("touchstart", e => move(e.touches[0]), {passive:true});
+  hit.addEventListener("touchmove",  e => move(e.touches[0]), {passive:true});
+  hit.addEventListener("touchend", leave);
+}
+
+/* ================= LIFE-STAGE TIMELINE =================
+   One bar per expense, spanning the ages it applies to. Same age domain as the
+   curve above, so the two read against each other.
+====================================================== */
+const TW = 1400, TLAB = 250, TAMT = 132, TROW = 30, TTOP = 64;
+function drawTimeline(){
+  const svg = $("timeline"), tip = $("tltip");
+  const live = ROWS.map((r,i) => ({r,i})).filter(({r}) => annual(r) > 0);
+  const H = TTOP + Math.max(1, live.length)*TROW + 20;
+  svg.setAttribute("viewBox", `0 0 ${TW} ${H}`);
+  svg.style.height = H + "px";
+  svg.classList.remove("focusing");
+
+  if(!live.length){
+    svg.innerHTML = `<text x="${TW/2}" y="${H/2}" text-anchor="middle" fill="#9aa7bd" font-size="14">Add an expense below to see when it applies</text>`;
+    $("tl-sub").textContent = "Nothing recorded yet";
+    return;
+  }
+
+  const span = SPAN();
+  const PL = TLAB, PR = TW - TAMT;              /* the plot band */
+  const X = age => PL + ((age - AGE)/span)*(PR - PL);
+
+  /* longest-running first inside each start age: reads as a cascade */
+  live.sort((p,q) => (startOf(p.r) - startOf(q.r)) || (endOf(q.r) - endOf(p.r)) || (annual(q.r) - annual(p.r)));
+
+  let g = "";
+
+  /* ---- column headers, so the three zones are named before they are read ----
+     Without these the eye takes the whole picture for a magnitude chart: bars
+     of different lengths, all starting at a common left edge. Naming the middle
+     band "the years it applies" and the right column "a year" separates the
+     thing length means from the thing money means. */
+  g += `<text x="${(PL-16).toFixed(1)}" y="20" text-anchor="end" fill="#9aa7bd" font-size="10" font-weight="700" letter-spacing="1.1">EXPENSE</text>`
+     + `<text x="${((PL+PR)/2).toFixed(1)}" y="20" text-anchor="middle" fill="#9aa7bd" font-size="10" font-weight="700" letter-spacing="1.1">THE YEARS IT APPLIES</text>`
+     + `<text x="${TW-24}" y="20" text-anchor="end" fill="#9aa7bd" font-size="10" font-weight="700" letter-spacing="1.1">A YEAR</text>`
+     + `<line x1="0" y1="30" x2="${TW}" y2="30" stroke="#e7ecf3" stroke-width="1"/>`;
+
+  /* decade grid, drawn once, behind everything */
+  const marks = [AGE];
+  for(let m = Math.ceil((AGE+1)/10)*10; m < LIFE; m += 10) marks.push(m);
+  marks.push(LIFE);
+  marks.forEach(m => {
+    const x = X(m);
+    g += `<line x1="${x.toFixed(1)}" y1="${TTOP-18}" x2="${x.toFixed(1)}" y2="${H-12}" stroke="#e9eef5" stroke-width="1"/>`
+       + `<text x="${x.toFixed(1)}" y="${TTOP-26}" text-anchor="${m===AGE?"start":(m===LIFE?"end":"middle")}" fill="#8ea0bd" font-size="11" font-weight="700">${m}</text>`;
+  });
+  g += `<text x="${(PL-14).toFixed(1)}" y="${TTOP-26}" text-anchor="end" fill="#c3cbd8" font-size="10" font-weight="700" letter-spacing="1">AGE</text>`;
+
+  const meta = [];
+  live.forEach(({r}, k) => {
+    const y = TTOP + k*TROW, cy = y + TROW/2;
+    const cat = catOf(r.cat), bad = badWindow(r);
+    const label = (r.sub && r.sub.trim()) ? r.sub : cat.n;
+    const shown = label.length > 26 ? label.slice(0,25) + "\u2026" : label;
+
+    g += `<rect class="tlrowbg" data-row="${k}" x="0" y="${y}" width="${TW}" height="${TROW}" fill="#f6f8fb"/>`;
+    g += `<text class="tllab" data-row="${k}" x="${PL-14}" y="${cy}" text-anchor="end" dominant-baseline="middle"`
+       + ` fill="#33456b" font-size="12.5" font-weight="600">${esc(shown)}</text>`;
+
+    if(bad){
+      g += `<text x="${PL+10}" y="${cy}" dominant-baseline="middle" fill="#e2574c" font-size="11.5" font-weight="700">ends before it starts &mdash; check the ages</text>`;
+      return;
+    }
+
+    /* Every row gets the same full-length rail. The bar is visibly a SEGMENT of
+       a fixed track rather than a quantity growing from zero, which is what
+       stops a long bar reading as a large number. */
+    g += `<rect x="${PL.toFixed(1)}" y="${(cy-4).toFixed(1)}" width="${(PR-PL).toFixed(1)}" height="8" rx="4" fill="#eef2f7"/>`;
+
+    const x0 = X(startOf(r)), x1 = X(endOf(r) + 1);
+    const w = Math.max(4, x1 - x0);
+    g += `<rect class="tlbar" data-row="${k}" tabindex="0" role="img"`
+       + ` aria-label="${esc(label)}: applies from age ${startOf(r)} to ${endOf(r)}, costing ${full(annual(r))} a year"`
+       + ` x="${x0.toFixed(1)}" y="${y+7}" width="${w.toFixed(1)}" height="${TROW-14}" rx="3" fill="${cat.c}"></rect>`;
+
+    /* caps at both ends: they mark where the span begins and ends, so the bar
+       is read from its edges rather than from its length alone */
+    const cap = (x, end) => `<rect x="${(x - (end?1.6:0)).toFixed(1)}" y="${(cy-9).toFixed(1)}" width="1.6" height="18" fill="${cat.c}" opacity=".55"/>`;
+    g += cap(x0,false) + cap(x1,true);
+
+    /* the two ages, printed just outside the span where there is room */
+    const sTxt = String(startOf(r)), eTxt = String(endOf(r));
+    if(x0 - PL > 26) g += `<text class="tlend" data-row="${k}" x="${(x0-7).toFixed(1)}" y="${cy}" text-anchor="end" dominant-baseline="middle" fill="#9aa7bd" font-size="10.5" font-weight="700">${sTxt}</text>`;
+    if(PR - x1 > 26) g += `<text class="tlend" data-row="${k}" x="${(x1+7).toFixed(1)}" y="${cy}" text-anchor="start" dominant-baseline="middle" fill="#9aa7bd" font-size="10.5" font-weight="700">${eTxt}</text>`;
+
+    /* amounts live in their own aligned column, never on the bars */
+    g += `<text class="tlamt" data-row="${k}" x="${TW-24}" y="${cy}" text-anchor="end" dominant-baseline="middle"`
+       + ` fill="#66799a" font-size="12" font-weight="700">${fmt(annual(r))}</text>`;
+    meta[k] = {r, label, cat, y};
+  });
+
+  /* a divider between the plot and the money column, so the figures are not
+     read as the end of the bars */
+  g += `<line x1="${(PR+16).toFixed(1)}" y1="30" x2="${(PR+16).toFixed(1)}" y2="${H-12}" stroke="#e7ecf3" stroke-width="1"/>`;
+  svg.innerHTML = g;
+
+  /* ---------- hover: focus the row, park the card clear of the pointer ---------- */
+  const rowsBg = [...svg.querySelectorAll(".tlrowbg")];
+  const labs   = [...svg.querySelectorAll(".tllab")];
+  const amts   = [...svg.querySelectorAll(".tlamt"), ...svg.querySelectorAll(".tlend")];
+  const bars   = [...svg.querySelectorAll(".tlbar")];
+
+  const place = (ev, m) => {
+    const box = svg.getBoundingClientRect();
+    const w = tip.offsetWidth, h = tip.offsetHeight;      /* measured after the content is in */
+    const scale = box.height / H;
+    const rowTop = m.y * scale, rowBot = (m.y + TROW) * scale;
+
+    /* sit beside the pointer, flipping to the other side near the edge */
+    const cx = (ev && ev.clientX != null) ? ev.clientX - box.left : (box.width/2);
+    let left = cx + 20;
+    if(left + w > box.width - 8) left = cx - w - 20;
+    left = Math.max(8, Math.min(box.width - w - 8, left));
+
+    /* below the row it describes, above it if there is no room */
+    let top = rowBot + 10;
+    if(top + h > box.height - 2) top = rowTop - h - 10;
+    top = Math.max(2, top);
+
+    tip.style.left = left + "px";
+    tip.style.top  = top + "px";
+  };
+
+  const show = (k, ev) => {
+    const m = meta[k];
+    if(!m) return;
+    const r = m.r, yrs = yearsOf(r), endsAt = endOf(r), lastT = endsAt - AGE;
+    const first = showAt(r, 0), last = showAt(r, lastT);
+    tip.innerHTML =
+      `<div class="h"><i style="background:${m.cat.c}"></i>${esc(m.label)}</div>
+       <div class="amt">${full(annual(r))} a year</div>
+       <div class="l"><span>Runs</span><b>age ${startOf(r)}&ndash;${endsAt} &middot; ${yrs} yr${yrs===1?"":"s"}</b></div>
+       <div class="l"><span>By the last year</span><b>${fmt(last)}</b></div>
+       <div class="l"><span>Total over the run</span><b>${fmt(runTotal(r))}</b></div>
+       <div class="n">${num(r.inf) > 0
+          ? num(r.inf) + "% vs " + GINF + "% inflation \u2014 "
+            + (num(r.inf) > GINF ? "grows" : num(r.inf) < GINF ? "shrinks" : "holds flat")
+            + " in real terms. All figures " + basisNote() + "."
+          : "Fixed in rupees, so it shrinks to "
+            + (first > 0 ? Math.round(last/first*100) : 0) + "% of today's burden. All figures " + basisNote() + "."}`
+      + `</div>`;
+    tip.classList.add("on");
+    place(ev, m);
+    svg.classList.add("focusing");
+    rowsBg.forEach(el => el.style.opacity = (+el.dataset.row === k) ? "1" : "0");
+    [...bars, ...labs, ...amts].forEach(el => el.classList.toggle("hot", +el.dataset.row === k));
+  };
+  const hide = () => {
+    tip.classList.remove("on");
+    svg.classList.remove("focusing");
+    rowsBg.forEach(el => el.style.opacity = "0");
+    [...bars, ...labs, ...amts].forEach(el => el.classList.remove("hot"));
+  };
+
+  bars.forEach(el => {
+    const k = +el.dataset.row;
+    el.addEventListener("mouseenter", e => show(k, e));
+    el.addEventListener("mousemove",  e => { const m = meta[k]; if(m) place(e, m); });
+    el.addEventListener("mouseleave", hide);
+    el.addEventListener("focus", () => show(k, null));
+    el.addEventListener("blur", hide);
+  });
+  svg.addEventListener("mouseleave", hide);
+
+  /* ---------- one plain line of what the picture says ---------- */
+  const starts = live.filter(({r}) => startOf(r) > AGE).sort((p,q) => startOf(p.r) - startOf(q.r));
+  const ending = live.filter(({r}) => endOf(r) < LIFE).sort((p,q) => endOf(p.r) - endOf(q.r));
+  const bits = [`${live.length} expenses, ages ${AGE} to ${LIFE}`];
+  if(starts.length) bits.push(`${starts.length} start later`);
+  if(ending.length) bits.push(`${ending.length} finish early, the first at ${endOf(ending[0].r)}`);
+  $("tl-sub").textContent = bits.join(" \u00B7 ");
+}
+
+/* ================= SUMMARY CARDS ================= */
+function drawCards(){
+  const total = totalAnnual();
+  const per = TAGS.map(t => ({
+    ...t,
+    v: ROWS.filter(r => tagOf(r.type).n === t.n).reduce((s,r) => s + costAt(r,0), 0)
+  }));
+  let pk = 0, pkv = 0;
+  for(let t=0; t<=SPAN(); t++){ const v = showTotalAt(t); if(v > pkv){ pkv = v; pk = t; } }
+  $("cards").innerHTML =
+      `<div class="sum total"><div class="l">Spending this year</div>
+         <div class="v">${fmt(total)}</div>
+         <div class="s">${ROWS.filter(r => costAt(r,0) > 0).length} of ${ROWS.length} running at ${AGE}</div></div>`
+    + `<div class="sum" style="--tone:#003c8f"><div class="l">A month, on average</div>
+         <div class="v" style="color:#003c8f">${fmt(total/12)}</div>
+         <div class="s">annual total spread evenly</div></div>`
+    + per.map(t => `<div class="sum" style="--tone:${t.c}">
+         <div class="l">${t.n}s</div>
+         <div class="v" style="color:${t.c}">${total? (t.v/total*100).toFixed(0):0}%</div>
+         <div class="s">${fmt(t.v)} a year &middot; target ${t.target}%</div></div>`).join("")
+    + `<div class="sum" style="--tone:#e2574c"><div class="l">Heaviest year</div>
+         <div class="v" style="color:#e2574c">${fmt(pkv)}</div>
+         <div class="s">at age ${AGE+pk} \u00B7 ${basisNote()}</div></div>`;
+}
+
+/* ================= TABLE ================= */
+function visible(){
+  const q = SEARCH.trim().toLowerCase();
+  return ROWS.map((r,i) => ({r,i})).filter(({r}) => {
+    if(FILTER && tagOf(r.type).n !== FILTER) return false;
+    if(!q) return true;
+    return (r.cat+" "+r.sub+" "+r.notes+" "+r.src).toLowerCase().includes(q);
+  });
+}
+function drawTable(){
+  const tb = $("tbody"), rows = visible();
+  tb.innerHTML = "";
+  $("empty").style.display = rows.length ? "none" : "block";
+  $("rowcount").textContent = rows.length === ROWS.length
+    ? ROWS.length + (ROWS.length===1 ? " expense" : " expenses")
+    : rows.length + " of " + ROWS.length + " shown";
+
+  rows.forEach(({r,i}) => {
+    const cat = catOf(r.cat), tag = tagOf(r.type);
+    const yr = annual(r), bad = badWindow(r), yrs = yearsOf(r), tot = runTotal(r);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="stick">
+        <button type="button" class="dd cell catpick" data-k="cat" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" style="background:${cat.c}"></span><span class="lbl">${esc(cat.n)}</span></button></td>
+      <td><input class="cell" data-k="sub" value="${esc(r.sub)}" placeholder="What exactly?" style="min-width:150px"></td>
+      <td><button type="button" class="dd cell tagpick" data-k="type" aria-haspopup="listbox" aria-expanded="false">
+          <span class="sw" style="background:${tag.c}"></span><span class="lbl">${esc(tag.n)}</span></button></td>
+      <td><input class="cell money" data-k="amt" type="number" value="${r.amt}" placeholder="0"></td>
+      <td><button type="button" class="dd cell small" data-k="freq" aria-haspopup="listbox" aria-expanded="false">
+          <span class="lbl">${esc(r.freq)}</span></button></td>
+      <td class="rt"><span class="proj">${fmt(yr)}<small>${fmt(yr/12)} a month</small></span></td>
+      <td><input class="cell money small${bad?" warnval":""}" data-k="from" type="number" value="${r.from}" style="min-width:74px"></td>
+      <td><input class="cell money small${bad?" warnval":""}" data-k="to" type="number" value="${r.to}" style="min-width:74px"></td>
+      <td><span class="flagwrap">
+            <input class="cell money${suspectRate(r)?" warnval":""}" data-k="inf" type="number" step="0.1" value="${r.inf}">
+            ${suspectRate(r) ? `<span class="flag" title="A rate under 0.5% is almost always a typo. 6 means six percent.">did you mean ${(num(r.inf)*100).toFixed(0)}?</span>` : ""}
+          </span></td>
+      <td class="rt">${bad
+          ? `<span class="badrow">ends before it starts</span>`
+          : `<span class="proj">${fmt(tot)}<small>${yrs} ${yrs===1?"year":"years"} \u00B7 ends at ${endOf(r)}</small></span>`}</td>
+      <td><input class="cell" data-k="src" value="${esc(r.src)}" placeholder="Account or card" style="min-width:130px"></td>
+      <td><input class="cell" data-k="notes" value="${esc(r.notes)}" placeholder="Click to add" style="min-width:150px"></td>
+      <td><span class="acts">
+        <button class="rb save${r.saved?" done":""}" type="button">${r.saved?"Saved":"Save"}</button>
+        <button class="rb del" type="button">Remove</button></span></td>`;
+
+    const btnSave = tr.querySelector(".save");
+    const dirty = () => { r.saved = false; btnSave.classList.remove("done"); btnSave.textContent = "Save"; };
+
+    tr.querySelectorAll("input[data-k]").forEach(el => {
+      el.addEventListener("input", e => {
+        const k = e.target.dataset.k;
+        r[k] = ["amt","inf","from","to"].includes(k) ? num(e.target.value) : e.target.value;
+        dirty();
+        if(k === "inf" || k === "from" || k === "to") drawTable();   /* flags and run totals recompute */
+        refresh(false);
+      });
+    });
+
+    /* category also seeds the inflation rate and the type */
+    tr.querySelector('[data-k="cat"]').addEventListener("click", e => {
+      ddToggle(e.currentTarget, CATS.map(c => ({n:c.n, c:c.c, rt:c.inf+"%"})), r.cat, v => {
+        r.cat = v; r.inf = catOf(v).inf; r.type = catOf(v).type; dirty(); refresh();
+      });
+    });
+    tr.querySelector('[data-k="type"]').addEventListener("click", e => {
+      ddToggle(e.currentTarget, TAGS.map(t => ({n:t.n, c:t.c})), r.type, v => { r.type = v; dirty(); refresh(); });
+    });
+    tr.querySelector('[data-k="freq"]').addEventListener("click", e => {
+      ddToggle(e.currentTarget, FREQ.map(f => ({n:f})), r.freq, v => { r.freq = v; dirty(); refresh(); });
+    });
+
+    btnSave.addEventListener("click", () => { r.saved = true; btnSave.classList.add("done"); btnSave.textContent = "Saved"; });
+    tr.querySelector(".del").addEventListener("click", () => { ROWS.splice(i,1); refresh(); });
+    tb.appendChild(tr);
+  });
+}
+
+/* ================= REFRESH ================= */
+function refresh(redrawTable = true){
+  drawCards(); drawDonut(); drawRule(); drawGrowth(); drawTimeline();
+  if(redrawTable) drawTable();
+}
+
+/* ================= DROPDOWNS =================
+   Native <option> lists are drawn by the OS and can't be themed, so the
+   pickers are real elements. The panel lives on <body> as position:fixed so
+   the table's horizontal overflow can't clip it.
+============================================== */
+const DDPOP = document.createElement("div");
+DDPOP.className = "ddpop"; DDPOP.setAttribute("role","listbox");
+document.body.appendChild(DDPOP);
+let DD = null;                                  /* {btn, opts, pick, idx} */
+
+function ddClose(){
+  if(!DD) return;
+  DDPOP.classList.remove("on"); DDPOP.innerHTML = "";
+  DD.btn.setAttribute("aria-expanded","false");
+  DD = null;
+}
+function ddMark(scroll){
+  [...DDPOP.children].forEach((el,i) => el.classList.toggle("cur", i === DD.idx));
+  if(scroll && DDPOP.children[DD.idx]) DDPOP.children[DD.idx].scrollIntoView({block:"nearest"});
+}
+function ddPlace(){
+  const r = DD.btn.getBoundingClientRect();
+  DDPOP.style.minWidth = Math.max(r.width, 190) + "px";
+  DDPOP.style.left = "-9999px"; DDPOP.style.top = "0px";          /* measure clean */
+  const pw = DDPOP.offsetWidth, ph = DDPOP.offsetHeight;
+  let top = r.bottom + 6, left = r.left;
+  if(top + ph > innerHeight - 10) top = Math.max(10, r.top - ph - 6);   /* flip up */
+  if(left + pw > innerWidth - 10) left = Math.max(10, innerWidth - pw - 10);
+  DDPOP.style.left = Math.round(left) + "px"; DDPOP.style.top = Math.round(top) + "px";
+}
+function ddToggle(btn, opts, cur, pick){
+  if(DD && DD.btn === btn){ ddClose(); return; }
+  ddClose();
+  DDPOP.innerHTML = opts.map((o,i) =>
+      `<div class="ddopt" role="option" data-i="${i}" aria-selected="${o.n === cur}">`
+    + (o.c ? `<span class="sw" style="background:${o.c}"></span>` : "")
+    + `<span class="nm">${esc(o.n)}</span>`
+    + (o.rt ? `<span class="rt">${o.rt}</span>` : "")
+    + `</div>`).join("");
+  DDPOP.classList.add("on");
+  btn.setAttribute("aria-expanded","true");
+  DD = {btn, opts, pick, idx: Math.max(0, opts.findIndex(o => o.n === cur))};
+  ddPlace(); ddMark(true);
+  btn.focus();
+}
+function ddChoose(i){
+  const {opts, pick, btn} = DD; ddClose(); btn.focus(); pick(opts[i].n);
+}
+DDPOP.addEventListener("mousedown", e => {
+  const el = e.target.closest(".ddopt");
+  if(!el || !DD) return;
+  e.preventDefault(); ddChoose(+el.dataset.i);
+});
+DDPOP.addEventListener("mousemove", e => {
+  const el = e.target.closest(".ddopt");
+  if(el && DD){ DD.idx = +el.dataset.i; ddMark(false); }
+});
+document.addEventListener("mousedown", e => {
+  if(DD && !DDPOP.contains(e.target) && !DD.btn.contains(e.target)) ddClose();
+});
+document.addEventListener("keydown", e => {
+  if(!DD) return;
+  const n = DD.opts.length;
+  const k = e.key;
+  if(k === "Escape"){ e.preventDefault(); const b = DD.btn; ddClose(); b.focus(); }
+  else if(k === "ArrowDown"){ e.preventDefault(); DD.idx = (DD.idx+1)%n; ddMark(true); }
+  else if(k === "ArrowUp"){ e.preventDefault(); DD.idx = (DD.idx-1+n)%n; ddMark(true); }
+  else if(k === "Home"){ e.preventDefault(); DD.idx = 0; ddMark(true); }
+  else if(k === "End"){ e.preventDefault(); DD.idx = n-1; ddMark(true); }
+  else if(k === "Enter" || k === " "){ e.preventDefault(); ddChoose(DD.idx); }
+  else if(k === "Tab"){ ddClose(); }
+  else if(k.length === 1 && /\S/.test(k)){                      /* type to jump */
+    const q = k.toLowerCase();
+    const at = DD.opts.findIndex((o,i) => i > DD.idx && o.n.toLowerCase().startsWith(q));
+    const hit = at > -1 ? at : DD.opts.findIndex(o => o.n.toLowerCase().startsWith(q));
+    if(hit > -1){ DD.idx = hit; ddMark(true); }
+  }
+});
+/* keep the panel glued to its trigger while anything scrolls */
+window.addEventListener("scroll", () => { if(DD) ddPlace(); }, true);
+window.addEventListener("resize", ddClose);
+
+/* open on keyboard without a mouse press */
+document.addEventListener("keydown", e => {
+  if(DD) return;
+  const b = document.activeElement;
+  if(b && b.classList && b.classList.contains("dd") && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")){
+    e.preventDefault(); b.click();
+  }
+});
+
+
+/* ================= WIRING ================= */
+document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-mode]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); MODE = b.dataset.mode; drawDonut(); drawGrowth();
+}));
+$("i-age").addEventListener("input", e => {
+  const v = num(e.target.value);
+  if(v > 0 && v < 100){ AGE = Math.round(v); if(LIFE <= AGE){ LIFE = AGE + 1; $("i-life").value = LIFE; } refresh(); }
+});
+$("i-life").addEventListener("input", e => {
+  const v = num(e.target.value);
+  if(v > AGE && v <= 110){ LIFE = Math.round(v); refresh(); }
+});
+$("i-ginf").addEventListener("input", e => { GINF = num(e.target.value); refresh(); });
+document.querySelectorAll("[data-basis]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("[data-basis]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); BASIS = b.dataset.basis; refresh();
+}));
+const addExpense = () => {
+  ROWS.push({cat:"Other", sub:"", type:catOf("Other").type, amt:0, freq:"Monthly",
+             inf:catOf("Other").inf, from:AGE, to:LIFE, src:"", notes:"", saved:false});
+  SEARCH = ""; FILTER = ""; $("search").value = "";
+  $("filter").querySelector(".lbl").textContent = "All types";
+  refresh();
+  const last = $("tbody").lastElementChild;
+  if(last) last.querySelector('input[data-k="sub"]').focus();
+};
+$("btn-add").addEventListener("click", addExpense);
+$("btn-add2").addEventListener("click", addExpense);
+$("search").addEventListener("input", e => { SEARCH = e.target.value; drawTable(); });
+$("filter").addEventListener("click", e => {
+  const opts = [{n:"All types"}].concat(TAGS.map(t => ({n:t.n, c:t.c})));
+  ddToggle(e.currentTarget, opts, FILTER || "All types", v => {
+    FILTER = (v === "All types") ? "" : v;
+    $("filter").querySelector(".lbl").textContent = v;
+    drawTable();
+  });
+});
+$("btn-reset").addEventListener("click", () => {
+  SEARCH = ""; FILTER = ""; $("search").value = "";
+  $("filter").querySelector(".lbl").textContent = "All types";
+  drawTable();
+});
+$("btn-csv").addEventListener("click", () => {
+  const head = ["Category","Subcategory","Type","Amount","Frequency","Annual cost","From age","To age","Inflation %","Total over its run","Paid from","Notes"];
+  const q = v => `"${String(v==null?"":v).replace(/"/g,'""')}"`;
+  const csv = [head.map(q).join(",")].concat(
+    ROWS.map(r => [r.cat,r.sub,r.type,r.amt,r.freq,Math.round(annual(r)),r.from,r.to,r.inf,Math.round(runTotal(r)),r.src,r.notes].map(q).join(","))
+  ).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
+  a.download = "lifemap-expenses.csv"; a.click(); URL.revokeObjectURL(a.href);
+});
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { drawGrowth(); drawTimeline(); }, 120); });
+
+(function(){
+  const tabs = [...document.querySelectorAll(".tier2 .stab[data-go]")];
+  const jump = id => {
+    const el = $(id);
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  };
+  tabs.forEach(b => b.addEventListener("click", () => {
+    tabs.forEach(x => x.classList.toggle("on", x === b));
+    jump(b.dataset.go);
+  }));
+
+  /* the frozen bar lifts off the page once the header has scrolled past */
+  const bar = $("tier2wrap"), head = document.querySelector(".topbar");
+  if(bar && head){
+    const onStuck = () => bar.classList.toggle("stuck", window.scrollY > head.offsetHeight - 1);
+    window.addEventListener("scroll", onStuck, {passive:true});
+    window.addEventListener("resize", onStuck);
+    onStuck();
+  }
+
+  /* highlight whichever section is in view */
+  const mark = id => tabs.forEach(b => b.classList.toggle("on", b.dataset.go === id));
+  const targets = tabs.map(b => $(b.dataset.go)).filter(Boolean);
+  if("IntersectionObserver" in window && targets.length){
+    const nav = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--navh")) || 44;
+    const seen = new Map();
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => seen.set(e.target.id, e));
+      let best = null;
+      seen.forEach(e => {
+        if(!e.isIntersecting) return;
+        if(!best || e.intersectionRatio > best.intersectionRatio) best = e;
+      });
+      if(best) mark(best.target.id);
+    }, {rootMargin:"-" + (nav + 10) + "px 0px -55% 0px", threshold:[0,.1,.25,.5,1]});
+    targets.forEach(t => obs.observe(t));
+  }
+})();
+
+refresh();
+/* ---------- page description toggle ---------- */
+document.querySelectorAll(".pmore").forEach(btn => {
+  const box = document.getElementById(btn.getAttribute("aria-controls"));
+  if(!box) return;
+  const set = open => {
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    box.classList.toggle("open", open);
+    /* measured on every open: the text wraps differently at different widths */
+    box.style.maxHeight = open ? box.scrollHeight + "px" : "0px";
+  };
+  btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+  window.addEventListener("resize", () => {
+    if(btn.getAttribute("aria-expanded") === "true") box.style.maxHeight = box.scrollHeight + "px";
+  });
+});
+
+/* ---------- fold every section note behind a caret ----------
+   Done here rather than in the markup so the same rule covers notes that are
+   written by script as well as those already in the page, and so a note added
+   later is folded automatically. */
+(function(){
+  document.querySelectorAll(".rowfoot, .foot, .gfoot, .rnote").forEach(note => {
+    if(note.closest(".nfold")) return;
+    const host = note.parentNode;
+    const bar  = document.createElement("div");
+    bar.className = "notebar";
+    const btn  = document.createElement("button");
+    btn.type = "button"; btn.className = "nmore";
+    btn.setAttribute("aria-expanded","false");
+    btn.setAttribute("aria-label","Show the note for this section");
+    bar.appendChild(btn);
+    const fold = document.createElement("div");
+    fold.className = "nfold";
+    host.insertBefore(bar, note);
+    host.insertBefore(fold, note);
+    fold.appendChild(note);
+    const set = open => {
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      fold.classList.toggle("open", open);
+      fold.style.maxHeight = open ? fold.scrollHeight + "px" : "0px";
+    };
+    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+    /* the notes are rewritten as figures change, so the measured height goes stale */
+    new MutationObserver(() => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    }).observe(note, {childList:true, characterData:true, subtree:true});
+    window.addEventListener("resize", () => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    });
+  });
+})();
+
+
+/* === LIFEMAP_BRIDGE_START === */
+(function(){
+  var PAGE = "expenses";
+  var ROUTES = {
+    "lifemap-fp-calculator.html": "/",
+    "fp-calculator.html": "/",
+    "lifemap-assets.html": "/assets",
+    "assets.html": "/assets",
+    "lifemap-work-assets.html": "/work-assets",
+    "work-assets.html": "/work-assets",
+    "lifemap-goals.html": "/goals",
+    "goals.html": "/goals",
+    "lifemap-loans.html": "/loans",
+    "loans.html": "/loans",
+    "lifemap-expenses.html": "/expenses",
+    "expenses.html": "/expenses",
+    "lifemap-insurance.html": "/insurance",
+    "insurance.html": "/insurance"
+  };
+
+  function post(type, payload){
+    try { parent.postMessage({ source:"lifemap-mockup", type:type, page:PAGE, payload:payload||null }, "*"); }
+    catch (e) {}
+  }
+
+  function fileOf(href){
+    if (!href) return "";
+    var clean = String(href).split("#")[0].split("?")[0];
+    var parts = clean.split("/");
+    return parts[parts.length-1];
+  }
+
+  function replaceList(target, next){
+    if (!target || !next) return;
+    target.splice.apply(target, [0, target.length].concat(next));
+  }
+
+  function getState(){
+    try {
+      if (PAGE === "fp") {
+        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
+      }
+      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ };
+      if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
+      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS };
+      if (PAGE === "loans") return { ROWS: ROWS.slice(), PLAN: PLAN.slice(), VIEW: VIEW };
+      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE };
+    } catch (e) { console.error(e); }
+    return {};
+  }
+
+  function hydrateFp(st){
+    if (!st || !st.S) return;
+    var src = st.S;
+    S.age = src.age; S.salary = src.salary; S.gSal = src.gSal; S.workTill = src.workTill;
+    S.finAssets = src.finAssets; S.personalAssets = src.personalAssets;
+    S.gRet = src.gRet; S.gInf = src.gInf; S.lifeTo = src.lifeTo;
+    if (src.loans) replaceList(S.loans, src.loans);
+    if (src.goals) replaceList(S.goals, src.goals);
+    if (src.exp) replaceList(S.exp, src.exp);
+    var set = function(id, val){ var el = $(id); if (el) el.value = val; };
+    var setTxt = function(id, val){ var el = $(id); if (el) el.textContent = val; };
+    set("i-age", S.age);
+    set("i-salary", S.salary);
+    set("i-gsal", S.gSal);
+    set("i-gsal2", S.gSal);
+    set("i-work-age", S.workTill);
+    set("i-fin-assets", S.finAssets);
+    set("i-personal-assets", S.personalAssets);
+    set("i-gret", S.gRet); setTxt("o-gret", Number(S.gRet).toFixed(1)+"%");
+    set("i-ginf", S.gInf); setTxt("o-ginf", Number(S.gInf).toFixed(1)+"%");
+    setTxt("o-gsal2", Number(S.gSal).toFixed(1)+"%");
+    set("i-life", S.lifeTo); setTxt("o-life", S.lifeTo);
+    ["loans","goals","exp"].forEach(renderRows);
+    refresh();
+  }
+
+  function setState(st){
+    if (!st) return;
+    try {
+      if (PAGE === "fp") { hydrateFp(st); return; }
+      if (PAGE === "assets") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
+        if (st.MODE) MODE = st.MODE;
+        if (st.HZ) HZ = st.HZ;
+        refresh();
+        return;
+      }
+      if (PAGE === "work") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") {
+          AGE = st.AGE;
+          var ageEl = $("i-age");
+          if (ageEl) ageEl.value = AGE;
+        }
+        var maxId = 0;
+        ROWS.forEach(function(r){ if (r.id > maxId) maxId = r.id; });
+        try { NEXT_ID = maxId + 1; } catch(e) {}
+        refresh();
+        return;
+      }
+      if (PAGE === "goals") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
+        if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
+        if (st.BASIS) BASIS = st.BASIS;
+        refresh();
+        return;
+      }
+      if (PAGE === "loans") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (st.PLAN) replaceList(PLAN, st.PLAN);
+        if (typeof REGS !== "undefined") {
+          REGS.cur.list = ROWS;
+          REGS.plan.list = PLAN;
+        }
+        if (st.VIEW) VIEW = st.VIEW;
+        refresh();
+        return;
+      }
+      if (PAGE === "expenses") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var e1=$("i-age"); if(e1) e1.value=AGE; }
+        if (typeof st.LIFE === "number") { LIFE = st.LIFE; var e2=$("i-life"); if(e2) e2.value=LIFE; }
+        if (typeof st.GINF === "number") { GINF = st.GINF; var e3=$("i-ginf"); if(e3) e3.value=GINF; }
+        if (st.BASIS) BASIS = st.BASIS;
+        if (st.MODE) MODE = st.MODE;
+        refresh();
+      }
+    } catch (err) {
+      console.error("LifeMap setState failed", err);
+    }
+  }
+
+  function setAccount(label){
+    var link = document.querySelector(".tier0 .tlink");
+    if (link && label) link.textContent = label;
+  }
+
+  document.querySelectorAll(".ptab.gate").forEach(function(a){
+    var label = (a.textContent || "").replace(/\s+/g," ").trim();
+    if (/insurance/i.test(label)) {
+      a.classList.remove("gate");
+      a.removeAttribute("title");
+      a.setAttribute("href", "/insurance");
+    }
+  });
+
+  document.querySelectorAll("a").forEach(function(a){
+    a.addEventListener("click", function(e){
+      var href = a.getAttribute("href") || "";
+      var file = fileOf(href);
+      var label = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/^insurance$/i.test(label) && (a.classList.contains("ptab") || href === "/insurance" || href === "#")) {
+        e.preventDefault();
+        post("navigate", { path: "/insurance" });
+        return;
+      }
+      if (a.classList.contains("gate")) { e.preventDefault(); return; }
+      if (ROUTES[file]) {
+        e.preventDefault();
+        post("navigate", { path: ROUTES[file] });
+      }
+    });
+  });
+
+  document.querySelectorAll(".tier0 .tlink, .tier0 .btn").forEach(function(a){
+    a.addEventListener("click", function(e){
+      e.preventDefault();
+      var text = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/sign in|account/i.test(text)) post("auth", { action: "signin", label: text });
+      else if (/save/i.test(text)) post("save", getState());
+    });
+  });
+
+  document.addEventListener("click", function(e){
+    var saveBtn = e.target.closest && e.target.closest(".rb.save");
+    var delBtn = e.target.closest && e.target.closest(".rb.del");
+    if (saveBtn || delBtn) {
+      setTimeout(function(){ post(delBtn ? "row-delete" : "row-save", getState()); }, 30);
+    }
+  }, true);
+
+  window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  post("ready", getState());
+})();
+/* === LIFEMAP_BRIDGE_END === */
+
+</script>
+</body>
+</html>

@@ -117,13 +117,22 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-primary">Welcome to Life Sheet</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+    <div className="lm-modal-overlay" onClick={onClose}>
+      <div className="lm-modal" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
+          <div>
+            <div className="lm-gate-brand" style={{ marginBottom: 8 }}>
+              <span className="lm-mark" />
+              <span>
+                <span className="lm-brand-name">LifeMap</span>
+                <span className="lm-brand-by">by BOX Wealth</span>
+              </span>
+            </div>
+            <h2>{activeTab === 'register' ? 'Save my plan' : 'Sign in'}</h2>
+          </div>
+          <button type="button" className="lm-iconbtn" onClick={onClose} aria-label="Close">
             <X className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
 
         {error && (
@@ -134,12 +143,12 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
           </Alert>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="register">Register</TabsTrigger>
-          </TabsList>
+        <div className="lm-seg">
+          <button type="button" className={activeTab === 'login' ? 'on' : ''} onClick={() => setActiveTab('login')}>Sign in</button>
+          <button type="button" className={activeTab === 'register' ? 'on' : ''} onClick={() => setActiveTab('register')}>Create account</button>
+        </div>
 
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsContent value="login">
             <Card>
               <CardHeader>
@@ -172,8 +181,8 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Logging in...' : 'Login'}
+                  <Button type="submit" className="lm-btn" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
+                    {loading ? 'Signing in…' : 'Sign in'}
                   </Button>
                 </form>
                 
@@ -310,9 +319,9 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Creating Account...' : 'Create Account'}
-                  </Button>
+                    <Button type="submit" className="lm-btn" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
+                      {loading ? 'Creating account…' : 'Create account'}
+                    </Button>
                 </form>
                 
                 <div className="mt-6">

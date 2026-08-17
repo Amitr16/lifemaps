@@ -29,6 +29,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import pool from './config/database.js';
+import { ensureLifemapMockupSchema } from './scripts/ensure-lifemap-mockup-schema.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -345,12 +346,18 @@ const shutdown = async (signal) => {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Life Sheet Backend Server running on port ${PORT}`);
-  console.log(`📊 Database: PostgreSQL (${process.env.DB_NAME || 'life_sheet'})`);
-  console.log(`🌐 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:5174'}`);
-  console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
-});
+// Start server after schema patches so new mockup columns exist
+ensureLifemapMockupSchema(pool)
+  .catch((error) => {
+    console.error('[migrate] LifeMap mockup schema failed (server will still start):', error.message);
+  })
+  .finally(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀 Life Sheet Backend Server running on port ${PORT}`);
+      console.log(`📊 Database: PostgreSQL (${process.env.DB_NAME || 'life_sheet'})`);
+      console.log(`🌐 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:5174'}`);
+      console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
+    });
+  });
 
 export default app;

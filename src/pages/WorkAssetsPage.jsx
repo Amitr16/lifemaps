@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Briefcase } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +8,8 @@ import { useAdminUser } from '../contexts/AdminUserContext';
 import { useLifeSheetStore } from '../store/enhanced-store';
 import ApiService from '../services/api';
 import UnifiedChart from '@/components/UnifiedChart.jsx';
+import PageHeader from '@/components/PageHeader.jsx';
+import PagePager from '@/components/PagePager.jsx';
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined || isNaN(value)) return '₹0';
@@ -316,17 +318,23 @@ export default function WorkAssetsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="lifemap-page-header">
-        <div>
-          <h1 className="lifemap-page-title">Work Assets</h1>
-          <p className="lifemap-page-subtitle flex items-center gap-2">
-            <Briefcase className="h-4 w-4 text-slate-400" />
-            Add or edit your work assets
-          </p>
+    <div className="lm-body">
+      <PageHeader
+        title="What you earn"
+        description="Your income streams beyond regular salary can be valuable work assets — each one is worth what it will still pay you before it stops. Set what each pays this year, how fast it grows and the age it ends, and the mix and the curve below rebuild themselves."
+      >
+        <div className="lm-assume">
+          <label className="lm-agebox">
+            Your age today
+            <input type="number" readOnly value={currentAge} />
+          </label>
+          <span className="ahint" style={{ fontSize: 12.5, color: 'var(--lm-slate)', fontWeight: 500 }}>
+            Every stream runs from this age until the end age you give it.
+          </span>
         </div>
+      </PageHeader>
         {rows.length === 0 && (
-          <div className="lifemap-alert">
+          <div className="lm-alert">
             <AlertTriangle className="h-4 w-4" />
             <span>
               Start adding your first work asset in the work asset register below. You may
@@ -334,9 +342,13 @@ export default function WorkAssetsPage() {
             </span>
           </div>
         )}
-      </div>
 
-      <UnifiedChart defaultEnabled={['workAssets']} />
+      <div id="sec-mix">
+        <div id="sec-growth" className="lm-card" style={{ padding: '18px 20px 14px', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, marginBottom: 10 }}>Income over time</h3>
+          <UnifiedChart defaultEnabled={['workAssets']} />
+        </div>
+      </div>
 
       {/* Summary Cards */}
       {(() => {
@@ -382,18 +394,14 @@ export default function WorkAssetsPage() {
         );
       })()}
 
-      <div className="lifemap-panel">
-        <div className="lifemap-panel-header">
-          <div className="lifemap-panel-title">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
-              <Briefcase className="h-4 w-4" />
-            </span>
-            Work Asset Register
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={addRow}>Add Row</Button>
-            <Button size="sm" variant="outline" onClick={handleExportCsv}>Export CSV</Button>
-            <Button size="sm" variant="ghost" className="text-red-500" onClick={handleReset}>Reset</Button>
+      <div id="sec-register" className="lm-card">
+        <div className="lm-reghead">
+          <h3>Work asset register</h3>
+          <span className="count">{rows.length} streams</span>
+          <div className="r">
+            <Button size="sm" className="lm-ghost primary" onClick={addRow}>+ Add row</Button>
+            <Button size="sm" variant="outline" className="lm-ghost" onClick={handleExportCsv}>Export CSV</Button>
+            <Button size="sm" variant="ghost" className="lm-ghost" onClick={handleReset}>Reset</Button>
           </div>
         </div>
         <div className="p-6">
@@ -407,6 +415,7 @@ export default function WorkAssetsPage() {
           />
         </div>
       </div>
+      <PagePager />
     </div>
   );
 }

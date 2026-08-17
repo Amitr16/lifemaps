@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { AlertTriangle, PiggyBank } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import NotionStyleAssetRegister from '@/components/NotionStyleAssetRegister.jsx'
 import ErrorBoundary from '@/components/ErrorBoundary.jsx'
 import UnifiedChart from '@/components/UnifiedChart.jsx'
+import PageHeader from '@/components/PageHeader.jsx'
+import PagePager from '@/components/PagePager.jsx'
 import { useAuth } from '../contexts/AuthContext'
 import { useAdminUser } from '../contexts/AdminUserContext'
 import ApiService from '../services/api'
@@ -46,28 +48,32 @@ export default function AssetsPage() {
 
   return (
     <ErrorBoundary>
-      <div className="space-y-6">
-        <div className="lifemap-page-header">
-          <div>
-            <h1 className="lifemap-page-title">Assets</h1>
-            <p className="lifemap-page-subtitle flex items-center gap-2">
-              <PiggyBank className="h-4 w-4 text-slate-400" />
-              Add or edit your assets
-            </p>
+      <div className="lm-body">
+        <PageHeader
+          title="What you own"
+          description="Every holding, in one register. The mix and the growth path below rebuild themselves as you add rows — and choosing a category fills in a historical return you can then override."
+        />
+        {assetsCount === 0 && (
+          <div className="lm-alert">
+            <AlertTriangle className="h-4 w-4" />
+            <span>
+              Start adding your first asset in the asset register below. You may add as
+              many assets as you want and sort as per tags.
+            </span>
           </div>
-          {assetsCount === 0 && (
-            <div className="lifemap-alert">
-              <AlertTriangle className="h-4 w-4" />
-              <span>
-                Start adding your first asset in the asset register below. You may add as
-                many assets as you want and sort as per tags.
-              </span>
-            </div>
-          )}
+        )}
+
+        <div id="sec-mix">
+          <div id="sec-growth" className="lm-card" style={{ padding: '18px 20px 14px', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 16, marginBottom: 10 }}>How that grows</h3>
+            <UnifiedChart defaultEnabled={['assets']} />
+          </div>
         </div>
 
-        <UnifiedChart defaultEnabled={['assets']} />
-        <NotionStyleAssetRegister />
+        <div id="sec-register">
+          <NotionStyleAssetRegister />
+        </div>
+        <PagePager />
       </div>
     </ErrorBoundary>
   )

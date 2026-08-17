@@ -8,9 +8,11 @@ import { useAdminUser } from '@/contexts/AdminUserContext';
 import { useLifeSheetStore } from '../store/enhanced-store';
 import ApiService from '@/services/api';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader.jsx';
+import PagePager from '@/components/PagePager.jsx';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertTriangle, Settings2, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, Settings2 } from 'lucide-react';
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined || isNaN(value)) return '₹0';
@@ -487,17 +489,13 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="lifemap-page-header">
-        <div>
-          <h1 className="lifemap-page-title">Expenses</h1>
-          <p className="lifemap-page-subtitle flex items-center gap-2">
-            <ShoppingCart className="h-4 w-4 text-slate-400" />
-            Add or edit your expenses here
-          </p>
-        </div>
+    <div className="lm-body">
+      <PageHeader
+        title="What you spend"
+        description="Every recurring cost, in one register, with the years of your life it actually applies to. School fees stop, instalments end, healthcare climbs — so the curve steps rather than sweeps."
+      />
         {rows.length === 0 && (
-          <div className="lifemap-alert">
+          <div className="lm-alert">
             <AlertTriangle className="h-4 w-4" />
             <span>
               Start adding your expenses in the expense register below to get an output on
@@ -505,27 +503,18 @@ export default function ExpensesPage() {
             </span>
           </div>
         )}
-      </div>
 
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+      <div className="flex items-center gap-3 mb-4">
         <button
           type="button"
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'category' 
-              ? 'bg-blue-600 text-white' 
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
+          className={`lm-ghost ${activeTab === 'category' ? 'primary' : ''}`}
           onClick={() => setActiveTab('category')}
         >
           Category Mix Over Time
         </button>
         <button
           type="button"
-          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-            activeTab === 'nws' 
-              ? 'bg-blue-600 text-white' 
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
+          className={`lm-ghost ${activeTab === 'nws' ? 'primary' : ''}`}
           onClick={() => setActiveTab('nws')}
         >
           Needs / Wants / Savings
@@ -533,7 +522,7 @@ export default function ExpensesPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="lifemap-stat-grid">
+      <div id="sec-mix" className="lifemap-stat-grid">
         <div className="lifemap-stat-card">
           <p className="lifemap-stat-title">Total Annual Expenses</p>
           <div className="lifemap-stat-value text-emerald-600">
@@ -559,21 +548,15 @@ export default function ExpensesPage() {
           </div>
         </div>
 
-        <div className="lifemap-panel">
-          <div className="lifemap-panel-header">
-            <div className="flex items-center gap-3">
-              <div className="lifemap-panel-title flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
-                  ₹
-                </span>
-                My Expenses
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button size="sm" onClick={addRow}>
-                Add Row
+        <div id="sec-register" className="lm-card">
+          <div className="lm-reghead">
+            <h3>Expense register</h3>
+            <span className="count">{rows.length} items</span>
+            <div className="r">
+              <Button size="sm" className="lm-ghost primary" onClick={addRow}>
+                + Add row
               </Button>
-              <Button size="sm" variant="outline" onClick={handleExportCsv}>
+              <Button size="sm" variant="outline" className="lm-ghost" onClick={handleExportCsv}>
                 Export CSV
               </Button>
             </div>
@@ -602,7 +585,11 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      <ExpensesChart activeView={activeTab} />
+      <div id="sec-growth">
+        <div id="sec-rule" className="lm-card" style={{ padding: '18px 20px', marginTop: 16 }}>
+          <ExpensesChart activeView={activeTab} />
+        </div>
+      </div>
 
       {savingRows.size > 0 && (
         <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
@@ -617,6 +604,7 @@ export default function ExpensesPage() {
           onOpenChange={setCategoriesModalOpen}
         />
       )}
+      <PagePager />
     </div>
   );
 }

@@ -1,18 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Pencil, Save, X, CheckCircle, AlertCircle } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Pencil, Save, X } from 'lucide-react';
+import PageHeader from '@/components/PageHeader.jsx';
 import { useAuth } from '@/contexts/AuthContext';
 import ApiService from '@/services/api';
 import { toast } from 'sonner';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
@@ -198,174 +189,106 @@ export default function ProfilePage() {
     }
   };
 
-  const renderField = (field, label, type = 'text', span = 1) => {
+  const renderField = (field, label, type = 'text', wide = false) => {
     const isEditing = editing[field];
     const value = isEditing ? (tempValues[field] ?? profile[field]) : profile[field];
-    
+
     return (
-      <div className={`lifemap-soft-card p-4 ${span > 1 ? `md:col-span-${span}` : ''}`}>
-        <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">{label}*</div>
-        <div className="flex items-center gap-3">
+      <label className={`lm-field ${wide ? 'wide' : ''}`}>
+        <span>{label} *</span>
+        <div className="lm-field-ctrl">
           {isEditing ? (
             <>
-              <Input
+              <input
+                className="lm-inp"
                 type={type}
                 value={value}
                 onChange={(e) => setTempValues(prev => ({ ...prev, [field]: e.target.value }))}
-                className="flex-1 dark:text-white dark:bg-slate-700 dark:border-slate-600"
                 disabled={loading}
               />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleSave(field)}
-                disabled={loading}
-                className="h-8 w-8 p-0"
-              >
-                <Save className="h-4 w-4 text-green-600 dark:text-green-400" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleCancel(field)}
-                disabled={loading}
-                className="h-8 w-8 p-0"
-              >
-                <X className="h-4 w-4 text-red-600 dark:text-red-400" />
-              </Button>
+              <button type="button" className="lm-iconbtn ok" onClick={() => handleSave(field)} disabled={loading} aria-label="Save">
+                <Save className="h-4 w-4" />
+              </button>
+              <button type="button" className="lm-iconbtn danger" onClick={() => handleCancel(field)} disabled={loading} aria-label="Cancel">
+                <X className="h-4 w-4" />
+              </button>
             </>
           ) : (
             <>
-              <Input
+              <input
+                className="lm-inp"
                 type={field === 'password' ? 'password' : type}
                 value={field === 'password' ? '••••••••••••' : value}
                 readOnly
-                className="flex-1 dark:text-white dark:bg-slate-700 dark:border-slate-600"
               />
-              {field === 'password' ? (
-                <Dialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0"
-                    >
-                      <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="dark:bg-slate-800 dark:border-slate-700">
-                    <DialogHeader>
-                      <DialogTitle className="dark:text-white">Change Password</DialogTitle>
-                      <DialogDescription className="dark:text-slate-300">
-                        Enter your current password and choose a new one
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
-                          Current Password*
-                        </label>
-                        <Input
-                          type="password"
-                          value={passwordData.currentPassword}
-                          onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                          className="dark:text-white dark:bg-slate-700 dark:border-slate-600"
-                          placeholder="Enter current password"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
-                          New Password*
-                        </label>
-                        <Input
-                          type="password"
-                          value={passwordData.newPassword}
-                          onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                          className="dark:text-white dark:bg-slate-700 dark:border-slate-600"
-                          placeholder="Enter new password"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
-                          Confirm New Password*
-                        </label>
-                        <Input
-                          type="password"
-                          value={passwordData.confirmPassword}
-                          onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                          className="dark:text-white dark:bg-slate-700 dark:border-slate-600"
-                          placeholder="Confirm new password"
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2 pt-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setChangePasswordOpen(false);
-                            setPasswordData({
-                              currentPassword: '',
-                              newPassword: '',
-                              confirmPassword: ''
-                            });
-                          }}
-                          className="dark:text-white dark:border-slate-600"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={handleChangePassword}
-                          disabled={changingPassword || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-                          className="dark:text-white"
-                        >
-                          {changingPassword ? 'Changing...' : 'Change Password'}
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleEdit(field)}
-                  className="h-8 w-8 p-0"
-                >
-                  <Pencil className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </Button>
-              )}
+              <button
+                type="button"
+                className="lm-iconbtn"
+                onClick={() => field === 'password' ? setChangePasswordOpen(true) : handleEdit(field)}
+                aria-label={`Edit ${label}`}
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
             </>
           )}
         </div>
-      </div>
+      </label>
     );
   };
 
   return (
-    <div className="space-y-6">
-      <div className="lifemap-page-header">
-        <div>
-          <h1 className="lifemap-page-title">Your Profile</h1>
-          <p className="lifemap-page-subtitle flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-              <Pencil className="h-3.5 w-3.5" />
-            </span>
-            Add or Modify your details below
-          </p>
+    <div className="lm-body">
+      <div id="sec-register">
+        <PageHeader
+          title="Your profile"
+          description="The details LifeMap uses to greet you and to keep your plan saved against this account."
+        />
+
+        <div className="lm-card">
+          <div className="lm-reghead">
+            <h3>Account details</h3>
+          </div>
+          <div className="lm-fields">
+            {renderField('firstName', 'First name')}
+            {renderField('lastName', 'Last name')}
+            {renderField('email', 'Email')}
+            {renderField('password', 'Password', 'password')}
+            {renderField('age', 'Age', 'number')}
+            {renderField('workTenure', 'Work tenure', 'number')}
+            {renderField('income', 'Current annual gross income (₹)', 'number', true)}
+          </div>
+          <div className="lm-note">* Mandatory fields</div>
         </div>
       </div>
 
-      <div className="lifemap-panel p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {renderField('firstName', 'Your First Name')}
-          {renderField('lastName', 'Your Second Name')}
-          {renderField('email', 'Your registered email')}
-          {renderField('password', 'Your Password', 'password')}
-          {renderField('age', 'Age')}
-          {renderField('income', 'Current annual gross income (₹)', 'number', 2)}
-          {renderField('workTenure', 'Current work tenure (years)')}
+      {changePasswordOpen ? (
+        <div className="lm-modal-overlay" onClick={() => setChangePasswordOpen(false)}>
+          <div className="lm-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Change password</h2>
+            <p className="sub">Enter your current password and choose a new one.</p>
+            <div className="stack">
+              <div>
+                <label htmlFor="cur-pass">Current password</label>
+                <input id="cur-pass" className="lm-inp" type="password" value={passwordData.currentPassword} onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))} />
+              </div>
+              <div>
+                <label htmlFor="new-pass">New password</label>
+                <input id="new-pass" className="lm-inp" type="password" value={passwordData.newPassword} onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))} />
+              </div>
+              <div>
+                <label htmlFor="conf-pass">Confirm new password</label>
+                <input id="conf-pass" className="lm-inp" type="password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))} />
+              </div>
+            </div>
+            <div className="lm-modal-acts">
+              <button type="button" className="lm-ghost" onClick={() => { setChangePasswordOpen(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); }}>Cancel</button>
+              <button type="button" className="lm-btn" onClick={handleChangePassword} disabled={changingPassword || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}>
+                {changingPassword ? 'Saving…' : 'Save password'}
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="text-xs text-slate-400 dark:text-slate-500 text-right mt-4">*Mandatory Fields</div>
-      </div>
+      ) : null}
     </div>
   );
 }

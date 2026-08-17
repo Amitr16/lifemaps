@@ -3,13 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ChartProvider } from './contexts/ChartContext'
 import Shell from './components/Shell.jsx'
-import OriginalLifeSheet from './components/OriginalLifeSheet.jsx'
-import AssetsPage from './pages/AssetsPage.jsx'
-import WorkAssetsPage from './pages/WorkAssetsPage.jsx'
+import MockupHost from './components/MockupHost.jsx'
 import GoalsPage from './pages/GoalsPage.jsx'
-import EnhancedGoalsPage from './pages/EnhancedGoalsPage.jsx'
-import LoansPage from './pages/LoansPage.jsx'
-import ExpensesPage from './pages/ExpensesPage.jsx'
 import InsurancePage from './pages/InsurancePage.jsx'
 import GrowthAssumptionsPage from './pages/GrowthAssumptionsPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
@@ -18,6 +13,7 @@ import SuperAdminLoginPage from './pages/SuperAdminLoginPage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
 import AdminLoginPage from './pages/AdminLoginPage.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import { Toaster } from './components/ui/sonner.jsx'
 import './App.css'
 
 function App() {
@@ -28,51 +24,16 @@ function App() {
           <Router>
             <div className="App">
               <Routes>
-                {/* Regular User Routes - with Shell navigation */}
-                <Route path="/" element={
-                  <Shell>
-                    <ErrorBoundary>
-                      <OriginalLifeSheet />
-                    </ErrorBoundary>
-                  </Shell>
-                } />
-                <Route path="/assets" element={
-                  <Shell>
-                    <AssetsPage />
-                  </Shell>
-                } />
-                <Route path="/work-assets" element={
-                  <Shell>
-                    <ErrorBoundary>
-                      <WorkAssetsPage />
-                    </ErrorBoundary>
-                  </Shell>
-                } />
-                <Route path="/goals" element={
-                  <Shell>
-                    <ErrorBoundary>
-                      <EnhancedGoalsPage />
-                    </ErrorBoundary>
-                  </Shell>
-                } />
+                <Route path="/" element={<MockupHost page="fp" />} />
+                <Route path="/assets" element={<MockupHost page="assets" />} />
+                <Route path="/work-assets" element={<MockupHost page="work" />} />
+                <Route path="/goals" element={<MockupHost page="goals" />} />
+                <Route path="/loans" element={<MockupHost page="loans" />} />
+                <Route path="/expenses" element={<MockupHost page="expenses" />} />
                 <Route path="/goals-original" element={
                   <Shell>
                     <ErrorBoundary>
                       <GoalsPage />
-                    </ErrorBoundary>
-                  </Shell>
-                } />
-                <Route path="/loans" element={
-                  <Shell>
-                    <ErrorBoundary>
-                      <LoansPage />
-                    </ErrorBoundary>
-                  </Shell>
-                } />
-                <Route path="/expenses" element={
-                  <Shell>
-                    <ErrorBoundary>
-                      <ExpensesPage />
                     </ErrorBoundary>
                   </Shell>
                 } />
@@ -103,6 +64,7 @@ function App() {
                 <Route path="/admin/login" element={<AdminLoginPage />} />
                 <Route path="/admin" element={<AdminPage />} />
               </Routes>
+              <Toaster />
             </div>
           </Router>
         </ChartProvider>

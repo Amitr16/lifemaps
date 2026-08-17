@@ -1,0 +1,252 @@
+"""Copy LifeMap HTML mockups into public/lifemap and inject a same-script React bridge."""
+from pathlib import Path
+import re
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = Path(r"C:\Users\user\Downloads")
+OUT = ROOT / "public" / "lifemap"
+
+FILES = {
+    "fp": ("lifemap-fp-calculator.html", "fp-calculator.html"),
+    "assets": ("lifemap-assets.html", "assets.html"),
+    "work": ("lifemap-work-assets.html", "work-assets.html"),
+    "goals": ("lifemap-goals.html", "goals.html"),
+    "loans": ("lifemap-loans.html", "loans.html"),
+    "expenses": ("lifemap-expenses.html", "expenses.html"),
+}
+
+MARKER_START = "/* === LIFEMAP_BRIDGE_START === */"
+MARKER_END = "/* === LIFEMAP_BRIDGE_END === */"
+
+BRIDGE = r'''
+__MARKER_START__
+(function(){
+  var PAGE = "__PAGE__";
+  var ROUTES = {
+    "lifemap-fp-calculator.html": "/",
+    "fp-calculator.html": "/",
+    "lifemap-assets.html": "/assets",
+    "assets.html": "/assets",
+    "lifemap-work-assets.html": "/work-assets",
+    "work-assets.html": "/work-assets",
+    "lifemap-goals.html": "/goals",
+    "goals.html": "/goals",
+    "lifemap-loans.html": "/loans",
+    "loans.html": "/loans",
+    "lifemap-expenses.html": "/expenses",
+    "expenses.html": "/expenses",
+    "lifemap-insurance.html": "/insurance",
+    "insurance.html": "/insurance"
+  };
+
+  function post(type, payload){
+    try { parent.postMessage({ source:"lifemap-mockup", type:type, page:PAGE, payload:payload||null }, "*"); }
+    catch (e) {}
+  }
+
+  function fileOf(href){
+    if (!href) return "";
+    var clean = String(href).split("#")[0].split("?")[0];
+    var parts = clean.split("/");
+    return parts[parts.length-1];
+  }
+
+  function replaceList(target, next){
+    if (!target || !next) return;
+    target.splice.apply(target, [0, target.length].concat(next));
+  }
+
+  function getState(){
+    try {
+      if (PAGE === "fp") {
+        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
+      }
+      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ };
+      if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
+      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS };
+      if (PAGE === "loans") return { ROWS: ROWS.slice(), PLAN: PLAN.slice(), VIEW: VIEW };
+      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE };
+    } catch (e) { console.error(e); }
+    return {};
+  }
+
+  function hydrateFp(st){
+    if (!st || !st.S) return;
+    var src = st.S;
+    S.age = src.age; S.salary = src.salary; S.gSal = src.gSal; S.workTill = src.workTill;
+    S.finAssets = src.finAssets; S.personalAssets = src.personalAssets;
+    S.gRet = src.gRet; S.gInf = src.gInf; S.lifeTo = src.lifeTo;
+    if (src.loans) replaceList(S.loans, src.loans);
+    if (src.goals) replaceList(S.goals, src.goals);
+    if (src.exp) replaceList(S.exp, src.exp);
+    var set = function(id, val){ var el = $(id); if (el) el.value = val; };
+    var setTxt = function(id, val){ var el = $(id); if (el) el.textContent = val; };
+    set("i-age", S.age);
+    set("i-salary", S.salary);
+    set("i-gsal", S.gSal);
+    set("i-gsal2", S.gSal);
+    set("i-work-age", S.workTill);
+    set("i-fin-assets", S.finAssets);
+    set("i-personal-assets", S.personalAssets);
+    set("i-gret", S.gRet); setTxt("o-gret", Number(S.gRet).toFixed(1)+"%");
+    set("i-ginf", S.gInf); setTxt("o-ginf", Number(S.gInf).toFixed(1)+"%");
+    setTxt("o-gsal2", Number(S.gSal).toFixed(1)+"%");
+    set("i-life", S.lifeTo); setTxt("o-life", S.lifeTo);
+    ["loans","goals","exp"].forEach(renderRows);
+    refresh();
+  }
+
+  function setState(st){
+    if (!st) return;
+    try {
+      if (PAGE === "fp") { hydrateFp(st); return; }
+      if (PAGE === "assets") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
+        if (st.MODE) MODE = st.MODE;
+        if (st.HZ) HZ = st.HZ;
+        refresh();
+        return;
+      }
+      if (PAGE === "work") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") {
+          AGE = st.AGE;
+          var ageEl = $("i-age");
+          if (ageEl) ageEl.value = AGE;
+        }
+        var maxId = 0;
+        ROWS.forEach(function(r){ if (r.id > maxId) maxId = r.id; });
+        try { NEXT_ID = maxId + 1; } catch(e) {}
+        refresh();
+        return;
+      }
+      if (PAGE === "goals") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
+        if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
+        if (st.BASIS) BASIS = st.BASIS;
+        refresh();
+        return;
+      }
+      if (PAGE === "loans") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (st.PLAN) replaceList(PLAN, st.PLAN);
+        if (typeof REGS !== "undefined") {
+          REGS.cur.list = ROWS;
+          REGS.plan.list = PLAN;
+        }
+        if (st.VIEW) VIEW = st.VIEW;
+        refresh();
+        return;
+      }
+      if (PAGE === "expenses") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var e1=$("i-age"); if(e1) e1.value=AGE; }
+        if (typeof st.LIFE === "number") { LIFE = st.LIFE; var e2=$("i-life"); if(e2) e2.value=LIFE; }
+        if (typeof st.GINF === "number") { GINF = st.GINF; var e3=$("i-ginf"); if(e3) e3.value=GINF; }
+        if (st.BASIS) BASIS = st.BASIS;
+        if (st.MODE) MODE = st.MODE;
+        refresh();
+      }
+    } catch (err) {
+      console.error("LifeMap setState failed", err);
+    }
+  }
+
+  function setAccount(label){
+    var link = document.querySelector(".tier0 .tlink");
+    if (link && label) link.textContent = label;
+  }
+
+  document.querySelectorAll(".ptab.gate").forEach(function(a){
+    var label = (a.textContent || "").replace(/\s+/g," ").trim();
+    if (/insurance/i.test(label)) {
+      a.classList.remove("gate");
+      a.removeAttribute("title");
+      a.setAttribute("href", "/insurance");
+    }
+  });
+
+  document.querySelectorAll("a").forEach(function(a){
+    a.addEventListener("click", function(e){
+      var href = a.getAttribute("href") || "";
+      var file = fileOf(href);
+      var label = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/^insurance$/i.test(label) && (a.classList.contains("ptab") || href === "/insurance" || href === "#")) {
+        e.preventDefault();
+        post("navigate", { path: "/insurance" });
+        return;
+      }
+      if (a.classList.contains("gate")) { e.preventDefault(); return; }
+      if (ROUTES[file]) {
+        e.preventDefault();
+        post("navigate", { path: ROUTES[file] });
+      }
+    });
+  });
+
+  document.querySelectorAll(".tier0 .tlink, .tier0 .btn").forEach(function(a){
+    a.addEventListener("click", function(e){
+      e.preventDefault();
+      var text = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/sign in|account/i.test(text)) post("auth", { action: "signin", label: text });
+      else if (/save/i.test(text)) post("save", getState());
+    });
+  });
+
+  document.addEventListener("click", function(e){
+    var saveBtn = e.target.closest && e.target.closest(".rb.save");
+    var delBtn = e.target.closest && e.target.closest(".rb.del");
+    if (saveBtn || delBtn) {
+      setTimeout(function(){ post(delBtn ? "row-delete" : "row-save", getState()); }, 30);
+    }
+  }, true);
+
+  window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  post("ready", getState());
+})();
+__MARKER_END__
+'''
+
+BRIDGE = BRIDGE.replace("__MARKER_START__", MARKER_START).replace("__MARKER_END__", MARKER_END)
+
+
+def strip_old_bridge(script: str) -> str:
+    if MARKER_START in script:
+        script = re.sub(
+            re.escape(MARKER_START) + r"[\s\S]*?" + re.escape(MARKER_END),
+            "",
+            script,
+        )
+    return script.rstrip() + "\n"
+
+
+def inject(html: str, page: str) -> str:
+    scripts = list(re.finditer(r"<script>([\s\S]*?)</script>", html))
+    if not scripts:
+        raise SystemExit(f"No script in {page}")
+    last = scripts[-1]
+    body = strip_old_bridge(last.group(1))
+    bridged = body + "\n" + BRIDGE.replace("__PAGE__", page) + "\n"
+    return html[: last.start()] + "<script>" + bridged + "</script>" + html[last.end() :]
+
+
+def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    for page, (src_name, dest_name) in FILES.items():
+        src = SRC / src_name
+        if not src.exists():
+            alt = ROOT / "src" / "mockups" / src_name
+            src = alt if alt.exists() else src
+        if not src.exists():
+            raise SystemExit(f"Missing mockup: {src_name}")
+        html = src.read_text(encoding="utf-8")
+        html = inject(html, page)
+        dest = OUT / dest_name
+        dest.write_text(html, encoding="utf-8")
+        print(f"wrote {dest} ({dest.stat().st_size} bytes)")
+
+
+if __name__ == "__main__":
+    main()

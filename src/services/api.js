@@ -277,6 +277,30 @@ class ApiService {
     });
   }
 
+  async createPlannedLoan(data) {
+    return this.request('/financial/planned-loan', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async getPlannedLoans(userId) {
+    return this.request(`/financial/planned-loans/${userId}`);
+  }
+
+  async updatePlannedLoan(loanId, data) {
+    return this.request(`/financial/planned-loan/${loanId}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deletePlannedLoan(loanId) {
+    return this.request(`/financial/planned-loan/${loanId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Financial Expenses APIs
   async createFinancialExpense(expenseData) {
     return this.request('/financial/expense', {

@@ -1,6 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./styles/lifemap-ui.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -43,41 +44,54 @@
 }
 
 :root {
-  --radius: 0.5rem;
-  /* Life Sheet Brand Colors */
-  --background: #FFFFFF;
-  --foreground: #2C5F5D;
+  --radius: 14px;
+  --lm-font: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --lm-navy: #003c8f;
+  --lm-ink: #0a1f44;
+  --lm-teal: #75cfc2;
+  --lm-aqua: #b5e6e5;
+  --lm-paper: #f6f8fb;
+  --lm-line: #e2e8f2;
+  --lm-muted: #66799a;
+  --lm-coral: #e2574c;
+  --lm-amber: #e9a23b;
+  --lm-slate: #9aa7bd;
+  --lm-green: #0d8a78;
+  --lm-r: 14px;
+  --lm-shadow: 0 1px 2px rgba(10, 31, 68, 0.04), 0 8px 24px rgba(10, 31, 68, 0.06);
+  --lm-bar: #e8f4f5;
+  --lm-bar-line: #cfe6e8;
+  --background: #f6f8fb;
+  --foreground: #0a1f44;
   --card: #FFFFFF;
-  --card-foreground: #2C5F5D;
+  --card-foreground: #0a1f44;
   --popover: #FFFFFF;
-  --popover-foreground: #2C5F5D;
-  --primary: #2C5F5D; /* Deep Teal */
+  --popover-foreground: #0a1f44;
+  --primary: #003c8f;
   --primary-foreground: #FFFFFF;
-  --secondary: #F3F4F6; /* Light Gray */
-  --secondary-foreground: #2C5F5D;
-  --muted: #F3F4F6;
-  --muted-foreground: #6B7280; /* Warm Gray */
-  --accent: #5C7CFA; /* Soft Blue */
-  --accent-foreground: #FFFFFF;
-  --destructive: #EF4444; /* Alert Red */
-  --border: #E5E7EB;
-  --input: #F3F4F6;
-  --ring: #5C7CFA;
-  /* Life Sheet Chart Colors */
-  --chart-1: #4CAF50; /* Vibrant Green */
-  --chart-2: #10B981; /* Success Green */
-  --chart-3: #5C7CFA; /* Soft Blue */
-  --chart-4: #F59E0B; /* Warning Orange */
-  --chart-5: #EF4444; /* Alert Red */
-  /* Sidebar Colors */
-  --sidebar: #F3F4F6;
-  --sidebar-foreground: #2C5F5D;
-  --sidebar-primary: #2C5F5D;
+  --secondary: #f6f8fb;
+  --secondary-foreground: #0a1f44;
+  --muted: #f6f8fb;
+  --muted-foreground: #66799a;
+  --accent: #75cfc2;
+  --accent-foreground: #0a1f44;
+  --destructive: #e2574c;
+  --border: #e2e8f2;
+  --input: #f6f8fb;
+  --ring: #003c8f;
+  --chart-1: #75cfc2;
+  --chart-2: #2f6fd0;
+  --chart-3: #8fb8ea;
+  --chart-4: #e9a23b;
+  --chart-5: #e2574c;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0a1f44;
+  --sidebar-primary: #003c8f;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #FFFFFF;
-  --sidebar-accent-foreground: #2C5F5D;
-  --sidebar-border: #E5E7EB;
-  --sidebar-ring: #5C7CFA;
+  --sidebar-accent: #e8f4f5;
+  --sidebar-accent-foreground: #0a1f44;
+  --sidebar-border: #e2e8f2;
+  --sidebar-ring: #003c8f;
 }
 
 .dark {
@@ -213,10 +227,7 @@
   }
 
   .lifemap-content {
-    @apply flex-1 px-6 py-6 bg-slate-50;
-    max-width: 1200px;
-    width: 100%;
-    margin: 0 auto;
+    @apply flex-1 w-full;
   }
 
   .lifemap-footer {
@@ -235,8 +246,9 @@
   }
 
   .lifemap-page-title {
-    @apply text-3xl font-semibold text-slate-900 dark:text-white;
-    font-family: 'Playfair Display', 'Inter', serif;
+    @apply text-[25px] font-bold text-slate-900 dark:text-white;
+    font-family: "Figtree", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
   }
 
   .lifemap-page-subtitle {
@@ -307,12 +319,13 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--lm-paper, #f6f8fb);
+  color: var(--lm-ink, #0a1f44);
 }
 
 .lifemap-content {
-  background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.12) 1px, transparent 0);
-  background-size: 28px 28px;
+  background: transparent;
 }
 
 .lifemap-nav-item-active {
@@ -566,5 +579,19 @@ body {
   place-items: center;
   font-size: 12px;
   color: #1d4ed8;
+}
+
+.lm-mockup-host {
+  position: fixed;
+  inset: 0;
+  background: #f6f8fb;
+}
+
+.lm-mockup-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #f6f8fb;
 }
 

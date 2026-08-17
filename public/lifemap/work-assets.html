@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeMap — Work Assets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --font:"Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --navy:#003c8f; --ink:#0a1f44; --teal:#75cfc2; --aqua:#b5e6e5;
+  --paper:#f6f8fb; --line:#e2e8f2; --muted:#66799a; --coral:#e2574c;
+  --amber:#e9a23b; --slate:#9aa7bd; --green:#0d8a78; --r:14px;
+  --shadow:0 1px 2px rgba(10,31,68,.04), 0 8px 24px rgba(10,31,68,.06);
+  --navh:44px;   /* height of the frozen bottom bar only */
+  --bar:#e8f4f5; --bar-line:#cfe6e8;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--font);
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums}
+h1,h2,h3,h4{font-family:var(--font); font-weight:700; letter-spacing:-.02em; margin:0}
+.num{font-variant-numeric:tabular-nums; font-weight:700; letter-spacing:-.02em}
+button,input,select,textarea{font-family:var(--font)}
+a{text-decoration:none; color:inherit}
+
+/* ---------- top bar ---------- */
+/* ---------- stacked top navigation ---------- */
+.topbar{background:#fff; position:relative}
+.topbar::before{content:""; display:block; height:3px;
+  background:linear-gradient(90deg, var(--navy) 0%, #2f6fd0 26%, #0d8a78 52%, var(--teal) 76%, var(--aqua) 100%)}
+.tier{max-width:1200px; margin:0 auto; padding:0 28px}
+@media(max-width:640px){.tier{padding:0 16px}}
+
+/* tier 0 — identity and actions */
+.tier0{display:flex; align-items:center; gap:16px; height:56px}
+.brand{display:flex; align-items:center; gap:10px; text-decoration:none}
+.mark{width:20px; height:20px; background:var(--navy); transform:rotate(45deg); border-radius:3px; position:relative; flex:none}
+.mark::after{content:""; position:absolute; inset:0 0 50% 50%; background:var(--teal); border-radius:0 3px 0 0}
+.brand .name{font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.03em}
+.brand .by{font-size:10.5px; color:var(--muted); letter-spacing:.09em; text-transform:uppercase; font-weight:600}
+.tier0 .acts{margin-left:auto; display:flex; align-items:center; gap:8px}
+.tlink{padding:8px 12px; font-size:14px; color:var(--navy); text-decoration:none; border-radius:8px; font-weight:600}
+.tlink:hover{color:var(--navy); background:#eef3fa}
+
+/* tier 1 — the product's main areas, centred */
+.tier1{display:flex; gap:1px; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none}
+.tier1::-webkit-scrollbar{display:none}
+/* auto margins centre the row, then collapse to zero when it overflows so nothing is unreachable */
+.tier1 > :first-child{margin-left:auto}
+.tier1 > :last-child{margin-right:auto}
+.ptab{padding:11px 14px 12px; font-size:14px; font-weight:600; color:var(--muted);
+  white-space:nowrap; text-decoration:none; border-radius:9px 9px 0 0; transition:background .13s, color .13s}
+/* each tab still carries its area's own colour, but only on hover and when active */
+.ptab:hover{color:var(--tone, var(--navy)); background:#f4f8fd}
+.ptab.on{background:var(--bar); color:var(--tone, var(--ink)); font-weight:700}
+/* Insurance is not built yet: the tab stays visible so the shape of the product
+   is legible, but reads as unavailable rather than merely unvisited. */
+.ptab.gate{opacity:.45; cursor:not-allowed}
+.ptab.gate:hover{background:transparent; color:var(--muted)}
+
+/* tier 2 — what is on this page, centred */
+.tier2wrap{position:sticky; top:0; z-index:80;
+  background:linear-gradient(180deg,#eef8f9,var(--bar));
+  border-top:1px solid var(--bar-line); border-bottom:1px solid var(--bar-line); transition:box-shadow .18s}
+.tier2wrap.stuck{box-shadow:0 6px 18px rgba(10,31,68,.09)}
+.tier2{display:flex; flex-wrap:wrap; justify-content:center; gap:0}
+.stab{padding:10px 14px 10px; font-size:13px; font-weight:600; color:#4a6274; white-space:nowrap;
+  background:none; border:0; border-bottom:2px solid transparent; cursor:pointer; transition:color .13s, border-color .13s}
+.stab:hover{color:var(--navy)}
+.stab.on{font-weight:700}
+.stab.on{color:var(--navy); border-bottom-color:var(--navy)}
+@media(max-width:640px){
+  .ptab{font-size:13px; padding:10px 12px 11px}
+  .stab{font-size:12.5px; padding:9px 12px}
+}
+
+.btn{border:0; cursor:pointer; border-radius:10px; padding:10px 18px; font-size:14px; font-weight:700;
+  background:linear-gradient(135deg,#0b52b8,var(--navy)); color:#fff; text-decoration:none;
+  display:inline-block; transition:filter .15s, box-shadow .15s; box-shadow:0 2px 10px rgba(0,60,143,.24)}
+.btn:hover{filter:brightness(1.08); box-shadow:0 4px 16px rgba(0,60,143,.32)}
+.btn-ghost{background:transparent; color:var(--navy); border:1px solid var(--line)}
+.btn-ghost:hover{background:#eef3fa}
+@media(max-width:640px){.tlink{display:none}}
+
+/* ---------- body ---------- */
+.body{max-width:1200px; margin:0 auto; padding:26px 28px 70px}
+@media(max-width:640px){.body{padding:20px 16px 56px}}
+#sec-mix,#sec-growth,#sec-register{scroll-margin-top:calc(var(--navh) + 14px)}
+.phead{margin-bottom:18px}
+.phead h1{font-size:25px}
+.phead p{margin:3px 0 0; color:var(--muted); font-size:14px; max-width:78ch}
+.assume{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:14px}
+.agebox{display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted); font-weight:700;
+  background:#fff; border:1px solid var(--line); border-radius:10px; padding:5px 7px 5px 13px; box-shadow:var(--shadow)}
+.agebox input{width:58px; border:1px solid var(--line); border-radius:7px; padding:6px 7px; font-size:14.5px;
+  font-weight:800; text-align:center; color:var(--ink); background:var(--paper); font-variant-numeric:tabular-nums}
+.agebox input:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.ahint{font-size:12.5px; color:var(--slate); max-width:56ch}
+.card{background:#fff; border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow)}
+
+/* donut card — one full-width section */
+.mixcard{padding:18px 22px 20px; margin-bottom:16px}
+.mixbody{display:grid; grid-template-columns:300px minmax(0,1fr); gap:10px 34px; align-items:center; margin-top:6px}
+@media(max-width:900px){.mixbody{grid-template-columns:1fr; gap:18px}}
+.mixhead{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+.mixhead h3{font-size:16px}
+.seg2{margin-left:auto; display:flex; background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:2px}
+.seg2 button{border:0; background:none; padding:5px 11px; font-size:12.5px; border-radius:7px; color:var(--muted); cursor:pointer; font-weight:600}
+.seg2 button.on{background:var(--navy); color:#fff}
+.mixsub{font-size:12.5px; color:var(--muted); margin-bottom:10px}
+.donutbox{position:relative; width:100%; max-width:282px; margin:0 auto}
+.donutbox svg{width:100%; height:auto; display:block; overflow:visible}
+.wedge{transition:transform .16s cubic-bezier(.3,.9,.3,1), filter .16s; cursor:pointer}
+.wedge:hover{filter:brightness(1.08)}
+.dcenter{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none}
+.dcenter .k{font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.dcenter .v{font-size:28px; line-height:1.1; margin-top:3px; font-weight:800; letter-spacing:-.03em; color:var(--navy)}
+.dcenter .s{font-size:11.5px; color:var(--muted); margin-top:3px; max-width:145px; line-height:1.35}
+.dtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:var(--ink); color:#fff; border-radius:10px; padding:10px 13px; min-width:158px;
+  box-shadow:0 12px 32px rgba(10,31,68,.34); transform:translate(-50%,-116%)}
+.dtip.on{opacity:1}
+.dtip .n{font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:7px}
+.dtip .n i{width:9px; height:9px; border-radius:2px; display:block; flex:none}
+.dtip .a{font-size:19px; font-weight:800; letter-spacing:-.02em; margin:3px 0 1px}
+.dtip .d{font-size:11.5px; color:#a9bcda; line-height:1.45}
+.dkey{margin-top:12px; font-size:11.5px; color:var(--slate); text-align:center; line-height:1.5}
+.dleg{display:grid; grid-template-columns:repeat(auto-fill,minmax(208px,1fr)); gap:1px 18px; align-content:center}
+.dleg .lhead{grid-column:1/-1; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--slate); font-weight:700; padding:12px 6px 5px}
+.dleg .lhead.second{border-top:1px solid var(--line); margin-top:8px}
+.dleg .li{display:flex; align-items:center; gap:9px; font-size:13px; padding:5px 6px; border-radius:7px; transition:background .13s}
+.dleg .li:hover{background:var(--paper)}
+.dleg .sw{width:9px; height:9px; border-radius:2px; flex:none}
+.dleg .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#33456b}
+.dleg .vl{font-weight:700}
+.dleg .pc{color:var(--slate); font-size:11.5px; width:40px; text-align:right}
+
+/* ---------- growth chart ---------- */
+.gcard{padding:18px 20px 14px; margin-bottom:16px}
+.ghead{display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:2px}
+.ghead h3{font-size:16px}
+.gsub{font-size:12.5px; color:var(--muted)}
+.gsub b{color:var(--ink)}
+.gsub .arrow{color:var(--slate); margin:0 5px}
+.gright{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.chartbox{position:relative; margin-top:14px}
+.chartbox svg{width:100%; height:auto; display:block; overflow:visible}
+.gtip{position:absolute; z-index:30; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:#fff; color:var(--ink); border:1px solid #d7dbe2; border-radius:0; padding:14px 16px; min-width:240px; max-width:320px;
+  box-shadow:0 10px 28px rgba(10,31,68,.14)}
+.gtip.on{opacity:1}
+.gtip .yr{font-size:12px; letter-spacing:.02em; text-transform:none; color:#0f6674; font-weight:600}
+.gtip .tt{font-size:21px; font-weight:800; letter-spacing:-.02em; margin:3px 0 9px; color:#123d7a}
+.gtip .gl{display:flex; align-items:center; gap:8px; font-size:12px; padding:3px 0; color:#33456b}
+.gtip .gl i{width:9px; height:9px; border-radius:50%; flex:none}
+.gtip .gl span{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.gtip .gl b{font-weight:700; color:var(--ink)}
+.gtip .gl.totalrow{padding-bottom:7px; margin-bottom:5px; border-bottom:1px solid #e6e9ef; font-weight:700}
+.gtip .more{display:none}
+.gleg{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
+.gleg .gi{display:flex; align-items:center; gap:7px; font-size:12.5px; color:#33456b}
+.gleg .gi i{width:16px; height:3px; border-radius:2px; flex:none}
+.gleg .gi b{font-weight:700; color:var(--ink)}
+.gfoot{margin-top:10px; font-size:12px; color:var(--slate); line-height:1.55}
+
+/* ---------- register ---------- */
+.reghead{display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.reghead h3{font-size:17px}
+.reghead .count{font-size:12.5px; color:var(--slate); font-weight:600}
+.reghead .r{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap}
+.srch{border:1px solid var(--line); border-radius:9px; padding:8px 12px; font-size:13.5px; background:var(--paper); width:190px}
+.srch:focus{outline:none; border-color:var(--navy); background:#fff}
+.sel{border:1px solid var(--line); border-radius:9px; padding:8px 11px; font-size:13.5px; background:#fff; color:var(--muted); cursor:pointer}
+.ghost{background:#fff; border:1px solid var(--line); border-radius:9px; padding:8px 14px; font-size:13.5px; color:var(--muted); cursor:pointer; font-weight:600}
+.ghost:hover{background:#f0f4fa; color:var(--navy)}
+.ghost.primary{background:var(--navy); color:#fff; border-color:var(--navy)}
+.ghost.primary:hover{background:#00307a; color:#fff}
+
+.tblwrap{overflow:auto; max-height:max(330px, min(560px, calc(100vh - var(--navh) - 150px))); overscroll-behavior:contain}
+table{border-collapse:separate; border-spacing:0; width:100%; min-width:1040px}
+th{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--slate); font-weight:700;
+  text-align:left; padding:12px 12px; background:var(--paper); border-bottom:1px solid var(--line); white-space:nowrap; position:sticky; top:0; z-index:3}
+td{padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:middle; background:#fff}
+/* frozen name column */
+th.stick,td.stick{position:sticky; left:0; z-index:2}
+td.stick{background:#fff; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+th.stick{background:var(--paper); z-index:5; box-shadow:6px 0 10px -8px rgba(10,31,68,.28), 1px 0 0 var(--line)}
+tr:hover td{background:#fbfcfe}
+tr:hover td.stick{background:#fbfcfe}
+td.rt{text-align:right}
+.cell{width:100%; border:1px solid transparent; border-radius:8px; padding:8px 9px; font-size:14px;
+  background:transparent; color:var(--ink); transition:border-color .13s, background .13s}
+.cell:hover{background:var(--paper)}
+.cell:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.cell.name{font-weight:600; min-width:170px}
+.assetname{display:flex; align-items:center; gap:7px; min-width:190px}
+.assetdot{width:10px; height:10px; border-radius:3px; flex:none; box-shadow:0 0 0 1px rgba(10,31,68,.08)}
+.assetname .cell.name{min-width:0; flex:1}
+.cell.money{text-align:right; font-variant-numeric:tabular-nums; min-width:118px}
+.cell.small{min-width:96px}
+
+.swatch{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px; vertical-align:1px}
+.proj{font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; white-space:nowrap}
+.proj.done{color:var(--slate)}
+.proj small{display:block; font-weight:500; color:var(--slate); font-size:11px; letter-spacing:0}
+.acts{display:flex; gap:6px; justify-content:flex-end}
+.rb{border:1px solid var(--line); background:#fff; border-radius:8px; height:34px; padding:0 11px; cursor:pointer;
+  font-size:12px; font-weight:700; color:var(--muted); white-space:nowrap; transition:.14s}
+.rb.save{color:var(--navy)}
+.rb.save:hover{background:#eef3fa; border-color:var(--navy)}
+.rb.save.done{background:#e9f6f4; border-color:#bfe6df; color:#0d6e60}
+.rb.del:hover{color:var(--coral); border-color:#f3c9c5; background:#fef6f5}
+.addbar{padding:14px 20px 18px}
+.addrow{width:100%; border:1px dashed #c8d5e8; background:#fbfcfe; color:var(--navy); border-radius:9px;
+  padding:12px; font-size:14px; font-weight:700; cursor:pointer}
+.addrow:hover{background:#eef3fa; border-color:var(--navy)}
+.empty{padding:52px 20px; text-align:center; color:var(--slate)}
+.empty b{display:block; color:var(--ink); font-size:16px; margin-bottom:4px}
+.foot{padding:14px 20px 18px; border-top:1px solid var(--line); font-size:12.5px; color:var(--slate); line-height:1.6}
+.pager{display:flex; gap:10px; margin-top:20px}
+.btn-nav{background:#fff; border:1px solid var(--line); color:var(--navy); padding:11px 18px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer}
+.btn-nav:hover{background:#eef3fa}
+.btn-nav.sp{margin-left:auto}
+:focus-visible{outline:2px solid var(--teal); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important} html{scroll-behavior:auto}}
+@media(max-width:760px){
+  /* the frozen column eats too much of a narrow screen otherwise */
+  .cell.name{min-width:124px}
+}
+
+/* ---------- page description, folded away behind a caret ----------
+   The description expands in the flow rather than floating over the page, so
+   opening it pushes everything below it down instead of covering it. Height is
+   measured at the moment it opens, which keeps the transition honest when the
+   text wraps to a different number of lines on a narrow screen. */
+.phead h1{display:flex; align-items:center; gap:11px; flex-wrap:wrap}
+.pmore{width:23px; height:23px; flex:none; border-radius:50%; border:1px solid var(--line);
+  background:#fff; color:var(--slate); cursor:pointer; padding:0; position:relative;
+  display:inline-flex; align-items:center; justify-content:center; transition:.15s}
+.pmore::before{content:""; width:6px; height:6px; margin-top:-3px;
+  border-right:1.9px solid currentColor; border-bottom:1.9px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.pmore:hover{color:var(--navy); border-color:var(--navy); background:#eef3fa}
+.pmore[aria-expanded="true"]{color:#fff; background:var(--navy); border-color:var(--navy)}
+.pmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:3px}
+.pdesc{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.pdesc.open{opacity:1}
+
+/* Padded on all sides: the bar is the last thing in its card, so without a
+   bottom pad the caret sat astride the card's rounded edge. */
+.notebar{display:flex; align-items:center; justify-content:center; width:100%; padding:12px 18px 16px}
+/* Just the chevron. A ring around it competed with the row of real controls
+   directly above; the navy alone is enough to read as pressable. */
+.nmore{width:30px; height:26px; flex:none; border:0; background:none; padding:0; cursor:pointer;
+  color:var(--navy); border-radius:7px; transition:background .15s, color .15s;
+  display:inline-flex; align-items:center; justify-content:center}
+.nmore::before{content:""; width:9px; height:9px; margin-top:-4px;
+  border-right:2.2px solid currentColor; border-bottom:2.2px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s}
+.nmore:hover{background:rgba(0,60,143,.08)}
+.nmore[aria-expanded="true"]::before{transform:rotate(225deg); margin-top:4px}
+.nfold{max-height:0; overflow:hidden; opacity:0;
+  transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
+.nfold.open{opacity:1}
+.nfold .foot{border-top:0}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <!-- tier 0: identity and actions -->
+  <div class="tier tier0">
+    <a class="brand" href="lifemap-fp-calculator.html"><span class="mark"></span>
+      <span><span class="name">LifeMap</span> <span class="by">by BOX Wealth</span></span></a>
+    <span class="acts">
+      <a class="tlink" href="#">Sign in</a>
+      <a class="btn" href="#">Save my plan</a>
+    </span>
+  </div>
+
+  <!-- tier 1: the product's main areas -->
+  <nav class="tier tier1" aria-label="Main areas">
+    <a class="ptab" style="--tone:#003c8f" href="lifemap-fp-calculator.html">FP Calculator</a>
+    <a class="ptab" style="--tone:#2f6fd0" href="lifemap-assets.html">Assets</a>
+    <a class="ptab on" style="--tone:#0d8a78" href="lifemap-work-assets.html" aria-current="page">Work Assets</a>
+    <a class="ptab" style="--tone:#e9a23b" href="lifemap-goals.html">Goals</a>
+    <a class="ptab" style="--tone:#e2574c" href="lifemap-loans.html">Loans</a>
+    <a class="ptab" style="--tone:#8494ad" href="lifemap-expenses.html">Expenses</a>
+    <a class="ptab gate" style="--tone:#4fb9ab" href="#" title="Sign in to open Insurance">Insurance</a>
+  </nav>
+
+  <!-- tier 2 sits outside the header so it can freeze on its own -->
+</header>
+
+<!-- frozen bar: stays put while the header above it scrolls away -->
+<div class="tier2wrap" id="tier2wrap">
+  <nav class="tier tier2" aria-label="Sections on this page">
+    <button class="stab on" type="button" data-go="sec-mix">Income mix</button>
+    <button class="stab" type="button" data-go="sec-growth">Income over time</button>
+    <button class="stab" type="button" data-go="sec-register">Work asset register</button>
+  </nav>
+</div>
+
+<div class="body">
+  <div class="phead">
+    <h1>What you earn
+      <button class="pmore" type="button" aria-expanded="false" aria-controls="phead-desc" aria-label="Show what this page is for"></button></h1>
+    <div class="pdesc" id="phead-desc"><p>Your income streams beyond regular salary can be valuable work assets &mdash; each one is worth what it will still pay you before it stops.
+       Set what each pays this year, how fast it grows and the age it ends, and the mix and the curve below rebuild themselves. Salary and annual bonuses belong in active employment income, not in this register.</p></div>
+    <div class="assume">
+      <label class="agebox" for="i-age">Your age today <input id="i-age" type="number" min="16" max="90" step="1" value="32"></label>
+      <span class="ahint">Every stream runs from this age until the end age you give it. Change it and the whole page recalculates.</span>
+    </div>
+  </div>
+
+  <!-- ===== income mix ===== -->
+  <div class="card mixcard" id="sec-mix">
+    <div class="mixhead">
+      <h3>Your income mix</h3>
+    </div>
+    <div class="mixsub" id="mix-sub">&nbsp;</div>
+    <div class="mixbody">
+      <div>
+        <div class="donutbox">
+          <svg viewBox="0 0 220 220" id="donut" role="img" aria-label="Income mix"></svg>
+          <div class="dcenter">
+            <div class="k" id="d-k">Total work assets</div>
+            <div class="v" id="d-v">&mdash;</div>
+            <div class="s" id="d-s">&nbsp;</div>
+          </div>
+          <div class="dtip" id="dtip"></div>
+        </div>
+        <div class="dkey" id="d-key">Each slice is what that stream will still pay you before it ends</div>
+      </div>
+      <div class="dleg" id="dleg"></div>
+    </div>
+  </div>
+
+  <!-- ===== income over time ===== -->
+  <div class="card gcard" id="sec-growth">
+    <div class="ghead">
+      <div>
+        <h3>What it pays, year by year</h3>
+        <div class="gsub" id="g-sub">&nbsp;</div>
+      </div>
+    </div>
+    <div class="chartbox">
+      <svg viewBox="0 0 1400 320" id="growth" role="img" aria-label="Annual income by age"></svg>
+      <div class="gtip" id="gtip"></div>
+    </div>
+    <div class="gleg" id="gleg"></div>
+    <div class="gfoot">
+      Each line is one individual income stream, with its own colour and on its own &mdash; not stacked on the others. Income is a yearly amount, so the
+      lines step rather than curve, and a line falls to zero the year that stream reaches its end age. The dark line is
+      everything added together. Every figure is what you earn in that single year, not a running total.
+    </div>
+  </div>
+
+  <!-- ===== register ===== -->
+  <div class="card" id="sec-register">
+    <div class="reghead">
+      <h3>Work asset register</h3>
+      <span class="count" id="rowcount">&mdash;</span>
+      <div class="r">
+        <input class="srch" id="search" type="search" placeholder="Search by stream or notes">
+        <button class="ghost" id="btn-reset">Reset</button>
+        <button class="ghost" id="btn-csv">Export CSV</button>
+        <button class="ghost primary" id="btn-add">+ Add row</button>
+      </div>
+    </div>
+
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="stick">Income stream</th>
+            <th style="text-align:right">Annual amount</th>
+            <th style="text-align:right">Annual growth rate</th>
+            <th style="text-align:right">End age</th>
+            <th style="text-align:right">Total before it stops</th>
+            <th>Notes</th>
+            <th style="text-align:right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" style="display:none"><b>No streams match</b>Clear the search to see everything.</div>
+    <div class="addbar"><button class="addrow" id="btn-add2">+ Click to add a new row</button></div>
+    <div class="foot">
+      Annual growth rates are your editable long-run estimates for each income stream.
+      They are not forecasts. &ldquo;Total before it stops&rdquo; adds up every year this stream still pays, growing at
+      the rate you set, from your age today up to (but not including) its end age. The value recalculates instantly as you type. Nothing here is discounted to today's money.
+    </div>
+  </div>
+
+  <div class="pager">
+    <a class="btn-nav" href="lifemap-assets.html">&larr; Assets</a>
+    <a class="btn-nav sp" href="lifemap-goals.html">Goals &rarr;</a>
+  </div>
+</div>
+
+<script>
+/* New rows start with a neutral editable growth assumption. */
+const DEFAULT_GROWTH = 5.0;
+
+/* Every individual work asset receives its own persistent colour across
+   the chart, donut, legend, hover popup and register. */
+const ASSET_COLORS = [
+  "#2f6fd0", "#0d8a78", "#e9a23b", "#c94f70", "#7b61c9",
+  "#2a9dce", "#d65a31", "#5a9e3d", "#b35c9c", "#8c6d31",
+  "#1f8f83", "#c13f3f", "#5276a7", "#a27bdb", "#db8c3c",
+  "#3478a4", "#9b6b43", "#4f9a72", "#b04a7a", "#6877c5"
+];
+let NEXT_ID = 4, NEXT_COLOR = 3;
+const nextAssetColor = () => ASSET_COLORS[(NEXT_COLOR++) % ASSET_COLORS.length];
+const assetColour = (r, i=0) => r.c || ASSET_COLORS[i % ASSET_COLORS.length];
+const assetName = (r, i=0) => (r.name || "Income stream " + (i+1));
+
+/* ================= STATE ================= */
+let ROWS = [
+  {id:1, c:ASSET_COLORS[0], name:"Consulting retainer",  amt:240000, g:10.0, end:55, notes:"Two clients", saved:true},
+  {id:2, c:ASSET_COLORS[1], name:"Rent, Sector 62 flat", amt:180000, g:5.0, end:80, notes:"", saved:true},
+  {id:3, c:ASSET_COLORS[2], name:"Book royalties",       amt:60000, g:3.0, end:75, notes:"", saved:true}
+];
+const UNASSIGNED = 0;      /* lump income carried over from the landing page, not yet itemised */
+let AGE = 32, SEARCH = "";
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+function fmt(n){
+  n = Math.round(n||0); const a = Math.abs(n), s = n<0 ? "\u2212" : "";
+  if(a >= 1e7) return s+"\u20B9"+(a/1e7).toFixed(a/1e7>=100?0:2)+"Cr";
+  if(a >= 1e5) return s+"\u20B9"+(a/1e5).toFixed(a/1e5>=100?0:1)+"L";
+  if(a >= 1e3) return s+"\u20B9"+(a/1e3).toFixed(a/1e3>=100?0:1)+"K";
+  return s+"\u20B9"+a;
+}
+const full = n => (n<0?"\u2212":"")+"\u20B9"+Math.abs(Math.round(n)).toLocaleString("en-IN");
+const esc = s => String(s??"").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+/* years this stream still pays */
+const yearsLeft = r => Math.max(0, Math.round(num(r.end)) - AGE);
+/* what it pays in the single year you are that age */
+function incomeAt(r, age){
+  const y = age - AGE;
+  if(y < 0 || age >= Math.round(num(r.end))) return 0;
+  return num(r.amt) * Math.pow(1 + num(r.g)/100, y);
+}
+/* the work asset: every rupee it still owes you */
+function valueOf(r){
+  const n = yearsLeft(r), g = 1 + num(r.g)/100;
+  let t = 0, v = num(r.amt);
+  for(let y=0; y<n; y++){ t += v; v *= g; }
+  return t;
+}
+const totalVal = () => ROWS.reduce((t,r) => t + valueOf(r), 0) + UNASSIGNED;
+/* the age by which every stream has stopped */
+const lastAge = () => Math.max(AGE+1, ...ROWS.map(r => Math.round(num(r.end))).filter(e => e > AGE));
+
+/* ================= DONUT ================= */
+const CX=110, CY=110, RO_OUT=92, RO_IN=64, POP=8, TAU=Math.PI*2;
+const track = (ro,ri,col) => `<circle cx="${CX}" cy="${CY}" r="${(ro+ri)/2}" fill="none" stroke="${col}" stroke-width="${ro-ri}"/>`;
+function wedgePath(a0,a1,rOut,rIn){
+  const span = Math.min(a1-a0, TAU-0.0001); a1 = a0+span;
+  const P = (rad,a) => [(CX+rad*Math.cos(a)).toFixed(2), (CY+rad*Math.sin(a)).toFixed(2)];
+  const big = span > Math.PI ? 1 : 0;
+  const [x1,y1]=P(rOut,a0),[x2,y2]=P(rOut,a1),[x3,y3]=P(rIn,a1),[x4,y4]=P(rIn,a0);
+  return `M${x1},${y1} A${rOut},${rOut} 0 ${big} 1 ${x2},${y2} L${x3},${y3} A${rIn},${rIn} 0 ${big} 0 ${x4},${y4} Z`;
+}
+function buckets(){
+  const out = ROWS.map((r,i) => ({
+    id:r.id,
+    n:assetName(r,i),
+    c:assetColour(r,i),
+    v:valueOf(r),
+    d:"Grows at " + num(r.g).toFixed(1) + "% a year until age " + Math.round(num(r.end)) + "."
+  }));
+  if(UNASSIGNED > 0) out.push({id:"unassigned", n:"Not yet itemised", c:"#aeb8c8", v:UNASSIGNED,
+    d:"Carried over from your snapshot. Break it into rows to see it here."});
+  return out.filter(o => o.v > 0).sort((a,b) => b.v - a.v);
+}
+
+function drawDonut(){
+  const svg = $("donut"), leg = $("dleg"), tip = $("dtip");
+  const segs = buckets();
+  const total = segs.reduce((t,x) => t + x.v, 0);
+  leg.innerHTML = "";
+
+  if(total <= 0){
+    svg.innerHTML = track(RO_OUT,RO_IN,"#eef1f6");
+    $("d-v").textContent = "\u20B90";
+    $("d-s").textContent = ROWS.length ? "Every stream has already ended at this age" : "Add your first income stream below";
+    $("mix-sub").textContent = "Nothing left to earn on these numbers";
+    leg.innerHTML = `<div class="li"><span class="nm" style="color:var(--slate)">Add a stream, or raise an end age</span></div>`;
+    return;
+  }
+
+  let s = track(RO_OUT,RO_IN,"#eef1f6");
+  const meta = [];
+  let a = -Math.PI/2;
+  segs.forEach(seg => {
+    const f = seg.v/total, span = f*TAU;
+    if(span <= 0) return;
+    const gap = Math.min(0.014, span*0.16), mid = a + span/2;
+    s += `<path class="wedge" tabindex="0" role="img" fill="${seg.c}"`
+       + ` aria-label="${esc(seg.n)}: ${full(seg.v)}, ${(f*100).toFixed(1)} percent"`
+       + ` d="${wedgePath(a+gap, a+span, RO_OUT, RO_IN)}"></path>`;
+    meta.push({seg, mid});
+    a += span;
+  });
+  svg.innerHTML = s;
+
+  const tipR = (RO_OUT+RO_IN)/2;
+  const handlers = [...svg.querySelectorAll(".wedge")].map((el,i) => {
+    const m = meta[i], dx = Math.cos(m.mid)*POP, dy = Math.sin(m.mid)*POP;
+    const show = () => {
+      el.setAttribute("transform", `translate(${dx.toFixed(2)},${dy.toFixed(2)})`);
+      tip.classList.add("on");
+      tip.style.left = ((CX + Math.cos(m.mid)*tipR)/220*100) + "%";
+      tip.style.top  = ((CY + Math.sin(m.mid)*tipR)/220*100) + "%";
+      tip.innerHTML = `<div class="n"><i style="background:${m.seg.c}"></i>${esc(m.seg.n)}</div>
+                       <div class="a">${full(m.seg.v)}</div>
+                       <div class="d">${(m.seg.v/total*100).toFixed(1)}% of ${fmt(total)}<br>${esc(m.seg.d)}</div>`;
+    };
+    const hide = () => { el.removeAttribute("transform"); tip.classList.remove("on"); };
+    el.addEventListener("mouseenter", show); el.addEventListener("mouseleave", hide);
+    el.addEventListener("focus", show);      el.addEventListener("blur", hide);
+    return {show, hide};
+  });
+
+  segs.forEach((seg,i) => {
+    const li = document.createElement("div");
+    li.className = "li";
+    li.innerHTML = `<span class="sw" style="background:${seg.c}"></span>
+                    <span class="nm">${esc(seg.n)}</span>
+                    <span class="vl">${fmt(seg.v)}</span>
+                    <span class="pc">${(seg.v/total*100).toFixed(0)}%</span>`;
+    li.addEventListener("mouseenter", handlers[i].show);
+    li.addEventListener("mouseleave", handlers[i].hide);
+    leg.appendChild(li);
+  });
+
+  const top = segs[0];
+  $("d-v").textContent = fmt(total);
+  $("d-s").textContent = top ? `${(top.v/total*100).toFixed(0)}% of it is ${top.n.toLowerCase()}` : "";
+  $("mix-sub").textContent = `Across ${segs.length} income ${segs.length===1?"stream":"streams"}`;
+}
+
+/* ================= INCOME-BY-AGE CHART ================= */
+const GW=1400, GH=320, GL=84, GR=20, GT=16, GB=38;
+const PW = GW-GL-GR, PH = GH-GT-GB;
+
+/* one independently coloured series per income stream */
+function series(ages){
+  return ROWS.map((r,i) => ({
+    id:r.id,
+    n:assetName(r,i),
+    c:assetColour(r,i),
+    pts:ages.map(a => incomeAt(r,a))
+  })).filter(s => s.pts.some(v => v > 0));
+}
+function niceStep(max){
+  const raw = max/4, p = Math.pow(10, Math.floor(Math.log10(raw||1)));
+  return [1,2,2.5,5,10].map(m => m*p).find(v => v >= raw) || p*10;
+}
+
+function drawGrowth(){
+  const svg = $("growth"), leg = $("gleg"), tip = $("gtip");
+  const end = lastAge();
+  const ages = [];
+  for(let a=AGE; a<=end; a++) ages.push(a);
+  const S = ROWS.map((r,i) => ({
+    id:r.id,
+    n:assetName(r,i),
+    c:assetColour(r,i),
+    pts:ages.map(a => incomeAt(r,a))
+  })).filter(s => s.pts.some(v => v > 0));
+  const totals = ages.map((_,i) => S.reduce((t,s) => t + s.pts[i], 0));
+
+  if(!S.length || !totals.some(v => v > 0)){
+    svg.innerHTML = `<text x="${GL+PW/2}" y="${GT+PH/2}" text-anchor="middle" fill="#9aa7bd" font-size="15" font-weight="600">Add a stream below to see what it pays</text>`;
+    leg.innerHTML = ""; $("g-sub").innerHTML = "Nothing to project yet";
+    return;
+  }
+
+  const peak = Math.max(...totals), step = niceStep(peak), top = Math.ceil(peak/step)*step;
+  const span = Math.max(1, end - AGE);
+  const X = a => GL + ((a-AGE)/span)*PW;
+  const Y = v => GT + PH - (v/top)*PH;
+
+  let g = "";
+
+  /* horizontal and vertical dashed grid, matching the reference graph */
+  for(let v=0; v<=top+1; v+=step){
+    const y = Y(v).toFixed(1);
+    g += `<line x1="${GL}" y1="${y}" x2="${GL+PW}" y2="${y}" stroke="#c9ced7" stroke-width="1" stroke-dasharray="4 4"/>`
+       + `<text x="${GL-10}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="#52627a" font-size="12">${fmt(v)}</text>`;
+  }
+  const tick = Math.max(1, Math.round(span/10));
+  for(let a=AGE; a<=end; a+=tick){
+    const x = X(a).toFixed(1);
+    g += `<line x1="${x}" y1="${GT}" x2="${x}" y2="${GT+PH}" stroke="#c9ced7" stroke-width="1" stroke-dasharray="4 4"/>`
+       + `<text x="${x}" y="${GT+PH+22}" text-anchor="middle" fill="#52627a" font-size="12">${a===AGE?"age "+AGE:a}</text>`;
+  }
+  if((end-AGE)%tick!==0){
+    const x = X(end).toFixed(1);
+    g += `<line x1="${x}" y1="${GT}" x2="${x}" y2="${GT+PH}" stroke="#c9ced7" stroke-width="1" stroke-dasharray="4 4"/>`
+       + `<text x="${x}" y="${GT+PH+22}" text-anchor="end" fill="#52627a" font-size="12">${end}</text>`;
+  }
+
+  /* axis lines */
+  g += `<line x1="${GL}" y1="${GT}" x2="${GL}" y2="${GT+PH}" stroke="#667085" stroke-width="1.3"/>`
+     + `<line x1="${GL}" y1="${GT+PH}" x2="${GL+PW}" y2="${GT+PH}" stroke="#667085" stroke-width="1.3"/>`;
+
+  const linePath = pts => {
+    const points = pts.map((v,i) => [X(ages[i]), Y(v)]);
+    if(points.length < 2) return "";
+    let d = `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+    for(let i=1;i<points.length;i++){
+      const [x0,y0]=points[i-1], [x1,y1]=points[i];
+      const mx=(x0+x1)/2;
+      d += ` C${mx.toFixed(1)},${y0.toFixed(1)} ${mx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+    }
+    return d;
+  };
+
+  /* light area under total, as in the reference */
+  const totalPath = linePath(totals);
+  const areaPath = totalPath + ` L${X(end).toFixed(1)},${Y(0).toFixed(1)} L${X(AGE).toFixed(1)},${Y(0).toFixed(1)} Z`;
+  g += `<path d="${areaPath}" fill="#2f6fd0" fill-opacity=".12" stroke="none"/>`;
+
+  /* individual smooth lines and point markers */
+  S.forEach(sr => {
+    g += `<path d="${linePath(sr.pts)}" fill="none" stroke="${sr.c}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    sr.pts.forEach((v,i) => {
+      if(v<=0) return;
+      g += `<circle cx="${X(ages[i]).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.6" fill="${sr.c}" fill-opacity=".22" stroke="${sr.c}" stroke-width="2"/>`;
+    });
+  });
+
+  /* total line, slightly heavier */
+  g += `<path d="${totalPath}" fill="none" stroke="#0a1f44" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>`;
+  totals.forEach((v,i) => {
+    if(v<=0) return;
+    g += `<circle cx="${X(ages[i]).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.8" fill="#0a1f44" fill-opacity=".14" stroke="#0a1f44" stroke-width="2"/>`;
+  });
+
+  g += `<g id="gcross" opacity="0">
+          <line y1="${GT}" y2="${GT+PH}" stroke="#8d95a3" stroke-width="1"/>
+          ${S.map(sr => `<circle class="sdot" r="4.2" fill="#fff" stroke="${sr.c}" stroke-width="2.4" opacity="0"/>`).join("")}
+          <circle class="tdot" r="4.8" fill="#fff" stroke="#0a1f44" stroke-width="2.6"/>
+        </g>
+        <rect id="ghit" x="${GL}" y="${GT}" width="${PW}" height="${PH}" fill="transparent" style="cursor:crosshair"/>`;
+  svg.innerHTML = g;
+
+  const val = buckets();
+  leg.innerHTML = S.map(s => {
+    const b = val.find(v => v.id === s.id);
+    return `<span class="gi"><i style="background:${s.c}"></i>${esc(s.n)} <b>${fmt(b ? b.v : 0)}</b></span>`;
+  }).join("") + `<span class="gi" style="margin-left:auto"><i style="background:#0a1f44"></i>Total <b>${fmt(totalVal())}</b></span>`;
+
+  const pAt = ages[totals.indexOf(peak)];
+  $("g-sub").innerHTML = `This year <b>${fmt(totals[0])}</b>`
+    + `<span class="arrow">&middot;</span>peaks at <b>${fmt(peak)}</b> around age ${pAt}`
+    + `<span class="arrow">&middot;</span><b>${fmt(totalVal())}</b> in total before the last stream ends at ${end}`;
+
+  const cross = svg.querySelector("#gcross"), hit = svg.querySelector("#ghit");
+  const line = cross.querySelector("line"), dot = cross.querySelector(".tdot"), sdots = cross.querySelectorAll(".sdot");
+  const move = ev => {
+    const b = svg.getBoundingClientRect();
+    const px = (ev.clientX - b.left) / b.width * GW;
+    let i = Math.round((px - GL)/PW*span);
+    i = Math.max(0, Math.min(ages.length-1, i));
+    const a = ages[i], x = X(a), yv = Y(totals[i]);
+    line.setAttribute("x1", x); line.setAttribute("x2", x);
+    dot.setAttribute("cx", x); dot.setAttribute("cy", yv);
+    S.forEach((sr,k) => {
+      const v = sr.pts[i];
+      sdots[k].setAttribute("cx", x);
+      sdots[k].setAttribute("cy", Y(v));
+      sdots[k].setAttribute("opacity", v > 0 ? "1" : "0");
+    });
+    cross.setAttribute("opacity","1");
+
+    const parts = S.map(s => ({n:s.n, c:s.c, v:s.pts[i]})).filter(p => p.v > 0).sort((x,y) => y.v - x.v);
+    tip.innerHTML = `<div class="yr">Age ${a}${a===AGE?" · this year":""}</div>
+      <div class="tt">${full(totals[i])}</div>
+      <div class="gl totalrow"><i style="background:#0a1f44"></i><span>Total income</span><b>${fmt(totals[i])}</b></div>`
+      + parts.map(p => `<div class="gl"><i style="background:${p.c}"></i><span>${esc(p.n)}</span><b>${fmt(p.v)}</b></div>`).join("");
+    tip.classList.add("on");
+    const fx = x/GW, lft = Math.min(0.84, Math.max(0.16, fx));
+    tip.style.left = (lft*100) + "%";
+    tip.style.top  = Math.max(18, yv/GH*100) + "%";
+    tip.style.transform = "translate(-50%, -108%)";
+  };
+  const leave = () => { cross.setAttribute("opacity","0"); tip.classList.remove("on"); };
+  hit.addEventListener("mousemove", move);
+  hit.addEventListener("mouseleave", leave);
+  hit.addEventListener("touchstart", e => move(e.touches[0]), {passive:true});
+  hit.addEventListener("touchmove",  e => move(e.touches[0]), {passive:true});
+  hit.addEventListener("touchend", leave);
+}
+
+/* ================= TABLE ================= */
+function visible(){
+  const q = SEARCH.trim().toLowerCase();
+  return ROWS.map((r,i) => ({r,i})).filter(({r}) => {
+    if(!q) return true;
+    return (r.name+" "+r.notes).toLowerCase().includes(q);
+  });
+}
+function drawTable(){
+  const tb = $("tbody"), rows = visible();
+  tb.innerHTML = "";
+  $("empty").style.display = rows.length ? "none" : "block";
+  $("rowcount").textContent = rows.length === ROWS.length
+    ? ROWS.length + (ROWS.length===1 ? " stream" : " streams")
+    : rows.length + " of " + ROWS.length + " shown";
+
+  rows.forEach(({r,i}, vi) => {
+    const tr = document.createElement("tr");
+    const val = valueOf(r), yrs = yearsLeft(r);
+    tr.innerHTML = `
+      <td class="stick"><div class="assetname"><span class="assetdot" title="Chart colour" style="background:${assetColour(r,i)}"></span><input class="cell name" data-k="name" value="${esc(r.name)}" placeholder="Name this stream"></div></td>
+      <td><input class="cell money" data-k="amt" type="number" value="${r.amt}" placeholder="0"></td>
+      <td><input class="cell money" data-k="g" type="number" step="0.1" value="${r.g}"></td>
+      <td><input class="cell money" data-k="end" type="number" step="1" min="${AGE}" max="100" value="${r.end}"></td>
+      <td class="rt"><span class="proj${yrs?"":" done"}">${fmt(val)}<small>${yrs ? yrs + (yrs===1?" more year":" more years") : "already ended"}</small></span></td>
+      <td><input class="cell" data-k="notes" value="${esc(r.notes||"")}" placeholder="Click to add" style="min-width:150px"></td>
+      <td><span class="acts">
+        <button class="rb save${r.saved?" done":""}" type="button">${r.saved?"Saved":"Save"}</button>
+        <button class="rb del" type="button">Remove</button></span></td>`;
+
+    const btnSave = tr.querySelector(".save");
+    const projected = tr.querySelector(".proj");
+    const dirty = () => { r.saved = false; btnSave.classList.remove("done"); btnSave.textContent = "Save"; };
+
+    /* Keep the calculated total in this row live while the user types.
+       Redrawing the entire table would replace the focused input, so update
+       only the derived cell and redraw the charts/donut separately. */
+    const updateProjected = () => {
+      const yrsNow = yearsLeft(r);
+      projected.classList.toggle("done", !yrsNow);
+      projected.innerHTML = `${fmt(valueOf(r))}<small>${yrsNow ? yrsNow + (yrsNow===1?" more year":" more years") : "already ended"}</small>`;
+    };
+
+    tr.querySelectorAll("[data-k]").forEach(el => {
+      el.addEventListener("input", e => {
+        const k = e.target.dataset.k;
+        r[k] = ["amt","g","end"].includes(k) ? num(e.target.value) : e.target.value;
+        dirty();
+        updateProjected();
+        refresh(false);                     /* charts + donut, without replacing the active row */
+      });
+    });
+
+
+    btnSave.addEventListener("click", () => { r.saved = true; btnSave.classList.add("done"); btnSave.textContent = "Saved"; });
+    tr.querySelector(".del").addEventListener("click", () => { ROWS.splice(i,1); refresh(); });
+    tb.appendChild(tr);
+  });
+}
+
+/* ================= REFRESH ================= */
+function refresh(redrawTable = true){
+  drawDonut(); drawGrowth();
+  if(redrawTable) drawTable();
+}
+
+/* ================= WIRING ================= */
+$("i-age").addEventListener("input", e => {
+  const v = Math.round(num(e.target.value));
+  if(v >= 16 && v <= 90){ AGE = v; refresh(); }
+});
+const addStream = () => {
+  ROWS.push({id:NEXT_ID++, c:nextAssetColor(), name:"", amt:0, g:DEFAULT_GROWTH,
+             end:Math.min(90, AGE+28), notes:"", saved:false});
+  SEARCH = ""; $("search").value = "";
+  refresh();
+  const last = $("tbody").lastElementChild;
+  if(last) last.querySelector("input").focus();
+};
+$("btn-add").addEventListener("click", addStream);
+$("btn-add2").addEventListener("click", addStream);
+$("search").addEventListener("input", e => { SEARCH = e.target.value; drawTable(); });
+$("btn-reset").addEventListener("click", () => {
+  SEARCH = ""; $("search").value = ""; drawTable();
+});
+$("btn-csv").addEventListener("click", () => {
+  const head = ["Income stream","Annual amount","Annual growth rate %","End age","Years left","Total before it stops","Notes"];
+  const q = v => `"${String(v??"").replace(/"/g,'""')}"`;
+  const csv = [head.map(q).join(",")].concat(
+    ROWS.map(r => [r.name,r.amt,r.g,r.end,yearsLeft(r),Math.round(valueOf(r)),r.notes].map(q).join(","))
+  ).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
+  a.download = "lifemap-work-assets.csv"; a.click(); URL.revokeObjectURL(a.href);
+});
+
+/* ========================= STACKED NAV =========================
+   Same behaviour as the landing page: tier 0 and tier 1 scroll away with the
+   page, only .tier2wrap freezes at the top.
+============================================================== */
+(function(){
+  const tabs = [...document.querySelectorAll(".tier2 .stab[data-go]")];
+  const jump = id => {
+    const el = $(id);
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  };
+  tabs.forEach(b => b.addEventListener("click", () => {
+    tabs.forEach(x => x.classList.toggle("on", x === b));
+    jump(b.dataset.go);
+  }));
+
+  /* the frozen bar lifts off the page once the header has scrolled past */
+  const bar = $("tier2wrap"), head = document.querySelector(".topbar");
+  if(bar && head){
+    const onStuck = () => bar.classList.toggle("stuck", window.scrollY > head.offsetHeight - 1);
+    window.addEventListener("scroll", onStuck, {passive:true});
+    window.addEventListener("resize", onStuck);
+    onStuck();
+  }
+
+  /* highlight whichever section is in view */
+  const mark = id => tabs.forEach(b => b.classList.toggle("on", b.dataset.go === id));
+  const targets = tabs.map(b => $(b.dataset.go)).filter(Boolean);
+  if("IntersectionObserver" in window && targets.length){
+    const nav = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--navh")) || 44;
+    const seen = new Map();
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => seen.set(e.target.id, e));
+      let best = null;
+      seen.forEach(e => {
+        if(!e.isIntersecting) return;
+        if(!best || e.intersectionRatio > best.intersectionRatio) best = e;
+      });
+      if(best) mark(best.target.id);
+    }, {rootMargin:"-" + (nav + 10) + "px 0px -55% 0px", threshold:[0,.1,.25,.5,1]});
+    targets.forEach(t => obs.observe(t));
+  }
+})();
+
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(drawGrowth, 120); });
+
+refresh();
+/* ---------- page description toggle ---------- */
+document.querySelectorAll(".pmore").forEach(btn => {
+  const box = document.getElementById(btn.getAttribute("aria-controls"));
+  if(!box) return;
+  const set = open => {
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    box.classList.toggle("open", open);
+    /* measured on every open: the text wraps differently at different widths */
+    box.style.maxHeight = open ? box.scrollHeight + "px" : "0px";
+  };
+  btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+  window.addEventListener("resize", () => {
+    if(btn.getAttribute("aria-expanded") === "true") box.style.maxHeight = box.scrollHeight + "px";
+  });
+});
+
+/* ---------- fold every section note behind a caret ----------
+   Done here rather than in the markup so the same rule covers notes that are
+   written by script as well as those already in the page, and so a note added
+   later is folded automatically. */
+(function(){
+  document.querySelectorAll(".rowfoot, .foot, .gfoot, .rnote").forEach(note => {
+    if(note.closest(".nfold")) return;
+    const host = note.parentNode;
+    const bar  = document.createElement("div");
+    bar.className = "notebar";
+    const btn  = document.createElement("button");
+    btn.type = "button"; btn.className = "nmore";
+    btn.setAttribute("aria-expanded","false");
+    btn.setAttribute("aria-label","Show the note for this section");
+    bar.appendChild(btn);
+    const fold = document.createElement("div");
+    fold.className = "nfold";
+    host.insertBefore(bar, note);
+    host.insertBefore(fold, note);
+    fold.appendChild(note);
+    const set = open => {
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      fold.classList.toggle("open", open);
+      fold.style.maxHeight = open ? fold.scrollHeight + "px" : "0px";
+    };
+    btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
+    /* the notes are rewritten as figures change, so the measured height goes stale */
+    new MutationObserver(() => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    }).observe(note, {childList:true, characterData:true, subtree:true});
+    window.addEventListener("resize", () => {
+      if(btn.getAttribute("aria-expanded") === "true") fold.style.maxHeight = fold.scrollHeight + "px";
+    });
+  });
+})();
+
+
+/* === LIFEMAP_BRIDGE_START === */
+(function(){
+  var PAGE = "work";
+  var ROUTES = {
+    "lifemap-fp-calculator.html": "/",
+    "fp-calculator.html": "/",
+    "lifemap-assets.html": "/assets",
+    "assets.html": "/assets",
+    "lifemap-work-assets.html": "/work-assets",
+    "work-assets.html": "/work-assets",
+    "lifemap-goals.html": "/goals",
+    "goals.html": "/goals",
+    "lifemap-loans.html": "/loans",
+    "loans.html": "/loans",
+    "lifemap-expenses.html": "/expenses",
+    "expenses.html": "/expenses",
+    "lifemap-insurance.html": "/insurance",
+    "insurance.html": "/insurance"
+  };
+
+  function post(type, payload){
+    try { parent.postMessage({ source:"lifemap-mockup", type:type, page:PAGE, payload:payload||null }, "*"); }
+    catch (e) {}
+  }
+
+  function fileOf(href){
+    if (!href) return "";
+    var clean = String(href).split("#")[0].split("?")[0];
+    var parts = clean.split("/");
+    return parts[parts.length-1];
+  }
+
+  function replaceList(target, next){
+    if (!target || !next) return;
+    target.splice.apply(target, [0, target.length].concat(next));
+  }
+
+  function getState(){
+    try {
+      if (PAGE === "fp") {
+        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
+      }
+      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ };
+      if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
+      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS };
+      if (PAGE === "loans") return { ROWS: ROWS.slice(), PLAN: PLAN.slice(), VIEW: VIEW };
+      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE };
+    } catch (e) { console.error(e); }
+    return {};
+  }
+
+  function hydrateFp(st){
+    if (!st || !st.S) return;
+    var src = st.S;
+    S.age = src.age; S.salary = src.salary; S.gSal = src.gSal; S.workTill = src.workTill;
+    S.finAssets = src.finAssets; S.personalAssets = src.personalAssets;
+    S.gRet = src.gRet; S.gInf = src.gInf; S.lifeTo = src.lifeTo;
+    if (src.loans) replaceList(S.loans, src.loans);
+    if (src.goals) replaceList(S.goals, src.goals);
+    if (src.exp) replaceList(S.exp, src.exp);
+    var set = function(id, val){ var el = $(id); if (el) el.value = val; };
+    var setTxt = function(id, val){ var el = $(id); if (el) el.textContent = val; };
+    set("i-age", S.age);
+    set("i-salary", S.salary);
+    set("i-gsal", S.gSal);
+    set("i-gsal2", S.gSal);
+    set("i-work-age", S.workTill);
+    set("i-fin-assets", S.finAssets);
+    set("i-personal-assets", S.personalAssets);
+    set("i-gret", S.gRet); setTxt("o-gret", Number(S.gRet).toFixed(1)+"%");
+    set("i-ginf", S.gInf); setTxt("o-ginf", Number(S.gInf).toFixed(1)+"%");
+    setTxt("o-gsal2", Number(S.gSal).toFixed(1)+"%");
+    set("i-life", S.lifeTo); setTxt("o-life", S.lifeTo);
+    ["loans","goals","exp"].forEach(renderRows);
+    refresh();
+  }
+
+  function setState(st){
+    if (!st) return;
+    try {
+      if (PAGE === "fp") { hydrateFp(st); return; }
+      if (PAGE === "assets") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
+        if (st.MODE) MODE = st.MODE;
+        if (st.HZ) HZ = st.HZ;
+        refresh();
+        return;
+      }
+      if (PAGE === "work") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") {
+          AGE = st.AGE;
+          var ageEl = $("i-age");
+          if (ageEl) ageEl.value = AGE;
+        }
+        var maxId = 0;
+        ROWS.forEach(function(r){ if (r.id > maxId) maxId = r.id; });
+        try { NEXT_ID = maxId + 1; } catch(e) {}
+        refresh();
+        return;
+      }
+      if (PAGE === "goals") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
+        if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
+        if (st.BASIS) BASIS = st.BASIS;
+        refresh();
+        return;
+      }
+      if (PAGE === "loans") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (st.PLAN) replaceList(PLAN, st.PLAN);
+        if (typeof REGS !== "undefined") {
+          REGS.cur.list = ROWS;
+          REGS.plan.list = PLAN;
+        }
+        if (st.VIEW) VIEW = st.VIEW;
+        refresh();
+        return;
+      }
+      if (PAGE === "expenses") {
+        if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.AGE === "number") { AGE = st.AGE; var e1=$("i-age"); if(e1) e1.value=AGE; }
+        if (typeof st.LIFE === "number") { LIFE = st.LIFE; var e2=$("i-life"); if(e2) e2.value=LIFE; }
+        if (typeof st.GINF === "number") { GINF = st.GINF; var e3=$("i-ginf"); if(e3) e3.value=GINF; }
+        if (st.BASIS) BASIS = st.BASIS;
+        if (st.MODE) MODE = st.MODE;
+        refresh();
+      }
+    } catch (err) {
+      console.error("LifeMap setState failed", err);
+    }
+  }
+
+  function setAccount(label){
+    var link = document.querySelector(".tier0 .tlink");
+    if (link && label) link.textContent = label;
+  }
+
+  document.querySelectorAll(".ptab.gate").forEach(function(a){
+    var label = (a.textContent || "").replace(/\s+/g," ").trim();
+    if (/insurance/i.test(label)) {
+      a.classList.remove("gate");
+      a.removeAttribute("title");
+      a.setAttribute("href", "/insurance");
+    }
+  });
+
+  document.querySelectorAll("a").forEach(function(a){
+    a.addEventListener("click", function(e){
+      var href = a.getAttribute("href") || "";
+      var file = fileOf(href);
+      var label = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/^insurance$/i.test(label) && (a.classList.contains("ptab") || href === "/insurance" || href === "#")) {
+        e.preventDefault();
+        post("navigate", { path: "/insurance" });
+        return;
+      }
+      if (a.classList.contains("gate")) { e.preventDefault(); return; }
+      if (ROUTES[file]) {
+        e.preventDefault();
+        post("navigate", { path: ROUTES[file] });
+      }
+    });
+  });
+
+  document.querySelectorAll(".tier0 .tlink, .tier0 .btn").forEach(function(a){
+    a.addEventListener("click", function(e){
+      e.preventDefault();
+      var text = (a.textContent || "").replace(/\s+/g," ").trim();
+      if (/sign in|account/i.test(text)) post("auth", { action: "signin", label: text });
+      else if (/save/i.test(text)) post("save", getState());
+    });
+  });
+
+  document.addEventListener("click", function(e){
+    var saveBtn = e.target.closest && e.target.closest(".rb.save");
+    var delBtn = e.target.closest && e.target.closest(".rb.del");
+    if (saveBtn || delBtn) {
+      setTimeout(function(){ post(delBtn ? "row-delete" : "row-save", getState()); }, 30);
+    }
+  }, true);
+
+  window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  post("ready", getState());
+})();
+/* === LIFEMAP_BRIDGE_END === */
+
+</script>
+</body>
+</html>
