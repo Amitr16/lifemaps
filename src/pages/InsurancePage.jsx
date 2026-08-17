@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAdminUser } from '@/contexts/AdminUserContext';
 import ApiService from '@/services/api';
 import { useLifeSheetStore } from '@/store/enhanced-store';
+import { refreshPlanStore } from '@/lib/mockupSync';
 import { AlertTriangle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader.jsx';
 import PagePager from '@/components/PagePager.jsx';
@@ -65,16 +66,23 @@ export default function InsurancePage() {
   };
   
   // Calculate values from left pane cells (same as OriginalLifeSheet)
+  const annualOf = (expense) => {
+    const amount = parseFloat(expense.amount) || 0
+    const per = { Weekly: 52, Fortnightly: 26, Monthly: 12, Quarterly: 4, 'Semi-Annually': 2, 'Half-yearly': 2, Annually: 1, Yearly: 1 }
+    return amount * (per[expense.frequency] || 12)
+  }
   const totalLoans = loans.reduce((sum, loan) => sum + (parseFloat(loan.amount) || 0), 0);
-  const totalExpenses = expenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+  const totalExpenses = expenses
+    .filter((expense) => !expense.loan_id)
+    .reduce((sum, expense) => sum + annualOf(expense), 0);
   const totalGoals = goals.reduce((sum, goal) => sum + (parseFloat(goal.amount) || 0), 0);
   
   // Calculate values (Quick Calculator or Detailed based on source preferences) - EXACT SAME as OriginalLifeSheet
   const calculateQuickCalculatorValues = () => {
-    const { detail, sourcePreferences } = useLifeSheetStore.getState();
-    const useDetailedAssets = sourcePreferences?.assets === 1 && detail?.assets?.portfolioSeries;
-    const useDetailedIncome = sourcePreferences?.income === 1 && detail?.workIncome?.series;
-    const useDetailedExpenses = sourcePreferences?.expenses === 1 && detail?.expenses?.series;
+    const { detail } = useLifeSheetStore.getState();
+    const useDetailedAssets = detail?.assets?.portfolioSeries && Object.keys(detail.assets.portfolioSeries).length > 0;
+    const useDetailedIncome = detail?.workIncome?.series && Object.keys(detail.workIncome.series).length > 0;
+    const useDetailedExpenses = detail?.expenses?.series && Object.keys(detail.expenses.series).length > 0;
     
     // If using detailed calculations, use them with inflation discounting
     if (useDetailedAssets || useDetailedIncome || useDetailedExpenses) {
@@ -143,7 +151,7 @@ export default function InsurancePage() {
   
   // Calculate using detailed data with inflation discounting - EXACT SAME as OriginalLifeSheet
   const calculateDetailedValues = () => {
-    const { detail, sourcePreferences, main } = useLifeSheetStore.getState();
+    const { detail } = useLifeSheetStore.getState();
     const inflation = (formData.inflationRate !== undefined && formData.inflationRate !== null && formData.inflationRate !== '') 
       ? parseFloat(formData.inflationRate) : 0.06;
     
@@ -155,7 +163,7 @@ export default function InsurancePage() {
     
     // Assets: Use detailed if available, otherwise quick calculator
     let totalProjectedAssets = 0;
-    if (sourcePreferences?.assets === 1 && detail?.assets?.portfolioSeries) {
+    if (detail?.assets?.portfolioSeries && Object.keys(detail.assets.portfolioSeries).length > 0) {
       const startingAssetsNominal = detail.assets.portfolioSeries[currentYear] || parseFloat(formData.totalAssetGrossMarketValue) || 0;
       const finalYear = currentYear + workTenure;
       const assetsNominal = detail.assets.portfolioSeries[finalYear] || startingAssetsNominal;
@@ -183,13 +191,14 @@ export default function InsurancePage() {
       totalProjectedAssets = projectedEquity + projectedDebt;
     }
     
-    // Expenses: Use detailed if available (already includes EMIs)
+    // Expenses: living series and EMI series are stored separately
     const remainingLife = Math.max(0, (parseInt(formData.lifespanYears) || 85) - age);
     let totalFutureExpenses = 0;
-    if (sourcePreferences?.expenses === 1 && detail?.expenses?.series) {
+    if (detail?.expenses?.series && Object.keys(detail.expenses.series).length > 0) {
+      const emiSeries = detail?.loans?.series || {};
       for (let yearOffset = 0; yearOffset < remainingLife; yearOffset++) {
         const year = currentYear + yearOffset;
-        const expensesNominal = detail.expenses.series[year] || 0;
+        const expensesNominal = (detail.expenses.series[year] || 0) + (emiSeries[year] || 0);
         const expensesPresentValue = expensesNominal / Math.pow(1 + inflation, yearOffset);
         totalFutureExpenses += expensesPresentValue;
       }
@@ -229,6 +238,23 @@ export default function InsurancePage() {
   useEffect(() => {
     if (effectiveIsAuthenticated && effectiveUserId) {
       loadInsurance();
+      refreshPlanStore(effectiveUserId).catch(() => {});
+
+      try {
+        const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
+        if (Object.keys(quickCalcAssumptions).length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            inflationRate: quickCalcAssumptions.inflationRate !== undefined ? quickCalcAssumptions.inflationRate : prev.inflationRate,
+            incomeGrowthRate: quickCalcAssumptions.incomeGrowthRate !== undefined ? quickCalcAssumptions.incomeGrowthRate : prev.incomeGrowthRate,
+            assetEquitySplit: quickCalcAssumptions.assetEquitySplit !== undefined ? quickCalcAssumptions.assetEquitySplit : prev.assetEquitySplit,
+            assetEquityGrowthRate: quickCalcAssumptions.assetEquityGrowthRate !== undefined ? quickCalcAssumptions.assetEquityGrowthRate : prev.assetEquityGrowthRate,
+            assetDebtGrowthRate: quickCalcAssumptions.assetDebtGrowthRate !== undefined ? quickCalcAssumptions.assetDebtGrowthRate : prev.assetDebtGrowthRate
+          }));
+        }
+      } catch (e) {
+        console.warn('Failed to load Quick Calculator assumptions from localStorage:', e);
+      }
       
       // Load financial profile
       const profilePromise = isAdminMode
@@ -245,6 +271,7 @@ export default function InsurancePage() {
             totalAssetGrossMarketValue: profile.total_asset_gross_market_value || '',
             totalLoanOutstandingValue: profile.total_loan_outstanding_value || '',
             lifespanYears: profile.lifespan_years || 85,
+            incomeGrowthRate: profile.income_growth_rate != null ? parseFloat(profile.income_growth_rate) : prev.incomeGrowthRate,
             inflationRate: profile.inflation_rate != null ? parseFloat(profile.inflation_rate) : prev.inflationRate,
             assetEquityGrowthRate: profile.equity_growth_rate != null ? parseFloat(profile.equity_growth_rate) : prev.assetEquityGrowthRate,
             assetDebtGrowthRate: profile.debt_growth_rate != null ? parseFloat(profile.debt_growth_rate) : prev.assetDebtGrowthRate
@@ -293,22 +320,6 @@ export default function InsurancePage() {
       }).catch(error => {
         console.error('❌ Expenses fetch error:', error);
       });
-      
-      // Load Quick Calculator assumptions from localStorage
-      try {
-        const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');
-        if (Object.keys(quickCalcAssumptions).length > 0) {
-          setFormData(prev => ({
-            ...prev,
-            inflationRate: quickCalcAssumptions.inflationRate !== undefined ? quickCalcAssumptions.inflationRate : prev.inflationRate,
-            assetEquitySplit: quickCalcAssumptions.assetEquitySplit !== undefined ? quickCalcAssumptions.assetEquitySplit : prev.assetEquitySplit,
-            assetEquityGrowthRate: quickCalcAssumptions.assetEquityGrowthRate !== undefined ? quickCalcAssumptions.assetEquityGrowthRate : prev.assetEquityGrowthRate,
-            assetDebtGrowthRate: quickCalcAssumptions.assetDebtGrowthRate !== undefined ? quickCalcAssumptions.assetDebtGrowthRate : prev.assetDebtGrowthRate
-          }));
-        }
-      } catch (e) {
-        console.warn('Failed to load Quick Calculator assumptions from localStorage:', e);
-      }
     } else if (!effectiveIsAuthenticated) {
       // If not authenticated, set loading to false immediately
       setLoading(false);
@@ -404,7 +415,7 @@ export default function InsurancePage() {
         
         if (row.id && !row.id.toString().startsWith('temp_')) {
           // Update existing row
-          if (row.policyType && row.cover && row.premium) {
+        if (row.policyType && (parseFloat(row.cover) > 0 || parseFloat(row.premium) > 0)) {
             setSavingRows(prev => new Set(prev).add(rowIndex));
             const endDate = row.endDate || (row.expiryYear ? `${parseInt(row.expiryYear)}-12-31` : null);
             ApiService.updateFinancialInsurance(row.id, {
@@ -425,7 +436,7 @@ export default function InsurancePage() {
               });
             }).catch(error => console.error('Error updating insurance:', error));
           }
-        } else if (row.policyType && row.cover && row.premium && row.id.toString().startsWith('temp_')) {
+        } else if (row.policyType && (parseFloat(row.cover) > 0 || parseFloat(row.premium) > 0) && String(row.id || '').startsWith('temp_')) {
           // Create new row
           setSavingRows(prev => new Set(prev).add(rowIndex));
           const endDate = row.endDate || (row.expiryYear ? `${parseInt(row.expiryYear)}-12-31` : null);
@@ -440,9 +451,8 @@ export default function InsurancePage() {
             end_date: endDate,
             notes: row.notes
           }).then(newInsurance => {
-            const updatedRowsWithId = [...rows];
-            updatedRowsWithId[rowIndex] = { ...row, id: newInsurance.insurance.id };
-            setRows(updatedRowsWithId);
+            const newId = newInsurance.insurance?.id || newInsurance.id;
+            setRows(prev => prev.map((r, i) => i === rowIndex ? { ...r, id: newId } : r));
           }).finally(() => {
             setSavingRows(prev => {
               const newSet = new Set(prev);

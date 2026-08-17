@@ -14,11 +14,14 @@ class ApiService {
     const method = (options.method || 'GET').toUpperCase();
     const dedupeKey = `${method} ${endpoint}`;
     const now = Date.now();
-    
-    // Check for existing in-flight request
-    const existing = this.pending.get(dedupeKey);
-    if (existing && (now - existing.ts) < this.dedupeWindowMs) {
-      return existing.promise; // reuse in-flight promise
+
+    // Only collapse duplicate GETs. POST/PUT/DELETE must not share a promise —
+    // saving several new rows hits the same URL with different bodies.
+    if (method === 'GET') {
+      const existing = this.pending.get(dedupeKey);
+      if (existing && (now - existing.ts) < this.dedupeWindowMs) {
+        return existing.promise;
+      }
     }
 
     // Get token from localStorage (check admin token first, then user token)
@@ -87,7 +90,17 @@ class ApiService {
               console.log('[API] Not clearing tokens - error is not auth-related:', errorText);
             }
           }
-          throw new Error(errorText || `API request failed with status ${response.status}`);
+          let message = errorText || `API request failed with status ${response.status}`;
+          try {
+            const parsed = JSON.parse(errorText);
+            message = parsed.error || parsed.message || message;
+            if (Array.isArray(parsed.details) && parsed.details[0]?.msg) {
+              message = parsed.details.map((d) => d.msg).join('; ');
+            }
+          } catch {
+            /* plain text */
+          }
+          throw new Error(message);
         }
         
         return await response.json();

@@ -343,6 +343,29 @@ td.rt{text-align:right}
   transition:max-height .3s cubic-bezier(.3,.9,.3,1), opacity .22s ease}
 .nfold.open{opacity:1}
 .nfold .foot{border-top:0}
+
+.earcell{min-width:176px; max-width:240px; border:1px solid transparent; border-radius:8px; padding:7px 10px;
+  cursor:pointer; text-align:left; background:transparent; font:inherit; color:var(--ink); display:block; width:100%}
+.earcell:hover{background:var(--paper)}
+.earcell .ph{color:var(--muted); font-weight:600; font-size:13px}
+.earcell .chips{display:flex; flex-wrap:wrap; gap:4px}
+.earchip{background:#eef3fa; color:var(--navy); border-radius:99px; padding:2px 8px; font-size:11px; font-weight:700; white-space:nowrap}
+.earpop{position:fixed; z-index:240; display:none; width:340px; background:#fff; border:1px solid var(--line);
+  border-radius:14px; padding:14px 14px 12px; box-shadow:0 20px 48px rgba(10,31,68,.20), 0 2px 6px rgba(10,31,68,.07);
+  font-family:var(--font)}
+.earpop.on{display:block; animation:ddin .14s cubic-bezier(.2,.9,.3,1)}
+.earpop h4{margin:0 0 10px; font-size:14px; color:var(--ink)}
+.earline{display:flex; align-items:center; gap:8px; margin-bottom:6px}
+.earline .nm{flex:1; font-size:13.5px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.earline input{width:62px; border:1px solid var(--line); border-radius:8px; padding:6px 8px; font:inherit}
+.earx{border:0; background:none; color:var(--muted); cursor:pointer; font-size:18px; line-height:1; padding:0 4px}
+.earx:hover{color:var(--coral)}
+.earadd{display:flex; gap:6px; margin-top:10px}
+.earadd select,.earadd input{border:1px solid var(--line); border-radius:8px; padding:8px; font:inherit; background:#fff}
+.earadd select{flex:1; min-width:0}
+.earadd input{width:72px}
+.earhint{font-size:12px; color:var(--slate); margin-top:8px; line-height:1.45}
+.earacts{display:flex; justify-content:flex-end; gap:8px; margin-top:12px}
 </style>
 </head>
 <body>
@@ -463,6 +486,7 @@ td.rt{text-align:right}
             <th style="text-align:right">Inflation %</th>
             <th style="text-align:right">Cost on arrival</th>
             <th style="text-align:right">Worth today</th>
+            <th>Funded from</th>
             <th>Notes</th>
             <th style="text-align:right">Actions</th>
           </tr>
@@ -537,6 +561,7 @@ let ROWS = [
 ];
 let BASIS = "future", SEARCH = "", FILTER = "";
 let AGE = 32, RET = 11;
+let ASSETS = [];
 
 /* ================= HELPERS ================= */
 const $ = id => document.getElementById(id);
@@ -867,6 +892,83 @@ function drawYears(){
 }
 
 /* ================= REGISTER ================= */
+function earmarkChips(list){
+  if(!list || !list.length) return `<span class="ph">Link…</span>`;
+  return `<span class="chips">${list.map(e => `<span class="earchip">${esc(e.name)} ${num(e.pct)}%</span>`).join("")}</span>`;
+}
+const EARPOP = document.createElement("div");
+EARPOP.className = "earpop";
+document.body.appendChild(EARPOP);
+let EAR = null;
+function closeEarmark(){ EARPOP.classList.remove("on"); EAR = null; }
+function openEarmark(btn, row, key, catalog, title, cap100, dirty){
+  const list = Array.isArray(row[key]) ? row[key].slice() : [];
+  const render = () => {
+    const used = list.reduce((s,e) => s + num(e.pct), 0);
+    const left = Math.max(0, 100 - used);
+    const taken = new Set(list.map(e => String(e.id)));
+    const opts = (catalog || []).filter(c => c.id && !taken.has(String(c.id)));
+    EARPOP.innerHTML = `
+      <h4>${esc(title)}</h4>
+      ${list.length ? list.map((e,i) => `<div class="earline">
+          <span class="nm">${esc(e.name)}</span>
+          <input data-i="${i}" type="number" min="1" max="100" value="${num(e.pct)}">
+          <span>%</span>
+          <button type="button" class="earx" data-del="${i}" aria-label="Remove">&times;</button>
+        </div>`).join("") : `<div class="earhint">Nothing linked yet.</div>`}
+      <div class="earadd">
+        <select id="ear-sel">${opts.length
+          ? opts.map(o => `<option value="${esc(String(o.id))}">${esc(o.name)}</option>`).join("")
+          : `<option value="">${catalog && catalog.length ? "All linked" : "Nothing to link yet"}</option>`}</select>
+        <input id="ear-pct" type="number" min="1" max="${cap100?left:100}" placeholder="%">
+        <button type="button" class="rb save" id="ear-add">Add</button>
+      </div>
+      <div class="earhint">${cap100 ? left.toFixed(0)+"% remaining · cannot exceed 100% of this holding." : "Each link is a share of that holding set aside for this goal."}</div>
+      <div class="earacts"><button type="button" class="rb save" id="ear-done">Done</button></div>`;
+    EARPOP.querySelectorAll("input[data-i]").forEach(inp => {
+      inp.addEventListener("input", () => {
+        const i = +inp.dataset.i;
+        const next = Math.max(0, num(inp.value));
+        const others = list.reduce((s,e,idx) => s + (idx===i ? 0 : num(e.pct)), 0);
+        list[i].pct = cap100 ? Math.min(next, Math.max(0, 100-others)) : next;
+        if(list[i].pct !== next) inp.value = list[i].pct;
+      });
+    });
+    EARPOP.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => {
+      list.splice(+b.dataset.del, 1); render();
+    }));
+    const addBtn = $("ear-add");
+    if(addBtn) addBtn.addEventListener("click", () => {
+      const sel = $("ear-sel"); const pctEl = $("ear-pct");
+      const id = sel && sel.value; const pct = num(pctEl && pctEl.value);
+      if(!id || pct <= 0) return;
+      if(cap100 && used + pct > 100) return;
+      const item = (catalog || []).find(c => String(c.id) === String(id));
+      if(!item) return;
+      list.push({id: item.id, name: item.name, pct});
+      render();
+    });
+    $("ear-done").addEventListener("click", () => {
+      row[key] = list;
+      dirty();
+      closeEarmark();
+      drawTable();
+    });
+  };
+  EAR = {btn};
+  render();
+  EARPOP.classList.add("on");
+  const box = btn.getBoundingClientRect();
+  const w = 340;
+  let left = box.left;
+  if(left + w > window.innerWidth - 12) left = window.innerWidth - w - 12;
+  EARPOP.style.left = Math.max(8, left) + "px";
+  EARPOP.style.top = (box.bottom + 8) + "px";
+}
+document.addEventListener("mousedown", e => {
+  if(EAR && !EARPOP.contains(e.target) && !(e.target.closest && e.target.closest("[data-ear]"))) closeEarmark();
+});
+
 function visible(){
   const q = SEARCH.trim().toLowerCase();
   return ROWS.map((g,i) => ({g,i})).filter(({g}) => {
@@ -901,6 +1003,7 @@ function drawTable(){
           ? `<span class="badrow">age has passed</span>`
           : `<span class="proj" style="color:var(--amber)">${fmt(futureTotal(g))}<small>at age ${g.at}${sp>1?" to "+lastAge(g):""} \u00B7 ${(todayTotal(g)?futureTotal(g)/todayTotal(g):0).toFixed(1)}\u00D7</small></span>`}</td>
       <td class="rt"><span class="proj">${fmt(pvTotal(g))}<small>set aside now at ${RET}%</small></span></td>
+      <td><button type="button" class="earcell" data-ear="1">${earmarkChips(g.links)}</button></td>
       <td><input class="cell" data-k="notes" value="${esc(g.notes)}" placeholder="Click to add" style="min-width:160px"></td>
       <td><span class="acts">
         <button class="rb save${g.saved?" done":""}" type="button">${g.saved?"Saved":"Save"}</button>
@@ -918,6 +1021,8 @@ function drawTable(){
         refresh(false);
       });
     });
+    const earBtn = tr.querySelector("[data-ear]");
+    if(earBtn) earBtn.addEventListener("click", () => openEarmark(earBtn, g, "links", ASSETS, "Funded from assets", false, dirty));
     /* choosing a type seeds both the inflation rate and how fixed it usually is */
     tr.querySelector('[data-k="cat"]').addEventListener("click", e => {
       ddToggle(e.currentTarget, CATS.map(c => ({n:c.n, c:c.c, rt:c.inf+"%"})), g.cat, v => {
@@ -1049,7 +1154,7 @@ $("i-ret").addEventListener("input", e => {
 
 const addGoal = () => {
   ROWS.push({name:"", cat:"Other", flex:catOf("Other").flex, cost:0,
-             at:Math.min(99, AGE+5), span:1, inf:catOf("Other").inf, notes:"", saved:false});
+             at:Math.min(99, AGE+5), span:1, inf:catOf("Other").inf, notes:"", links:[], saved:false});
   SEARCH = ""; FILTER = ""; $("search").value = "";
   $("filter").querySelector(".lbl").textContent = "All goals";
   refresh();
@@ -1073,11 +1178,11 @@ $("btn-reset").addEventListener("click", () => {
   drawTable();
 });
 $("btn-csv").addEventListener("click", () => {
-  const head = ["Goal","Type","How fixed","Cost today","Needed at age","Spread over years","Inflation %","Cost on arrival","Worth today"];
+  const head = ["Goal","Type","How fixed","Cost today","Needed at age","Spread over years","Inflation %","Cost on arrival","Worth today","Funded from"];
   const q = v => `"${String(v==null?"":v).replace(/"/g,'""')}"`;
   const csv = [head.map(q).join(",")].concat(
     ROWS.map(g => [g.name,g.cat,g.flex,g.cost,g.at,spanOf(g),g.inf,
-                   Math.round(futureTotal(g)),Math.round(pvTotal(g))].map(q).join(","))
+                   Math.round(futureTotal(g)),Math.round(pvTotal(g)),(g.links||[]).map(e => e.name+" "+e.pct+"%").join("; ")].map(q).join(","))
   ).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
@@ -1183,6 +1288,7 @@ document.querySelectorAll(".pmore").forEach(btn => {
 /* === LIFEMAP_BRIDGE_START === */
 (function(){
   var PAGE = "goals";
+  var LM_SOURCES = [];
   var ROUTES = {
     "lifemap-fp-calculator.html": "/",
     "fp-calculator.html": "/",
@@ -1222,11 +1328,11 @@ document.querySelectorAll(".pmore").forEach(btn => {
       if (PAGE === "fp") {
         return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
       }
-      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ };
+      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ, GOALS: (typeof GOALS !== "undefined" ? GOALS.slice() : []) };
       if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
-      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS };
+      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS, ASSETS: (typeof ASSETS !== "undefined" ? ASSETS.slice() : []) };
       if (PAGE === "loans") return { ROWS: ROWS.slice(), PLAN: PLAN.slice(), VIEW: VIEW };
-      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE };
+      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE, SOURCES: LM_SOURCES.slice() };
     } catch (e) { console.error(e); }
     return {};
   }
@@ -1264,6 +1370,7 @@ document.querySelectorAll(".pmore").forEach(btn => {
       if (PAGE === "assets") {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
         if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
+        if (st.GOALS) { try { GOALS = st.GOALS; } catch(e) {} }
         if (st.MODE) MODE = st.MODE;
         if (st.HZ) HZ = st.HZ;
         refresh();
@@ -1271,13 +1378,17 @@ document.querySelectorAll(".pmore").forEach(btn => {
       }
       if (PAGE === "work") {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
         if (typeof st.AGE === "number") {
           AGE = st.AGE;
           var ageEl = $("i-age");
           if (ageEl) ageEl.value = AGE;
         }
         var maxId = 0;
-        ROWS.forEach(function(r){ if (r.id > maxId) maxId = r.id; });
+        ROWS.forEach(function(r){
+          var n = Number(r.id);
+          if (Number.isFinite(n) && n > maxId) maxId = n;
+        });
         try { NEXT_ID = maxId + 1; } catch(e) {}
         refresh();
         return;
@@ -1286,6 +1397,7 @@ document.querySelectorAll(".pmore").forEach(btn => {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
         if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
         if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
+        if (st.ASSETS) { try { ASSETS = st.ASSETS; } catch(e) {} }
         if (st.BASIS) BASIS = st.BASIS;
         refresh();
         return;
@@ -1309,10 +1421,30 @@ document.querySelectorAll(".pmore").forEach(btn => {
         if (st.BASIS) BASIS = st.BASIS;
         if (st.MODE) MODE = st.MODE;
         refresh();
+        if (st.SOURCES) setSources(st.SOURCES);
       }
     } catch (err) {
       console.error("LifeMap setState failed", err);
     }
+  }
+
+  function setSources(names){
+    LM_SOURCES = names || [];
+    var list = document.getElementById("lm-src-list");
+    if (!list) {
+      list = document.createElement("datalist");
+      list.id = "lm-src-list";
+      document.body.appendChild(list);
+      document.addEventListener("focusin", function(e){
+        var inp = e.target;
+        if (inp && inp.getAttribute && inp.getAttribute("data-k") === "src") {
+          inp.setAttribute("list", "lm-src-list");
+        }
+      });
+    }
+    list.innerHTML = (names || []).map(function(n){
+      return "<option value=\"" + String(n).replace(/"/g, "&quot;") + "\"></option>";
+    }).join("");
   }
 
   function setAccount(label){

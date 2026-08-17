@@ -578,9 +578,7 @@ export const useLifeSheetStore = create(
 
       // Net Worth Simulation with Inflation Discounting
       simulate: () => {
-        const { main, sourcePreferences } = get();
-        console.log('🔄 Store: simulate called with main:', main);
-        
+        const { main } = get();
         const { portfolio, income, expenses, emi } = get().buildInputs();
         console.log('🔄 Store: buildInputs result:', { portfolio, income, expenses, emi });
 
@@ -606,10 +604,7 @@ export const useLifeSheetStore = create(
           const portUnadjusted = portfolio[y] ?? 0;
           const incUnadjusted = income[y] ?? 0;
           const expUnadjusted = expenses[y] ?? 0;
-          
-          // When using detailed expenses, they already include EMIs, so don't add EMIs from loans
-          const useDetailedExpenses = sourcePreferences?.expenses === 1;
-          const emiAmountUnadjusted = useDetailedExpenses ? 0 : (emi[y] ?? 0);
+          const emiAmountUnadjusted = emi[y] ?? 0;
           
           // Total expenses (expenses + EMIs, but EMIs are 0 if using detailed expenses)
           const totalExpensesUnadjusted = expUnadjusted + emiAmountUnadjusted;

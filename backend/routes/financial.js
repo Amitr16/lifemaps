@@ -100,12 +100,12 @@ router.post('/source-preferences', [
 
 // Financial Profile routes
 router.post('/profile', [
-  body('age').isInt({ min: 18, max: 100 }),
+  body('age').isInt({ min: 16, max: 100 }),
   body('current_annual_gross_income').optional().isFloat({ min: 0 }),
   body('work_tenure_years').optional().isInt({ min: 0, max: 80 }),
   body('total_asset_gross_market_value').optional().isFloat({ min: 0 }),
   body('total_loan_outstanding_value').optional().isFloat({ min: 0 }),
-  body('lifespan_years').optional().isInt({ min: 50, max: 120 }),
+  body('lifespan_years').optional().isInt({ min: 40, max: 120 }),
   body('income_growth_rate').optional().isFloat({ min: 0, max: 1 }),
   body('asset_growth_rate').optional().isFloat({ min: 0, max: 1 }),
   body('inflation_rate').optional().isFloat({ min: 0, max: 1 }),
@@ -183,26 +183,27 @@ router.get('/profile/:userId', async (req, res) => {
       console.log(`Creating default financial profile for user ${userId}`);
       
       const defaultProfile = {
-        age: 30,
+        age: 32,
         current_annual_gross_income: 0,
-        work_tenure_years: 0,
+        work_tenure_years: 28,
         total_asset_gross_market_value: 0,
         total_loan_outstanding_value: 0,
-        lifespan_years: 80,
-        income_growth_rate: 0.05,
-        asset_growth_rate: 0.07
+        lifespan_years: 85,
+        income_growth_rate: 0.08,
+        asset_growth_rate: 0.11,
+        inflation_rate: 0.06
       };
 
       const insertResult = await pool.query(
         `INSERT INTO financial_profile (user_id, age, current_annual_gross_income, work_tenure_years, 
          total_asset_gross_market_value, total_loan_outstanding_value, lifespan_years, 
-         income_growth_rate, asset_growth_rate, created_at) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW()) 
+         income_growth_rate, asset_growth_rate, inflation_rate, created_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW()) 
          RETURNING *`,
         [userId, defaultProfile.age, defaultProfile.current_annual_gross_income, 
          defaultProfile.work_tenure_years, defaultProfile.total_asset_gross_market_value,
          defaultProfile.total_loan_outstanding_value, defaultProfile.lifespan_years,
-         defaultProfile.income_growth_rate, defaultProfile.asset_growth_rate]
+         defaultProfile.income_growth_rate, defaultProfile.asset_growth_rate, defaultProfile.inflation_rate]
       );
 
       result = insertResult;
@@ -217,12 +218,12 @@ router.get('/profile/:userId', async (req, res) => {
 });
 
 router.put('/profile/:profileId', [
-  body('age').optional().isInt({ min: 18, max: 100 }),
+  body('age').optional().isInt({ min: 16, max: 100 }),
   body('current_annual_gross_income').optional().isFloat({ min: 0 }),
   body('work_tenure_years').optional().isInt({ min: 0, max: 80 }),
   body('total_asset_gross_market_value').optional().isFloat({ min: 0 }),
   body('total_loan_outstanding_value').optional().isFloat({ min: 0 }),
-  body('lifespan_years').optional().isInt({ min: 50, max: 120 }),
+  body('lifespan_years').optional().isInt({ min: 40, max: 120 }),
   body('income_growth_rate').optional().isFloat({ min: 0, max: 1 }),
   body('asset_growth_rate').optional().isFloat({ min: 0, max: 1 }),
   body('inflation_rate').optional().isFloat({ min: 0, max: 1 }),

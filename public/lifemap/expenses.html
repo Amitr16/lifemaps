@@ -1152,16 +1152,17 @@ function drawTable(){
   rows.forEach(({r,i}) => {
     const cat = catOf(r.cat), tag = tagOf(r.type);
     const yr = annual(r), bad = badWindow(r), yrs = yearsOf(r), tot = runTotal(r);
+    const locked = Boolean(r.loanId || r.insId);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="stick">
-        <button type="button" class="dd cell catpick" data-k="cat" aria-haspopup="listbox" aria-expanded="false">
+        <button type="button" class="dd cell catpick" data-k="cat" aria-haspopup="listbox" aria-expanded="false"${locked?" disabled":""}>
           <span class="sw" style="background:${cat.c}"></span><span class="lbl">${esc(cat.n)}</span></button></td>
-      <td><input class="cell" data-k="sub" value="${esc(r.sub)}" placeholder="What exactly?" style="min-width:150px"></td>
-      <td><button type="button" class="dd cell tagpick" data-k="type" aria-haspopup="listbox" aria-expanded="false">
+      <td><input class="cell" data-k="sub" value="${esc(r.sub)}" placeholder="What exactly?" style="min-width:150px"${locked?" readonly":""}></td>
+      <td><button type="button" class="dd cell tagpick" data-k="type" aria-haspopup="listbox" aria-expanded="false"${locked?" disabled":""}>
           <span class="sw" style="background:${tag.c}"></span><span class="lbl">${esc(tag.n)}</span></button></td>
-      <td><input class="cell money" data-k="amt" type="number" value="${r.amt}" placeholder="0"></td>
-      <td><button type="button" class="dd cell small" data-k="freq" aria-haspopup="listbox" aria-expanded="false">
+      <td><input class="cell money" data-k="amt" type="number" value="${r.amt}" placeholder="0"${locked?" readonly":""}></td>
+      <td><button type="button" class="dd cell small" data-k="freq" aria-haspopup="listbox" aria-expanded="false"${locked?" disabled":""}>
           <span class="lbl">${esc(r.freq)}</span></button></td>
       <td class="rt"><span class="proj">${fmt(yr)}<small>${fmt(yr/12)} a month</small></span></td>
       <td><input class="cell money small${bad?" warnval":""}" data-k="from" type="number" value="${r.from}" style="min-width:74px"></td>
@@ -1177,7 +1178,9 @@ function drawTable(){
       <td><input class="cell" data-k="notes" value="${esc(r.notes)}" placeholder="Click to add" style="min-width:150px"></td>
       <td><span class="acts">
         <button class="rb save${r.saved?" done":""}" type="button">${r.saved?"Saved":"Save"}</button>
-        <button class="rb del" type="button">Remove</button></span></td>`;
+        ${locked
+          ? `<button class="rb del" type="button" disabled title="${r.loanId ? "Remove this from Loans" : "Remove this from Insurance"}">Linked</button>`
+          : `<button class="rb del" type="button">Remove</button>`}</span></td>`;
 
     const btnSave = tr.querySelector(".save");
     const dirty = () => { r.saved = false; btnSave.classList.remove("done"); btnSave.textContent = "Save"; };
@@ -1193,6 +1196,7 @@ function drawTable(){
     });
 
     /* category also seeds the inflation rate and the type */
+    if(!locked){
     tr.querySelector('[data-k="cat"]').addEventListener("click", e => {
       ddToggle(e.currentTarget, CATS.map(c => ({n:c.n, c:c.c, rt:c.inf+"%"})), r.cat, v => {
         r.cat = v; r.inf = catOf(v).inf; r.type = catOf(v).type; dirty(); refresh();
@@ -1204,9 +1208,11 @@ function drawTable(){
     tr.querySelector('[data-k="freq"]').addEventListener("click", e => {
       ddToggle(e.currentTarget, FREQ.map(f => ({n:f})), r.freq, v => { r.freq = v; dirty(); refresh(); });
     });
+    }
 
     btnSave.addEventListener("click", () => { r.saved = true; btnSave.classList.add("done"); btnSave.textContent = "Saved"; });
-    tr.querySelector(".del").addEventListener("click", () => { ROWS.splice(i,1); refresh(); });
+    const delBtn = tr.querySelector(".del");
+    if(delBtn && !locked) delBtn.addEventListener("click", () => { ROWS.splice(i,1); refresh(); });
     tb.appendChild(tr);
   });
 }
@@ -1460,6 +1466,7 @@ document.querySelectorAll(".pmore").forEach(btn => {
 /* === LIFEMAP_BRIDGE_START === */
 (function(){
   var PAGE = "expenses";
+  var LM_SOURCES = [];
   var ROUTES = {
     "lifemap-fp-calculator.html": "/",
     "fp-calculator.html": "/",
@@ -1499,11 +1506,11 @@ document.querySelectorAll(".pmore").forEach(btn => {
       if (PAGE === "fp") {
         return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
       }
-      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ };
+      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ, GOALS: (typeof GOALS !== "undefined" ? GOALS.slice() : []) };
       if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
-      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS };
+      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS, ASSETS: (typeof ASSETS !== "undefined" ? ASSETS.slice() : []) };
       if (PAGE === "loans") return { ROWS: ROWS.slice(), PLAN: PLAN.slice(), VIEW: VIEW };
-      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE };
+      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE, SOURCES: LM_SOURCES.slice() };
     } catch (e) { console.error(e); }
     return {};
   }
@@ -1541,6 +1548,7 @@ document.querySelectorAll(".pmore").forEach(btn => {
       if (PAGE === "assets") {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
         if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
+        if (st.GOALS) { try { GOALS = st.GOALS; } catch(e) {} }
         if (st.MODE) MODE = st.MODE;
         if (st.HZ) HZ = st.HZ;
         refresh();
@@ -1548,13 +1556,17 @@ document.querySelectorAll(".pmore").forEach(btn => {
       }
       if (PAGE === "work") {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
         if (typeof st.AGE === "number") {
           AGE = st.AGE;
           var ageEl = $("i-age");
           if (ageEl) ageEl.value = AGE;
         }
         var maxId = 0;
-        ROWS.forEach(function(r){ if (r.id > maxId) maxId = r.id; });
+        ROWS.forEach(function(r){
+          var n = Number(r.id);
+          if (Number.isFinite(n) && n > maxId) maxId = n;
+        });
         try { NEXT_ID = maxId + 1; } catch(e) {}
         refresh();
         return;
@@ -1563,6 +1575,7 @@ document.querySelectorAll(".pmore").forEach(btn => {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
         if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
         if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
+        if (st.ASSETS) { try { ASSETS = st.ASSETS; } catch(e) {} }
         if (st.BASIS) BASIS = st.BASIS;
         refresh();
         return;
@@ -1586,10 +1599,30 @@ document.querySelectorAll(".pmore").forEach(btn => {
         if (st.BASIS) BASIS = st.BASIS;
         if (st.MODE) MODE = st.MODE;
         refresh();
+        if (st.SOURCES) setSources(st.SOURCES);
       }
     } catch (err) {
       console.error("LifeMap setState failed", err);
     }
+  }
+
+  function setSources(names){
+    LM_SOURCES = names || [];
+    var list = document.getElementById("lm-src-list");
+    if (!list) {
+      list = document.createElement("datalist");
+      list.id = "lm-src-list";
+      document.body.appendChild(list);
+      document.addEventListener("focusin", function(e){
+        var inp = e.target;
+        if (inp && inp.getAttribute && inp.getAttribute("data-k") === "src") {
+          inp.setAttribute("list", "lm-src-list");
+        }
+      });
+    }
+    list.innerHTML = (names || []).map(function(n){
+      return "<option value=\"" + String(n).replace(/"/g, "&quot;") + "\"></option>";
+    }).join("");
   }
 
   function setAccount(label){

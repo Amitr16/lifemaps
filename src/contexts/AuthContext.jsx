@@ -96,12 +96,10 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setLoading(true);
       const response = await ApiService.login(credentials);
-      setUser(response.user);
-      
-      // Store token in localStorage
       if (response.token) {
         localStorage.setItem('authToken', response.token);
       }
+      setUser(response.user);
       
       return response;
     } catch (error) {
@@ -117,12 +115,10 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       setLoading(true);
       const response = await ApiService.register(userData);
-      setUser(response.user);
-      
-      // Store token in localStorage
       if (response.token) {
         localStorage.setItem('authToken', response.token);
       }
+      setUser(response.user);
       
       return response;
     } catch (error) {

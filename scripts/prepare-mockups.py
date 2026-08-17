@@ -22,6 +22,7 @@ BRIDGE = r'''
 __MARKER_START__
 (function(){
   var PAGE = "__PAGE__";
+  var LM_SOURCES = [];
   var ROUTES = {
     "lifemap-fp-calculator.html": "/",
     "fp-calculator.html": "/",
@@ -61,11 +62,11 @@ __MARKER_START__
       if (PAGE === "fp") {
         return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
       }
-      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ };
+      if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ, GOALS: (typeof GOALS !== "undefined" ? GOALS.slice() : []) };
       if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
-      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS };
+      if (PAGE === "goals") return { ROWS: ROWS.slice(), AGE: AGE, RET: RET, BASIS: BASIS, ASSETS: (typeof ASSETS !== "undefined" ? ASSETS.slice() : []) };
       if (PAGE === "loans") return { ROWS: ROWS.slice(), PLAN: PLAN.slice(), VIEW: VIEW };
-      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE };
+      if (PAGE === "expenses") return { ROWS: ROWS.slice(), AGE: AGE, LIFE: LIFE, GINF: GINF, BASIS: BASIS, MODE: MODE, SOURCES: LM_SOURCES.slice() };
     } catch (e) { console.error(e); }
     return {};
   }
@@ -103,6 +104,7 @@ __MARKER_START__
       if (PAGE === "assets") {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
         if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
+        if (st.GOALS) { try { GOALS = st.GOALS; } catch(e) {} }
         if (st.MODE) MODE = st.MODE;
         if (st.HZ) HZ = st.HZ;
         refresh();
@@ -110,13 +112,17 @@ __MARKER_START__
       }
       if (PAGE === "work") {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
+        if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
         if (typeof st.AGE === "number") {
           AGE = st.AGE;
           var ageEl = $("i-age");
           if (ageEl) ageEl.value = AGE;
         }
         var maxId = 0;
-        ROWS.forEach(function(r){ if (r.id > maxId) maxId = r.id; });
+        ROWS.forEach(function(r){
+          var n = Number(r.id);
+          if (Number.isFinite(n) && n > maxId) maxId = n;
+        });
         try { NEXT_ID = maxId + 1; } catch(e) {}
         refresh();
         return;
@@ -125,6 +131,7 @@ __MARKER_START__
         if (st.ROWS) replaceList(ROWS, st.ROWS);
         if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
         if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
+        if (st.ASSETS) { try { ASSETS = st.ASSETS; } catch(e) {} }
         if (st.BASIS) BASIS = st.BASIS;
         refresh();
         return;
@@ -148,10 +155,30 @@ __MARKER_START__
         if (st.BASIS) BASIS = st.BASIS;
         if (st.MODE) MODE = st.MODE;
         refresh();
+        if (st.SOURCES) setSources(st.SOURCES);
       }
     } catch (err) {
       console.error("LifeMap setState failed", err);
     }
+  }
+
+  function setSources(names){
+    LM_SOURCES = names || [];
+    var list = document.getElementById("lm-src-list");
+    if (!list) {
+      list = document.createElement("datalist");
+      list.id = "lm-src-list";
+      document.body.appendChild(list);
+      document.addEventListener("focusin", function(e){
+        var inp = e.target;
+        if (inp && inp.getAttribute && inp.getAttribute("data-k") === "src") {
+          inp.setAttribute("list", "lm-src-list");
+        }
+      });
+    }
+    list.innerHTML = (names || []).map(function(n){
+      return "<option value=\"" + String(n).replace(/"/g, "&quot;") + "\"></option>";
+    }).join("");
   }
 
   function setAccount(label){
@@ -235,13 +262,12 @@ def inject(html: str, page: str) -> str:
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for page, (src_name, dest_name) in FILES.items():
-        src = SRC / src_name
-        if not src.exists():
-            alt = ROOT / "src" / "mockups" / src_name
-            src = alt if alt.exists() else src
+        repo_src = ROOT / "src" / "mockups" / src_name
+        src = repo_src if repo_src.exists() else (SRC / src_name)
         if not src.exists():
             raise SystemExit(f"Missing mockup: {src_name}")
         html = src.read_text(encoding="utf-8")
+        html = html.replace("const UNASSIGNED = 0", "let UNASSIGNED = 0")
         html = inject(html, page)
         dest = OUT / dest_name
         dest.write_text(html, encoding="utf-8")

@@ -9,45 +9,93 @@ export default function MockupHost({ page }) {
   const navigate = useNavigate()
   const { user, isAuthenticated } = useAuth()
   const iframeRef = useRef(null)
+  const pendingSaveRef = useRef(null)
+  const hydratedRef = useRef(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [authTab, setAuthTab] = useState('login')
   const src = mockupSrc(page)
 
   const api = () => iframeRef.current?.contentWindow?.__LIFEMAP__
 
-  const hydrate = useCallback(async () => {
+  const hydrate = useCallback(async (userId) => {
     const bridge = api()
     if (!bridge) return
-    if (isAuthenticated && user?.id) {
-      try {
-        const state = await loadMockupState(page, user.id)
-        if (state) bridge.setState(state)
-        bridge.setAccount(user.name || user.email || 'Account')
-      } catch (error) {
-        console.error('Failed to hydrate mockup from API', error)
-      }
+    const id = userId || user?.id
+    if (!id) {
+      hydratedRef.current = true
+      return
     }
-  }, [isAuthenticated, page, user])
+    try {
+      const state = await loadMockupState(page, id)
+      if (state) bridge.setState(state)
+      bridge.setAccount(user?.name || user?.email || 'Account')
+      hydratedRef.current = true
+    } catch (error) {
+      hydratedRef.current = true
+      console.error('Failed to hydrate mockup from API', error)
+    }
+  }, [page, user?.id, user?.name, user?.email])
 
-  const persist = useCallback(async (state, quiet) => {
-    if (!isAuthenticated || !user?.id) {
+  const persist = useCallback(async (state, quiet, userId) => {
+    const snapshot = state || api()?.getState()
+    const id = userId || user?.id
+    if (!id) {
+      pendingSaveRef.current = snapshot
       setAuthTab('register')
       setAuthOpen(true)
       return
     }
+    if (!hydratedRef.current) {
+      if (!quiet) toast.message('Still loading your plan')
+      return
+    }
     try {
-      const snapshot = state || api()?.getState()
-      await saveMockupState(page, user.id, snapshot)
+      await saveMockupState(page, id, snapshot)
+      const bridge = api()
+      if (bridge && snapshot) bridge.setState(snapshot)
+      if (bridge) bridge.setAccount(user?.name || user?.email || 'Account')
       if (!quiet) toast.success('Plan saved')
     } catch (error) {
       console.error('Failed to save mockup', error)
       toast.error(error.message || 'Could not save your plan')
     }
-  }, [isAuthenticated, page, user])
+  }, [page, user?.id, user?.name, user?.email])
 
   useEffect(() => {
-    if (isAuthenticated && user?.id) hydrate()
-  }, [hydrate, isAuthenticated, user])
+    hydratedRef.current = false
+  }, [page, user?.id])
+
+  useEffect(() => {
+    if (authOpen) return
+    if (pendingSaveRef.current) return
+    if (isAuthenticated && user?.id) hydrate(user.id)
+  }, [authOpen, hydrate, isAuthenticated, user?.id])
+
+  const onAuthenticated = useCallback(async ({ mode, user: authed } = {}) => {
+    const id = authed?.id
+    const pending = pendingSaveRef.current
+    if (mode === 'register' && pending && id) {
+      try {
+        await saveMockupState(page, id, pending)
+        pendingSaveRef.current = null
+        hydratedRef.current = true
+        setAuthOpen(false)
+        const bridge = api()
+        if (bridge && pending) bridge.setState(pending)
+        if (bridge) bridge.setAccount(authed?.name || authed?.email || 'Account')
+        toast.success('Plan saved')
+      } catch (error) {
+        pendingSaveRef.current = null
+        setAuthOpen(false)
+        console.error('Failed to save mockup after register', error)
+        toast.error(error.message || 'Could not save your plan')
+      }
+      return
+    }
+    pendingSaveRef.current = null
+    setAuthOpen(false)
+    if (id) await hydrate(id)
+  }, [hydrate, page])
 
   useEffect(() => {
     const onMessage = (event) => {
@@ -56,7 +104,7 @@ export default function MockupHost({ page }) {
       if (data.page && data.page !== page) return
 
       if (data.type === 'ready') {
-        hydrate()
+        if (!pendingSaveRef.current) hydrate()
         return
       }
       if (data.type === 'navigate' && data.payload?.path) {
@@ -92,12 +140,18 @@ export default function MockupHost({ page }) {
         className="lm-mockup-frame"
         title="LifeMap"
         src={src}
-        onLoad={hydrate}
+        onLoad={() => {
+          if (!pendingSaveRef.current) hydrate()
+        }}
       />
       <AuthModal
         isOpen={authOpen}
-        onClose={() => setAuthOpen(false)}
+        onClose={() => {
+          setAuthOpen(false)
+          pendingSaveRef.current = null
+        }}
         defaultTab={authTab}
+        onAuthenticated={onAuthenticated}
       />
     </div>
   )

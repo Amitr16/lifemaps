@@ -410,17 +410,15 @@ export default function OriginalLifeSheet() {
       }
     }
     
-    // Expenses: Always use combined (detailed + unassigned) if available (already includes EMIs)
+    // Expenses: living series and EMI series are stored separately
     const remainingLife = Math.max(0, (parseInt(formData.lifespanYears) || 85) - age);
     let totalFutureExpenses = 0;
     if (detail?.expenses?.series) {
-      // Detailed expenses are stored as NOMINAL (projected forward with personal_inflation)
-      // We discount them once to convert to PRESENT VALUE (real terms)
-      // Note: Detailed expenses already include EMIs, so don't add EMIs from loans
+      const emiSeries = detail?.loans?.series || {};
       for (let yearOffset = 0; yearOffset < remainingLife; yearOffset++) {
         const year = currentYear + yearOffset;
-        const expensesNominal = detail.expenses.series[year] || 0; // Nominal value at year t
-        const expensesPresentValue = expensesNominal / Math.pow(1 + inflation, yearOffset); // Discount to present
+        const expensesNominal = (detail.expenses.series[year] || 0) + (emiSeries[year] || 0);
+        const expensesPresentValue = expensesNominal / Math.pow(1 + inflation, yearOffset);
         totalFutureExpenses += expensesPresentValue;
       }
     } else {
@@ -483,7 +481,6 @@ export default function OriginalLifeSheet() {
             inflationRate: quickCalcAssumptions.inflationRate !== undefined ? quickCalcAssumptions.inflationRate : prev.inflationRate,
             lifespanYears: quickCalcAssumptions.lifespanYears !== undefined ? quickCalcAssumptions.lifespanYears : prev.lifespanYears,
             assetEquitySplit: quickCalcAssumptions.assetEquitySplit !== undefined ? quickCalcAssumptions.assetEquitySplit : prev.assetEquitySplit,
-            lifespanYears: quickCalcAssumptions.lifespanYears !== undefined ? quickCalcAssumptions.lifespanYears : prev.lifespanYears,
             assetEquityGrowthRate: quickCalcAssumptions.assetEquityGrowthRate !== undefined ? quickCalcAssumptions.assetEquityGrowthRate : prev.assetEquityGrowthRate,
             assetDebtGrowthRate: quickCalcAssumptions.assetDebtGrowthRate !== undefined ? quickCalcAssumptions.assetDebtGrowthRate : prev.assetDebtGrowthRate
           }));
@@ -809,7 +806,6 @@ export default function OriginalLifeSheet() {
           totalAssetGrossMarketValue: profile.total_asset_gross_market_value || '',
           totalLoanOutstandingValue: profile.total_loan_outstanding_value || '',
           loanTenureYears: profile.loan_tenure_years || '',
-          lifespanYears: profile.lifespan_years || 85,
           // Prioritize localStorage values over database values for growth rates
           incomeGrowthRate: quickCalcAssumptions.incomeGrowthRate !== undefined ? quickCalcAssumptions.incomeGrowthRate : (profile.income_growth_rate || 0.06),
           assetGrowthRate: quickCalcAssumptions.assetGrowthRate !== undefined ? quickCalcAssumptions.assetGrowthRate : (profile.asset_growth_rate || 0.06),

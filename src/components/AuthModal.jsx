@@ -5,11 +5,12 @@ import { Label } from '@/components/ui/label.jsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { X, User, Mail, Lock, UserPlus } from 'lucide-react';
 import ApiService from '../services/api';
 
-const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
+const AuthModal = ({ isOpen, onClose, defaultTab = 'login', onAuthenticated }) => {
   const { login, register, error, loading, clearError, setUser, setError } = useAuth();
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [socialLoading, setSocialLoading] = useState(null);
@@ -31,7 +32,8 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login(loginForm);
+      const response = await login(loginForm);
+      await onAuthenticated?.({ mode: 'login', user: response.user });
       onClose();
     } catch (error) {
       // Error is handled by context
@@ -55,7 +57,8 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
       };
       console.log('🔍 Frontend registerForm state:', JSON.stringify(registerForm, null, 2));
       console.log('🔍 Sending registration data:', JSON.stringify(userDataWithName, null, 2));
-      await register(userDataWithName);
+      const response = await register(userDataWithName);
+      await onAuthenticated?.({ mode: 'register', user: response.user });
       onClose();
     } catch (error) {
       // Error is handled by context
@@ -381,6 +384,11 @@ const AuthModal = ({ isOpen, onClose, defaultTab = 'login' }) => {
             </Card>
           </TabsContent>
         </Tabs>
+        <p className="sub" style={{ marginTop: 16, marginBottom: 0, textAlign: 'center' }}>
+          <Link to="/admin/login">Admin Login</Link>
+          <span style={{ color: 'var(--lm-slate)', margin: '0 8px' }}>·</span>
+          <Link to="/super-admin/login">Super Admin Login</Link>
+        </p>
       </div>
     </div>
   );
