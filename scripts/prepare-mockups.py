@@ -181,8 +181,43 @@ __MARKER_START__
     }).join("");
   }
 
+  function accountLink(){
+    var marked = document.querySelector(".tier0 [data-lm-account]");
+    if (marked) return marked;
+    var links = document.querySelectorAll(".tier0 .tlink");
+    for (var i = 0; i < links.length; i++) {
+      if (/sign in|account/i.test((links[i].textContent || "").replace(/\s+/g," ").trim())) return links[i];
+    }
+    return links[0] || null;
+  }
+
+  function addAdminLinks(){
+    var acts = document.querySelector(".tier0 .acts");
+    if (!acts || acts.querySelector("[data-lm-admin]")) return;
+    var signin = accountLink();
+    if (signin) signin.setAttribute("data-lm-account", "1");
+    function make(label, path){
+      var a = document.createElement("a");
+      a.className = "tlink";
+      a.href = path;
+      a.setAttribute("data-lm-admin", "1");
+      a.textContent = label;
+      return a;
+    }
+    var admin = make("Admin Login", "/admin/login");
+    var superA = make("Super Admin Login", "/super-admin/login");
+    if (signin) {
+      acts.insertBefore(admin, signin);
+      acts.insertBefore(superA, signin);
+    } else {
+      acts.appendChild(admin);
+      acts.appendChild(superA);
+    }
+  }
+  addAdminLinks();
+
   function setAccount(label){
-    var link = document.querySelector(".tier0 .tlink");
+    var link = accountLink();
     if (link && label) link.textContent = label;
   }
 
@@ -206,6 +241,11 @@ __MARKER_START__
         return;
       }
       if (a.classList.contains("gate")) { e.preventDefault(); return; }
+      if (/\/admin\/login/.test(href) || /admin login/i.test(label)) {
+        e.preventDefault();
+        post("navigate", { path: /super/i.test(href + " " + label) ? "/super-admin/login" : "/admin/login" });
+        return;
+      }
       if (ROUTES[file]) {
         e.preventDefault();
         post("navigate", { path: ROUTES[file] });
@@ -217,7 +257,9 @@ __MARKER_START__
     a.addEventListener("click", function(e){
       e.preventDefault();
       var text = (a.textContent || "").replace(/\s+/g," ").trim();
-      if (/sign in|account/i.test(text)) post("auth", { action: "signin", label: text });
+      if (/super admin/i.test(text)) post("navigate", { path: "/super-admin/login" });
+      else if (/admin login/i.test(text)) post("navigate", { path: "/admin/login" });
+      else if (/sign in|account/i.test(text)) post("auth", { action: "signin", label: text });
       else if (/save/i.test(text)) post("save", getState());
     });
   });
