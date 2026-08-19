@@ -33,9 +33,8 @@ app.use(express.static(distPath, {
 app.get('*', (req, res) => {
   const indexPath = join(distPath, 'index.html');
   console.log(`[Router] ${req.method} ${req.path} -> serving index.html`);
-  
-  // Use absolute path for sendFile
-  res.sendFile(indexPath, { root: __dirname }, (err) => {
+
+  res.sendFile(indexPath, (err) => {
     if (err) {
       console.error(`[Router] Error serving index.html for ${req.path}:`, err);
       res.status(500).send('Error loading page');

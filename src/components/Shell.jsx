@@ -137,7 +137,7 @@ export default function Shell({ children, adminMode = false, activeSection, onSe
   const handleLogout = async () => {
     if (adminMode && admin) {
       await adminLogout()
-      window.location.href = 'https://lifemaps-frontend.onrender.com/'
+      window.location.href = '/'
     } else {
       await logout()
       navigate('/')

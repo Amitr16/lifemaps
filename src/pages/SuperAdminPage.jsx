@@ -101,7 +101,7 @@ export default function SuperAdminPage() {
 
   const handleLogout = async () => {
     await adminLogout();
-    window.location.href = 'https://lifemaps-frontend.onrender.com/';
+    window.location.href = '/';
   };
 
   const adminFormFields = (
