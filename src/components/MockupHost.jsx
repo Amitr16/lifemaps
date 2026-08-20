@@ -7,7 +7,7 @@ import { loadMockupState, mockupSrc, saveMockupState } from '../lib/mockupSync'
 
 export default function MockupHost({ page }) {
   const navigate = useNavigate()
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, logout } = useAuth()
   const iframeRef = useRef(null)
   const pendingSaveRef = useRef(null)
   const hydratedRef = useRef(false)
@@ -66,6 +66,10 @@ export default function MockupHost({ page }) {
   }, [page, user?.id])
 
   useEffect(() => {
+    if (!isAuthenticated) api()?.setAccount(null)
+  }, [isAuthenticated])
+
+  useEffect(() => {
     if (authOpen) return
     if (pendingSaveRef.current) return
     if (isAuthenticated && user?.id) hydrate(user.id)
@@ -111,6 +115,13 @@ export default function MockupHost({ page }) {
         navigate(data.payload.path)
         return
       }
+      if (data.type === 'logout') {
+        logout().finally(() => {
+          api()?.setAccount(null)
+          window.location.assign('/')
+        })
+        return
+      }
       if (data.type === 'auth') {
         if (isAuthenticated) {
           navigate('/profile')
@@ -130,7 +141,7 @@ export default function MockupHost({ page }) {
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [hydrate, isAuthenticated, navigate, page, persist])
+  }, [hydrate, isAuthenticated, logout, navigate, page, persist])
 
   return (
     <div className="lm-mockup-host">

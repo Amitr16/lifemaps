@@ -140,7 +140,7 @@ export default function Shell({ children, adminMode = false, activeSection, onSe
       window.location.href = '/'
     } else {
       await logout()
-      navigate('/')
+      window.location.assign('/')
     }
   }
 

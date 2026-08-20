@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import ApiService from '../services/api';
 import { useDebounce } from '../utils/debounce';
 
@@ -17,6 +17,14 @@ export const AuthProvider = ({ children }) => {
   const [admin, setAdmin] = useState(null); // Admin or super admin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const authEpochRef = useRef(0);
+
+  const clearAuthStorage = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('adminToken');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('adminToken');
+  };
 
   // Debounced auth check to prevent request flooding
   const debouncedCheckAuth = useDebounce(() => {
@@ -54,21 +62,23 @@ export const AuthProvider = ({ children }) => {
   }, [debouncedCheckAuth]);
 
   const checkAuthStatus = async () => {
+    const epoch = authEpochRef.current;
     try {
       setLoading(true);
       const response = await ApiService.getProfile();
+      if (epoch !== authEpochRef.current) return;
       setUser(response.user);
     } catch (error) {
-      // User is not logged in
+      if (epoch !== authEpochRef.current) return;
       setUser(null);
-      // Only set error if it's not a 401 (unauthorized)
-      if (error.message && !error.message.toLowerCase().includes('not authenticated')) {
+      clearAuthStorage();
+      if (error.message && !error.message.toLowerCase().includes('not authenticated') && !error.message.toLowerCase().includes('access token')) {
         setError(error.message);
       } else {
-        setError(null); // Don't show error for expected unauthenticated state
+        setError(null);
       }
     } finally {
-      setLoading(false);
+      if (epoch === authEpochRef.current) setLoading(false);
     }
   };
 
@@ -130,25 +140,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    authEpochRef.current += 1;
+    setError(null);
+    setUser(null);
+    setAdmin(null);
+    clearAuthStorage();
     try {
-      setError(null);
-      // Try to logout from server (only if user token exists)
-      if (localStorage.getItem('authToken')) {
       await ApiService.logout();
-      }
-      setUser(null);
-      setAdmin(null);
-      
-      // Clear tokens from localStorage
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('adminToken');
-    } catch (error) {
-      setError(error.message);
-      // Even if logout fails on server, clear local state
-      setUser(null);
-      setAdmin(null);
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('adminToken');
+    } catch {
+      /* token already cleared; server logout is best-effort */
     }
   };
 
@@ -198,15 +198,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const adminLogout = async () => {
-    try {
-      setError(null);
-      setAdmin(null);
-      localStorage.removeItem('adminToken');
-    } catch (error) {
-      setError(error.message);
-      setAdmin(null);
-      localStorage.removeItem('adminToken');
-    }
+    authEpochRef.current += 1;
+    setError(null);
+    setAdmin(null);
+    setUser(null);
+    clearAuthStorage();
   };
 
   const updateProfile = async (profileData) => {

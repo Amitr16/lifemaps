@@ -181,9 +181,57 @@ __MARKER_START__
     }).join("");
   }
 
+  function ensureAcctCss(){
+    if (document.getElementById("lm-acct-css")) return;
+    var s = document.createElement("style");
+    s.id = "lm-acct-css";
+    s.textContent = ".lm-acct{position:relative;display:inline-flex;align-items:center}.lm-acct .tlink{display:inline-flex!important;align-items:center;gap:4px;cursor:pointer}.lm-acct-menu{display:none;position:absolute;right:0;top:calc(100% + 4px);min-width:188px;background:#fff;border:1px solid #dbe2ea;border-radius:10px;box-shadow:0 8px 24px rgba(10,31,68,.12);padding:6px;z-index:80}.lm-acct.open .lm-acct-menu{display:block}.lm-acct-menu button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:10px 12px;border-radius:8px;font:inherit;font-size:14px;font-weight:600;color:#003c8f;cursor:pointer}.lm-acct-menu button:hover{background:#eef3fa}.lm-acct-menu button.out{color:#b42318}";
+    document.head.appendChild(s);
+  }
+
   function setAccount(label){
+    ensureAcctCss();
+    var acts = document.querySelector(".tier0 .acts");
     var link = document.querySelector(".tier0 .tlink");
-    if (link && label) link.textContent = label;
+    if (!acts || !link) return;
+    var wrap = link.closest(".lm-acct");
+    if (label) {
+      if (!wrap) {
+        wrap = document.createElement("span");
+        wrap.className = "lm-acct";
+        link.parentNode.insertBefore(wrap, link);
+        wrap.appendChild(link);
+        var menu = document.createElement("div");
+        menu.className = "lm-acct-menu";
+        menu.innerHTML = '<button type="button" data-act="profile">Your profile</button><button type="button" data-act="logout" class="out">Log out</button>';
+        wrap.appendChild(menu);
+        menu.addEventListener("click", function(e){
+          var btn = e.target.closest("button");
+          if (!btn) return;
+          wrap.classList.remove("open");
+          var act = btn.getAttribute("data-act");
+          if (act === "profile") post("navigate", { path: "/profile" });
+          if (act === "logout") post("logout");
+        });
+        link.addEventListener("click", function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          wrap.classList.toggle("open");
+        });
+        document.addEventListener("click", function(ev){
+          if (!wrap.contains(ev.target)) wrap.classList.remove("open");
+        });
+      }
+      link.setAttribute("href", "#account");
+      link.innerHTML = String(label).replace(/</g, "&lt;") + ' <span aria-hidden="true">▾</span>';
+    } else {
+      if (wrap) {
+        acts.insertBefore(link, wrap);
+        wrap.remove();
+      }
+      link.textContent = "Sign in";
+      link.setAttribute("href", "#register");
+    }
   }
 
   document.querySelectorAll(".ptab.gate").forEach(function(a){
@@ -215,9 +263,10 @@ __MARKER_START__
 
   document.querySelectorAll(".tier0 .tlink, .tier0 .btn").forEach(function(a){
     a.addEventListener("click", function(e){
+      if (a.closest && a.closest(".lm-acct")) return;
       e.preventDefault();
       var text = (a.textContent || "").replace(/\s+/g," ").trim();
-      if (/sign in|account/i.test(text)) post("auth", { action: "signin", label: text });
+      if (/sign in/i.test(text)) post("auth", { action: "signin", label: text });
       else if (/save/i.test(text)) post("save", getState());
     });
   });
