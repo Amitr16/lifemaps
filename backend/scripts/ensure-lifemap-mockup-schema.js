@@ -47,6 +47,37 @@ const STATEMENTS = [
     )`,
   `CREATE INDEX IF NOT EXISTS idx_planned_loan_user_id ON planned_loan(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_planned_loan_profile_id ON planned_loan(profile_id)`,
+  `CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql`,
+  `CREATE TABLE IF NOT EXISTS super_admin (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`,
+  `CREATE TABLE IF NOT EXISTS admin (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      name VARCHAR(255),
+      email VARCHAR(255),
+      is_active BOOLEAN DEFAULT TRUE,
+      created_by INTEGER REFERENCES super_admin(id) ON DELETE SET NULL,
+      super_admin_id INTEGER REFERENCES super_admin(id) ON DELETE SET NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`,
+  `ALTER TABLE admin ADD COLUMN IF NOT EXISTS super_admin_id INTEGER REFERENCES super_admin(id) ON DELETE SET NULL`,
+  `ALTER TABLE admin ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES super_admin(id) ON DELETE SET NULL`,
+  `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS admin_id INTEGER REFERENCES admin(id) ON DELETE SET NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_user_admin_id ON "user"(admin_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_admin_username ON admin(username)`,
 ]
 
 export async function ensureLifemapMockupSchema(pool) {
