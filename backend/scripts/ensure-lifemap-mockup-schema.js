@@ -75,8 +75,21 @@ const STATEMENTS = [
     )`,
   `ALTER TABLE admin ADD COLUMN IF NOT EXISTS super_admin_id INTEGER REFERENCES super_admin(id) ON DELETE SET NULL`,
   `ALTER TABLE admin ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES super_admin(id) ON DELETE SET NULL`,
-  `ALTER TABLE "user" ADD COLUMN IF NOT EXISTS admin_id INTEGER REFERENCES admin(id) ON DELETE SET NULL`,
-  `CREATE INDEX IF NOT EXISTS idx_user_admin_id ON "user"(admin_id)`,
+  `ALTER TABLE public."user" ADD COLUMN IF NOT EXISTS admin_id INTEGER`,
+  `DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'user_admin_id_fkey'
+      ) THEN
+        ALTER TABLE public."user"
+          ADD CONSTRAINT user_admin_id_fkey
+          FOREIGN KEY (admin_id) REFERENCES admin(id) ON DELETE SET NULL;
+      END IF;
+    EXCEPTION WHEN undefined_table OR undefined_column THEN
+      NULL;
+    END
+    $$`,
+  `CREATE INDEX IF NOT EXISTS idx_user_admin_id ON public."user"(admin_id)`,
   `CREATE INDEX IF NOT EXISTS idx_admin_username ON admin(username)`,
 ]
 
@@ -85,6 +98,7 @@ export async function ensureLifemapMockupSchema(pool) {
   for (const sql of STATEMENTS) {
     try {
       await pool.query(sql)
+      console.log('[migrate] ok:', sql.split('\n')[0].trim().slice(0, 80))
     } catch (error) {
       if (/password authentication failed|ECONNREFUSED|ENOTFOUND/i.test(error.message)) {
         throw error
