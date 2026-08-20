@@ -50,7 +50,12 @@ export default function SuperAdminPage() {
   const handleCreateAdmin = async (e) => {
     e.preventDefault();
     try {
-      await ApiService.createAdmin(adminForm);
+      await ApiService.createAdmin({
+        username: adminForm.username.trim(),
+        password: adminForm.password,
+        name: adminForm.name.trim() || undefined,
+        email: adminForm.email.trim() || undefined,
+      });
       toast.success('Admin created successfully');
       setShowCreateAdmin(false);
       setAdminForm({ username: '', password: '', name: '', email: '' });
@@ -63,8 +68,12 @@ export default function SuperAdminPage() {
   const handleUpdateAdmin = async (e) => {
     e.preventDefault();
     try {
-      const updateData = { ...adminForm };
-      if (!updateData.password) delete updateData.password;
+      const updateData = {
+        username: adminForm.username.trim(),
+        name: adminForm.name.trim() || undefined,
+        email: adminForm.email.trim() || undefined,
+      };
+      if (adminForm.password) updateData.password = adminForm.password;
       await ApiService.updateAdmin(showEditAdmin.id, updateData);
       toast.success('Admin updated successfully');
       setShowEditAdmin(null);
@@ -111,8 +120,8 @@ export default function SuperAdminPage() {
         <input id="adm-user" className="lm-inp" value={adminForm.username} onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })} required />
       </div>
       <div>
-        <label htmlFor="adm-pass">Password{showEditAdmin ? ' (leave blank to keep)' : ''}</label>
-        <input id="adm-pass" className="lm-inp" type="password" value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} required={!showEditAdmin} />
+        <label htmlFor="adm-pass">Password{showEditAdmin ? ' (leave blank to keep)' : ' (min 6 characters)'}</label>
+        <input id="adm-pass" className="lm-inp" type="password" minLength={showEditAdmin ? undefined : 6} value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} required={!showEditAdmin} />
       </div>
       <div>
         <label htmlFor="adm-name">Name</label>

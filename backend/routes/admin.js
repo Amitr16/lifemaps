@@ -185,10 +185,10 @@ router.get('/super-admin/admins', authenticateSuperAdmin, async (req, res) => {
 
 // Create admin (super admin only)
 router.post('/super-admin/admins', authenticateSuperAdmin, [
-  body('username').notEmpty().trim().isLength({ min: 3 }),
-  body('password').isLength({ min: 6 }),
-  body('name').optional().trim(),
-  body('email').optional().isEmail()
+  body('username').notEmpty().trim().isLength({ min: 3 }).withMessage('Username must be at least 3 characters'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('name').optional({ values: 'falsy' }).trim(),
+  body('email').optional({ values: 'falsy' }).isEmail().withMessage('Enter a valid email or leave it blank')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -196,7 +196,9 @@ router.post('/super-admin/admins', authenticateSuperAdmin, [
       return res.status(400).json({ error: 'Validation failed', details: errors.array() });
     }
 
-    const { username, password, name, email } = req.body;
+    const { username, password } = req.body;
+    const name = req.body.name && String(req.body.name).trim() ? String(req.body.name).trim() : null;
+    const email = req.body.email && String(req.body.email).trim() ? String(req.body.email).trim() : null;
 
     // Check if admin already exists
     const existing = await pool.query(
@@ -220,16 +222,16 @@ router.post('/super-admin/admins', authenticateSuperAdmin, [
     let result;
     try {
       result = await pool.query(
-        'INSERT INTO admin (username, password_hash, name, email, super_admin_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, is_active, created_at',
-        [username, passwordHash, name || null, email || null, superAdminId]
+        'INSERT INTO admin (username, password_hash, name, email, super_admin_id, created_by) VALUES ($1, $2, $3, $4, $5, $5) RETURNING id, username, name, email, is_active, created_at',
+        [username, passwordHash, name, email, superAdminId]
       );
     } catch (insertError) {
-      // If super_admin_id column doesn't exist, try created_by
-      if (insertError.message && insertError.message.includes('super_admin_id')) {
-        console.log('⚠️ Column super_admin_id not found, trying created_by...');
+      const msg = insertError.message || '';
+      if (msg.includes('super_admin_id') || msg.includes('created_by')) {
+        console.log('⚠️ Admin owner column missing, inserting without it:', msg);
         result = await pool.query(
-          'INSERT INTO admin (username, password_hash, name, email, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, email, is_active, created_at',
-          [username, passwordHash, name || null, email || null, superAdminId]
+          'INSERT INTO admin (username, password_hash, name, email) VALUES ($1, $2, $3, $4) RETURNING id, username, name, email, is_active, created_at',
+          [username, passwordHash, name, email]
         );
       } else {
         throw insertError;
@@ -254,10 +256,10 @@ router.post('/super-admin/admins', authenticateSuperAdmin, [
 
 // Update admin (super admin only)
 router.put('/super-admin/admins/:adminId', authenticateSuperAdmin, [
-  body('username').optional().trim().isLength({ min: 3 }),
-  body('password').optional().isLength({ min: 6 }),
-  body('name').optional().trim(),
-  body('email').optional().isEmail(),
+  body('username').optional({ values: 'falsy' }).trim().isLength({ min: 3 }),
+  body('password').optional({ values: 'falsy' }).isLength({ min: 6 }),
+  body('name').optional({ values: 'falsy' }).trim(),
+  body('email').optional({ values: 'falsy' }).isEmail(),
   body('is_active').optional().isBoolean()
 ], async (req, res) => {
   try {

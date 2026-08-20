@@ -29,15 +29,8 @@ class ApiService {
     const userToken = localStorage.getItem('authToken');
     // For admin endpoints, prioritize admin token; for regular endpoints, use user token
     const isAdminEndpoint = endpoint.includes('/admin/');
+    const isAuthEndpoint = /\/login$|\/register$/.test(endpoint);
     const token = isAdminEndpoint ? (adminToken || userToken) : (userToken || adminToken);
-    
-    // Debug logging for admin endpoints
-    if (isAdminEndpoint) {
-      console.log('[API] Admin endpoint detected:', endpoint);
-      console.log('[API] Admin token exists:', !!adminToken, adminToken ? adminToken.substring(0, 20) + '...' : 'none');
-      console.log('[API] User token exists:', !!userToken);
-      console.log('[API] Selected token:', token ? 'YES (' + (isAdminEndpoint && adminToken ? 'admin' : 'user') + ')' : 'NO');
-    }
     
     const controller = new AbortController();
     const signal = controller.signal;
@@ -61,10 +54,8 @@ class ApiService {
     };
     
     // Final check for admin endpoints - ensure token is present
-    if (isAdminEndpoint && !token) {
-      console.error('[API] ERROR: Admin endpoint requires token but none found!');
-      console.error('[API] Admin token in localStorage:', !!adminToken);
-      console.error('[API] User token in localStorage:', !!userToken);
+    if (isAdminEndpoint && !isAuthEndpoint && !token) {
+      console.error('[API] Admin endpoint requires token but none found:', endpoint);
     }
 
     if (config.body && typeof config.body === 'object') {
