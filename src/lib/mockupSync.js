@@ -27,6 +27,33 @@ export function mockupSrc(page) {
   return PAGES[page] || PAGES.fp
 }
 
+export function emptyMockupState(page) {
+  if (page === 'assets') return { ROWS: [], UNASSIGNED: 0, GOALS: [] }
+  if (page === 'work') return { ROWS: [], UNASSIGNED: 0 }
+  if (page === 'goals') return { ROWS: [], ASSETS: [] }
+  if (page === 'loans') return { ROWS: [], PLAN: [] }
+  if (page === 'expenses') return { ROWS: [], SOURCES: [] }
+  if (page === 'fp') {
+    return {
+      S: {
+        age: 0,
+        salary: 0,
+        gSal: 8,
+        workTill: 60,
+        finAssets: 0,
+        personalAssets: 0,
+        loans: [],
+        goals: [],
+        exp: [],
+        gRet: 12,
+        gInf: 6,
+        lifeTo: 90,
+      },
+    }
+  }
+  return {}
+}
+
 const thisYear = () => new Date().getFullYear()
 
 const realId = (id) => id != null && !String(id).startsWith('temp_')

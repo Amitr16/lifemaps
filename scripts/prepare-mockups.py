@@ -57,6 +57,21 @@ __MARKER_START__
     target.splice.apply(target, [0, target.length].concat(next));
   }
 
+  function blankOwned(){
+    if (!/\bowned=1\b/.test(String(location.search || ""))) return;
+    try {
+      if (PAGE === "fp" && typeof S !== "undefined") {
+        S.salary = 0; S.finAssets = 0; S.personalAssets = 0;
+        if (S.loans) replaceList(S.loans, []);
+        if (S.goals) replaceList(S.goals, []);
+        if (S.exp) replaceList(S.exp, []);
+      }
+      if (typeof ROWS !== "undefined") replaceList(ROWS, []);
+      if (PAGE === "loans" && typeof PLAN !== "undefined") replaceList(PLAN, []);
+      if (typeof refresh === "function") refresh();
+    } catch (e) {}
+  }
+
   function getState(){
     try {
       if (PAGE === "fp") {
@@ -280,6 +295,7 @@ __MARKER_START__
   }, true);
 
   window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  blankOwned();
   post("ready", getState());
 })();
 __MARKER_END__

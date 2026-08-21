@@ -3,17 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import AuthModal from './AuthModal'
 import { useAuth } from '../contexts/AuthContext'
-import { loadMockupState, mockupSrc, saveMockupState } from '../lib/mockupSync'
+import { emptyMockupState, loadMockupState, mockupSrc, saveMockupState } from '../lib/mockupSync'
 
 export default function MockupHost({ page }) {
   const navigate = useNavigate()
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated, logout, loading: authLoading } = useAuth()
   const iframeRef = useRef(null)
   const pendingSaveRef = useRef(null)
   const hydratedRef = useRef(false)
+  const statePromiseRef = useRef(null)
+  const hydrateGenRef = useRef(0)
   const [authOpen, setAuthOpen] = useState(false)
   const [authTab, setAuthTab] = useState('login')
-  const src = mockupSrc(page)
+  const [planReady, setPlanReady] = useState(false)
+  const baseSrc = mockupSrc(page)
+  const src = isAuthenticated ? `${baseSrc}?owned=1` : baseSrc
 
   const api = () => iframeRef.current?.contentWindow?.__LIFEMAP__
 
@@ -21,17 +25,25 @@ export default function MockupHost({ page }) {
     const bridge = api()
     if (!bridge) return
     const id = userId || user?.id
+    const gen = hydrateGenRef.current
     if (!id) {
       hydratedRef.current = true
+      if (gen === hydrateGenRef.current) setPlanReady(true)
       return
     }
     try {
-      const state = await loadMockupState(page, id)
+      bridge.setState(emptyMockupState(page))
+      const pending = statePromiseRef.current
+      const state = pending ? await pending : await loadMockupState(page, id)
+      if (gen !== hydrateGenRef.current) return
       if (state) bridge.setState(state)
       bridge.setAccount(user?.name || user?.email || 'Account')
       hydratedRef.current = true
+      setPlanReady(true)
     } catch (error) {
+      if (gen !== hydrateGenRef.current) return
       hydratedRef.current = true
+      setPlanReady(true)
       console.error('Failed to hydrate mockup from API', error)
     }
   }, [page, user?.id, user?.name, user?.email])
@@ -62,8 +74,16 @@ export default function MockupHost({ page }) {
   }, [page, user?.id, user?.name, user?.email])
 
   useEffect(() => {
+    hydrateGenRef.current += 1
     hydratedRef.current = false
-  }, [page, user?.id])
+    setPlanReady(false)
+    if (user?.id) {
+      statePromiseRef.current = loadMockupState(page, user.id)
+    } else {
+      statePromiseRef.current = null
+      if (!authLoading) setPlanReady(true)
+    }
+  }, [page, user?.id, authLoading])
 
   useEffect(() => {
     if (!isAuthenticated) api()?.setAccount(null)
@@ -87,10 +107,12 @@ export default function MockupHost({ page }) {
         const bridge = api()
         if (bridge && pending) bridge.setState(pending)
         if (bridge) bridge.setAccount(authed?.name || authed?.email || 'Account')
+        setPlanReady(true)
         toast.success('Plan saved')
       } catch (error) {
         pendingSaveRef.current = null
         setAuthOpen(false)
+        setPlanReady(true)
         console.error('Failed to save mockup after register', error)
         toast.error(error.message || 'Could not save your plan')
       }
@@ -151,6 +173,7 @@ export default function MockupHost({ page }) {
         className="lm-mockup-frame"
         title="LifeMap"
         src={src}
+        style={{ visibility: planReady ? 'visible' : 'hidden' }}
         onLoad={() => {
           if (!pendingSaveRef.current) hydrate()
         }}
