@@ -7,6 +7,7 @@ import {
   combinedWorkUnassigned,
   floorLump,
   fpEditableExpenses,
+  fpLivingExpenses,
   unassignedOf,
   FREQ_PER_YEAR,
   num,
@@ -45,6 +46,7 @@ export function emptyMockupState(page) {
         loans: [],
         goals: [],
         exp: [],
+        expRegister: [],
         gRet: 12,
         gInf: 6,
         lifeTo: 90,
@@ -106,6 +108,11 @@ function createdId(created) {
   )
 }
 
+function profileAge(profile, local = readAssumptions()) {
+  const age = num(profile?.age ?? local.age, 32)
+  return age >= 16 && age <= 100 ? age : 32
+}
+
 function profileAssumptions(profile, local = readAssumptions()) {
   return {
     inflationRate: asRate(profile?.inflation_rate ?? local.inflationRate, 0.06),
@@ -115,7 +122,20 @@ function profileAssumptions(profile, local = readAssumptions()) {
     debtGrowthRate: asRate(profile?.debt_growth_rate ?? local.assetDebtGrowthRate, 0.07),
     assetEquitySplit: asRate(local.assetEquitySplit, 0.6),
     lifespanYears: num(profile?.lifespan_years ?? local.lifespanYears, 85),
-    age: num(profile?.age ?? local.age, 32),
+    age: profileAge(profile, local),
+  }
+}
+
+function toFpExpense(e, age, life) {
+  return {
+    id: e.id,
+    n: e.description || e.category || 'Expense',
+    v: annualAmount(e),
+    from: num(e.start_age ?? e.from, age),
+    to: num(e.end_age ?? e.to, life),
+    loanId: e.loan_id || e.loanId || null,
+    insId: e.insurance_id || e.insId || null,
+    saved: true,
   }
 }
 
@@ -160,7 +180,25 @@ async function upsertProfile(userId, payload) {
   const profileRes = await ApiService.getFinancialProfile(userId).catch(() => null)
   const profile = profileRes?.profile
   if (profile?.id) return ApiService.updateFinancialProfile(profile.id, payload)
-  return ApiService.createFinancialProfile(payload)
+  return ApiService.createFinancialProfile({
+    age: profileAge(profile),
+    ...payload,
+  })
+}
+
+async function ensureProfile(userId, extra = {}) {
+  const profileRes = await ApiService.getFinancialProfile(userId).catch(() => null)
+  if (profileRes?.profile?.id) {
+    if (Object.keys(extra).length) {
+      await ApiService.updateFinancialProfile(profileRes.profile.id, extra).catch(() => {})
+    }
+    return profileRes.profile
+  }
+  const created = await ApiService.createFinancialProfile({
+    age: profileAge(null),
+    ...extra,
+  }).catch(() => null)
+  return created?.profile || created || null
 }
 
 export async function loadMockupState(page, userId) {
@@ -184,10 +222,10 @@ export async function loadMockupState(page, userId) {
 
     return {
       S: {
-        age: age || 30,
+        age,
         salary,
         gSal: asPct(assumptions.incomeGrowthRate, 8),
-        workTill: age ? age + num(profile?.work_tenure_years, 28) : 60,
+        workTill: age + num(profile?.work_tenure_years, 28),
         finAssets: assetsCombined.financial,
         personalAssets: assetsCombined.personal,
         loans: asList(loansRes, 'loans').map((l) => ({
@@ -207,14 +245,8 @@ export async function loadMockupState(page, userId) {
             saved: true,
           }
         }),
-        exp: fpEditableExpenses(expensesRes).map((e) => {
-          return {
-            id: e.id,
-            n: e.description || e.category || 'Expense',
-            v: annualAmount(e),
-            saved: true,
-          }
-        }),
+        exp: fpEditableExpenses(expensesRes).map((e) => toFpExpense(e, age, assumptions.lifespanYears)),
+        expRegister: fpLivingExpenses(expensesRes).map((e) => toFpExpense(e, age, assumptions.lifespanYears)),
         gRet: asPct(assumptions.assetGrowthRate, 11),
         gInf: asPct(assumptions.inflationRate, 6),
         lifeTo: assumptions.lifespanYears || 85,
@@ -277,7 +309,7 @@ export async function loadMockupState(page, userId) {
     }))
     return {
       ROWS,
-      AGE: age || 32,
+      AGE: age,
       UNASSIGNED: combinedWorkUnassigned(profile, list),
     }
   }
@@ -312,7 +344,7 @@ export async function loadMockupState(page, userId) {
     })
     return {
       ROWS,
-      AGE: age || 32,
+      AGE: age,
       RET: asPct(assumptions.assetGrowthRate, 11),
       ASSETS: asList(assetsRes, 'assets')
         .filter((a) => (a.tag || '') !== 'Personal')
@@ -367,7 +399,7 @@ export async function loadMockupState(page, userId) {
     const SOURCES = asList(assetsRes, 'assets')
       .map((a) => a.name)
       .filter(Boolean)
-    return { ROWS, AGE: age || 32, LIFE: life || 90, GINF: asPct(assumptions.inflationRate, 6), SOURCES }
+    return { ROWS, AGE: age, LIFE: life, GINF: asPct(assumptions.inflationRate, 6), SOURCES }
   }
 
   return null
@@ -522,10 +554,9 @@ export async function saveMockupState(page, userId, state) {
     })
     await upsertProfile(userId, payload)
 
-    const [loansRes, goalsRes, expensesRes] = await Promise.all([
+    const [loansRes, goalsRes] = await Promise.all([
       ApiService.getFinancialLoans(userId).catch(() => ({})),
       ApiService.getFinancialGoals(userId).catch(() => ({})),
-      ApiService.getFinancialExpenses(userId).catch(() => ({})),
     ])
 
     await syncCollection({
@@ -565,35 +596,12 @@ export async function saveMockupState(page, userId, state) {
         custom_data: prior?.custom_data,
       }),
     })
-
-    await syncCollection({
-      existing: fpEditableExpenses(expensesRes),
-      next: S.exp || [],
-      create: (body) => ApiService.createFinancialExpense(body),
-      update: (id, body) => ApiService.updateFinancialExpense(id, body),
-      remove: (id) => ApiService.deleteFinancialExpense(id),
-      payload: (row, prior) => {
-        const freq = prior?.frequency || 'Annually'
-        const periods = FREQ_PER_YEAR[freq] || 1
-        return {
-          description: row.n || 'Expense',
-          category: prior?.category || 'Other',
-          amount: num(row.v) / periods,
-          frequency: freq,
-          tag_for: prior?.need_type || prior?.tag_for || 'Need',
-          need_type: prior?.need_type || prior?.tag_for || 'Need',
-          personal_inflation: prior?.personal_inflation ?? 0.06,
-          start_age: prior?.start_age,
-          end_age: prior?.end_age,
-          notes: prior?.notes || '',
-        }
-      },
-    })
     return
   }
 
   if (page === 'assets') {
     if (!Array.isArray(state.ROWS)) return
+    await ensureProfile(userId)
     const res = await ApiService.getFinancialAssets(userId).catch(() => ({}))
     await syncCollection({
       existing: asList(res, 'assets'),
@@ -609,7 +617,7 @@ export async function saveMockupState(page, userId, state) {
         sip_amount: num(row.sip),
         sip_frequency: row.freq || 'Monthly',
         sip_expiry_date: row.exp || null,
-        expected_return: num(row.ret),
+        expected_return: asRate(row.ret, 0.06),
         notes: row.notes || '',
         custom_data: {
           ...(prior?.custom_data || {}),
@@ -641,6 +649,8 @@ export async function saveMockupState(page, userId, state) {
 
   if (page === 'work') {
     if (!Array.isArray(state.ROWS)) return
+    const agePatch = state.AGE ? { age: num(state.AGE) } : {}
+    await ensureProfile(userId, agePatch)
     const res = await ApiService.getWorkAssets(userId).catch(() => [])
     await syncCollection({
       existing: asList(res, 'workAssets', 'assets', 'data'),
@@ -651,8 +661,8 @@ export async function saveMockupState(page, userId, state) {
       payload: (row) => ({
         stream: row.name || 'Income stream',
         amount: num(row.amt),
-        growthRate: num(row.g, 5),
-        endAge: num(row.end, 65),
+        growthRate: asRate(row.g, 0.05),
+        endAge: num(row.end, 65) || 65,
         notes: row.notes || '',
         color: row.c || null,
       }),

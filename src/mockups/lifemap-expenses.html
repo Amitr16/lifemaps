@@ -1334,7 +1334,7 @@ document.querySelectorAll("[data-basis]").forEach(b => b.addEventListener("click
   b.classList.add("on"); BASIS = b.dataset.basis; refresh();
 }));
 const addExpense = () => {
-  ROWS.push({cat:"Other", sub:"", type:catOf("Other").type, amt:0, freq:"Monthly",
+  ROWS.push({id:"temp_"+Date.now(), cat:"Other", sub:"", type:catOf("Other").type, amt:0, freq:"Monthly",
              inf:catOf("Other").inf, from:AGE, to:LIFE, src:"", notes:"", saved:false});
   SEARCH = ""; FILTER = ""; $("search").value = "";
   $("filter").querySelector(".lbl").textContent = "All types";

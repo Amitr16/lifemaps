@@ -17,6 +17,8 @@ const STATEMENTS = [
   `ALTER TABLE assets ADD COLUMN IF NOT EXISTS notes TEXT`,
   `ALTER TABLE work_assets ADD COLUMN IF NOT EXISTS notes TEXT`,
   `ALTER TABLE work_assets ADD COLUMN IF NOT EXISTS color VARCHAR(20)`,
+  `ALTER TABLE work_assets ALTER COLUMN growth_rate TYPE DECIMAL(8,4)`,
+  `ALTER TABLE assets DROP CONSTRAINT IF EXISTS assets_tag_check`,
   `ALTER TABLE financial_goal ADD COLUMN IF NOT EXISTS category VARCHAR(100)`,
   `ALTER TABLE financial_goal ADD COLUMN IF NOT EXISTS flexibility VARCHAR(40)`,
   `ALTER TABLE financial_goal ADD COLUMN IF NOT EXISTS span_years INTEGER DEFAULT 1`,

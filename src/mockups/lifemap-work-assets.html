@@ -778,7 +778,7 @@ $("i-age").addEventListener("input", e => {
   if(v >= 16 && v <= 90){ AGE = v; refresh(); }
 });
 const addStream = () => {
-  ROWS.push({id:NEXT_ID++, c:nextAssetColor(), name:"", amt:0, g:DEFAULT_GROWTH,
+  ROWS.push({id:"temp_"+NEXT_ID++, c:nextAssetColor(), name:"", amt:0, g:DEFAULT_GROWTH,
              end:Math.min(90, AGE+28), notes:"", saved:false});
   SEARCH = ""; $("search").value = "";
   refresh();

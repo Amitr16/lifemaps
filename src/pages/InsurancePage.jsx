@@ -1,11 +1,12 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import EditableGrid from '@/components/EditableGrid.jsx';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminUser } from '@/contexts/AdminUserContext';
 import ApiService from '@/services/api';
 import { useLifeSheetStore } from '@/store/enhanced-store';
 import { refreshPlanStore } from '@/lib/mockupSync';
+import { livingExpensesPresentValue } from '@/lib/planLinks';
 import { AlertTriangle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader.jsx';
 import PagePager from '@/components/PagePager.jsx';
@@ -19,6 +20,8 @@ export default function InsurancePage() {
   const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null);
   const effectiveIsAuthenticated = isAdminMode || !!user;
   const [rows, setRows] = useState([]);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
   const [loading, setLoading] = useState(true);
   const [savingRows, setSavingRows] = useState(new Set());
   
@@ -228,7 +231,23 @@ export default function InsurancePage() {
     };
   };
   
-  const calculations = calculateQuickCalculatorValues();
+  const calculations = (() => {
+    const age = parseInt(formData.age, 10) || 32;
+    const lifespan = parseInt(formData.lifespanYears, 10) || 85;
+    const inflationRaw = (formData.inflationRate !== undefined && formData.inflationRate !== null && formData.inflationRate !== '')
+      ? parseFloat(formData.inflationRate) : 0.06;
+    const inflation = inflationRaw > 1 ? inflationRaw / 100 : inflationRaw;
+    const livingPv = livingExpensesPresentValue(expenses, age, lifespan, inflation);
+    const totalEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
+    const discountedEmi = totalEmi / (1 + inflation);
+    const totalFutureExpenses = livingPv + discountedEmi;
+    const base = calculateQuickCalculatorValues();
+    return {
+      ...base,
+      totalFutureExpenses,
+      surplusDeficit: base.totalExistingAssets - totalLoans - totalFutureExpenses - base.totalFinancialGoals,
+    };
+  })();
   
   // Calculate insurance needed from net total (without Human Capital)
   const netTotal = calculations.totalExistingAssets - calculations.totalExistingLiabilities - calculations.totalFutureExpenses - calculations.totalFinancialGoals;
@@ -336,7 +355,9 @@ export default function InsurancePage() {
       const response = isAdminMode
         ? await ApiService.getFinancialInsuranceForUser(effectiveUserId)
         : await ApiService.getFinancialInsurance(effectiveUserId);
-      const insurance = response.insurance || response || [];
+      const insurance = Array.isArray(response?.insurance)
+        ? response.insurance
+        : (Array.isArray(response) ? response : []);
       
       // Map database fields to frontend field names
       const mappedInsurance = insurance.map(policy => ({
@@ -363,6 +384,39 @@ export default function InsurancePage() {
       setLoading(false);
     }
   };
+
+  const persistInsuranceRow = async (row, rowIndex) => {
+    if (!row?.policyType || !(parseFloat(row.cover) > 0 || parseFloat(row.premium) > 0)) return;
+    const endDate = row.endDate || (row.expiryYear ? `${parseInt(row.expiryYear, 10)}-12-31` : null);
+    const payload = {
+      policy_type: row.policyType,
+      cover: parseFloat(row.cover) || 0,
+      premium: parseFloat(row.premium) || 0,
+      frequency: row.frequency || 'Yearly',
+      provider: row.provider,
+      policy_number: row.policyNumber,
+      start_date: row.startDate || null,
+      end_date: endDate,
+      notes: row.notes,
+    };
+    if (row.id && !String(row.id).startsWith('temp_')) {
+      await ApiService.updateFinancialInsurance(row.id, payload);
+      return;
+    }
+    if (String(row.id || '').startsWith('temp_')) {
+      const created = await ApiService.createFinancialInsurance(payload);
+      const newId = created?.insurance?.id || created?.id;
+      if (newId != null && rowIndex != null) {
+        setRows((prev) => prev.map((r, i) => (i === rowIndex ? { ...r, id: newId } : r)));
+      }
+    }
+  };
+
+  useEffect(() => () => {
+    rowsRef.current.forEach((row, index) => {
+      persistInsuranceRow(row, index).catch((error) => console.error('Error flushing insurance save', error));
+    });
+  }, []);
 
   const addRow = () => {
     const newRow = {
@@ -409,59 +463,8 @@ export default function InsurancePage() {
       clearTimeout(window[timeoutKey]);
       
       window[timeoutKey] = setTimeout(() => {
-        if (savingRows.has(rowIndex)) {
-          return;
-        }
-        
-        if (row.id && !row.id.toString().startsWith('temp_')) {
-          // Update existing row
-        if (row.policyType && (parseFloat(row.cover) > 0 || parseFloat(row.premium) > 0)) {
-            setSavingRows(prev => new Set(prev).add(rowIndex));
-            const endDate = row.endDate || (row.expiryYear ? `${parseInt(row.expiryYear)}-12-31` : null);
-            ApiService.updateFinancialInsurance(row.id, {
-              policy_type: row.policyType,
-              cover: parseFloat(row.cover) || 0,
-              premium: parseFloat(row.premium) || 0,
-              frequency: row.frequency || 'Yearly',
-              provider: row.provider,
-              policy_number: row.policyNumber,
-              start_date: row.startDate || null,
-              end_date: endDate,
-              notes: row.notes
-            }).finally(() => {
-              setSavingRows(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(rowIndex);
-                return newSet;
-              });
-            }).catch(error => console.error('Error updating insurance:', error));
-          }
-        } else if (row.policyType && (parseFloat(row.cover) > 0 || parseFloat(row.premium) > 0) && String(row.id || '').startsWith('temp_')) {
-          // Create new row
-          setSavingRows(prev => new Set(prev).add(rowIndex));
-          const endDate = row.endDate || (row.expiryYear ? `${parseInt(row.expiryYear)}-12-31` : null);
-          ApiService.createFinancialInsurance({
-            policy_type: row.policyType,
-            cover: parseFloat(row.cover) || 0,
-            premium: parseFloat(row.premium) || 0,
-            frequency: row.frequency || 'Yearly',
-            provider: row.provider,
-            policy_number: row.policyNumber,
-            start_date: row.startDate || null,
-            end_date: endDate,
-            notes: row.notes
-          }).then(newInsurance => {
-            const newId = newInsurance.insurance?.id || newInsurance.id;
-            setRows(prev => prev.map((r, i) => i === rowIndex ? { ...r, id: newId } : r));
-          }).finally(() => {
-            setSavingRows(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(rowIndex);
-              return newSet;
-            });
-          }).catch(error => console.error('Error creating insurance:', error));
-        }
-      }, 1000); // 1 second debounce
+        persistInsuranceRow(row, rowIndex).catch((error) => console.error('Error saving insurance:', error));
+      }, 400);
     } catch (error) {
       console.error('Error in handleCellChange:', error);
     }

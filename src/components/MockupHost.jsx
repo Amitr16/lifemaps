@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import AuthModal from './AuthModal'
 import { useAuth } from '../contexts/AuthContext'
-import { emptyMockupState, loadMockupState, mockupSrc, saveMockupState } from '../lib/mockupSync'
+import { loadMockupState, mockupSrc, saveMockupState } from '../lib/mockupSync'
 
 export default function MockupHost({ page }) {
   const navigate = useNavigate()
@@ -11,13 +11,17 @@ export default function MockupHost({ page }) {
   const iframeRef = useRef(null)
   const pendingSaveRef = useRef(null)
   const hydratedRef = useRef(false)
+  const appliedRef = useRef(false)
   const statePromiseRef = useRef(null)
   const hydrateGenRef = useRef(0)
+  const persistChainRef = useRef(Promise.resolve())
+  const pageRef = useRef(page)
   const [authOpen, setAuthOpen] = useState(false)
   const [authTab, setAuthTab] = useState('login')
   const [planReady, setPlanReady] = useState(false)
   const baseSrc = mockupSrc(page)
   const src = isAuthenticated ? `${baseSrc}?owned=1` : baseSrc
+  pageRef.current = page
 
   const api = () => iframeRef.current?.contentWindow?.__LIFEMAP__
 
@@ -28,19 +32,25 @@ export default function MockupHost({ page }) {
     const gen = hydrateGenRef.current
     if (!id) {
       hydratedRef.current = true
+      appliedRef.current = true
       if (gen === hydrateGenRef.current) setPlanReady(true)
       return
     }
+    if (appliedRef.current) return
+    appliedRef.current = true
     try {
-      bridge.setState(emptyMockupState(page))
       const pending = statePromiseRef.current
       const state = pending ? await pending : await loadMockupState(page, id)
-      if (gen !== hydrateGenRef.current) return
+      if (gen !== hydrateGenRef.current) {
+        appliedRef.current = false
+        return
+      }
       if (state) bridge.setState(state)
       bridge.setAccount(user?.name || user?.email || 'Account')
       hydratedRef.current = true
       setPlanReady(true)
     } catch (error) {
+      appliedRef.current = false
       if (gen !== hydrateGenRef.current) return
       hydratedRef.current = true
       setPlanReady(true)
@@ -48,34 +58,41 @@ export default function MockupHost({ page }) {
     }
   }, [page, user?.id, user?.name, user?.email])
 
-  const persist = useCallback(async (state, quiet, userId) => {
-    const snapshot = state || api()?.getState()
-    const id = userId || user?.id
-    if (!id) {
-      pendingSaveRef.current = snapshot
-      setAuthTab('register')
-      setAuthOpen(true)
-      return
-    }
-    if (!hydratedRef.current) {
-      if (!quiet) toast.message('Still loading your plan')
-      return
-    }
-    try {
-      await saveMockupState(page, id, snapshot)
-      const bridge = api()
-      if (bridge && snapshot) bridge.setState(snapshot)
-      if (bridge) bridge.setAccount(user?.name || user?.email || 'Account')
-      if (!quiet) toast.success('Plan saved')
-    } catch (error) {
-      console.error('Failed to save mockup', error)
-      toast.error(error.message || 'Could not save your plan')
-    }
-  }, [page, user?.id, user?.name, user?.email])
+  const persist = useCallback((state, quiet, userId) => {
+    const pageAtCall = pageRef.current
+    const job = persistChainRef.current.then(async () => {
+      if (pageRef.current !== pageAtCall) return
+      const snapshot = api()?.getState() || state
+      const id = userId || user?.id
+      if (!id) {
+        pendingSaveRef.current = snapshot
+        setAuthTab('register')
+        setAuthOpen(true)
+        return
+      }
+      if (!hydratedRef.current) {
+        if (!quiet) toast.message('Still loading your plan')
+        return
+      }
+      try {
+        await saveMockupState(pageAtCall, id, snapshot)
+        const bridge = api()
+        if (bridge) bridge.setAccount(user?.name || user?.email || 'Account')
+        if (!quiet) toast.success('Plan saved')
+      } catch (error) {
+        console.error('Failed to save mockup', error)
+        toast.error(error.message || 'Could not save your plan')
+      }
+    })
+    persistChainRef.current = job.catch(() => {})
+    return job
+  }, [user?.id, user?.name, user?.email])
 
   useEffect(() => {
     hydrateGenRef.current += 1
     hydratedRef.current = false
+    appliedRef.current = false
+    persistChainRef.current = Promise.resolve()
     setPlanReady(false)
     if (user?.id) {
       statePromiseRef.current = loadMockupState(page, user.id)
@@ -103,6 +120,7 @@ export default function MockupHost({ page }) {
         await saveMockupState(page, id, pending)
         pendingSaveRef.current = null
         hydratedRef.current = true
+        appliedRef.current = true
         setAuthOpen(false)
         const bridge = api()
         if (bridge && pending) bridge.setState(pending)
@@ -134,7 +152,12 @@ export default function MockupHost({ page }) {
         return
       }
       if (data.type === 'navigate' && data.payload?.path) {
-        navigate(data.payload.path)
+        const go = () => navigate(data.payload.path)
+        if (isAuthenticated && hydratedRef.current) {
+          persist(null, true).finally(go)
+        } else {
+          go()
+        }
         return
       }
       if (data.type === 'logout') {
@@ -158,7 +181,7 @@ export default function MockupHost({ page }) {
         return
       }
       if (data.type === 'row-save' || data.type === 'row-delete') {
-        persist(data.payload, true)
+        persist(null, true)
       }
     }
     window.addEventListener('message', onMessage)

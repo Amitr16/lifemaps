@@ -1165,7 +1165,7 @@ Object.values(REGS).forEach(g => {
     renderRegister(g);
   };
   const add = () => {
-    const row = {prov:"", name:"", cat:"Personal loan", bal:0, rate:catOf("Personal loan").rate,
+    const row = {id:"temp_"+Date.now(), prov:"", name:"", cat:"Personal loan", bal:0, rate:catOf("Personal loan").rate,
                  emi:0, freq:"Monthly", notes:"", saved:false};
     if(g.planned) row.start = THIS_YEAR + 1;
     row.end = 0;

@@ -745,6 +745,7 @@ const S = {
          {n:"Child's education", v:2500000, yrs:14, saved:true}],
   exp:[{n:"Household & food", v:360000, saved:true},
        {n:"Travel & lifestyle", v:180000, saved:true}],
+  expRegister:[],
   gRet:11, gInf:6, lifeTo:85
 };
 
@@ -759,10 +760,16 @@ function fmt(n){
 const full = n => (n<0?"\u2212":"")+"\u20B9"+Math.abs(Math.round(n)).toLocaleString("en-IN");
 const sum = (arr,k) => arr.reduce((t,r)=>t+num(r[k]),0);
 
+function livingSource(){
+  const reg = S.expRegister || [];
+  if (reg.some(e => num(e.v) > 0 || (e.n && String(e.n).trim()))) return reg;
+  return S.exp;
+}
+
 /* ========================= TODAY'S POSITION ========================= */
 function current(){
   const salary  = num(S.salary);
-  const expenses= sum(S.exp,"v");
+  const expenses= sum(livingSource(),"v");
   const emiYear = sum(S.loans,"emi")*12;
   const surplus = salary - expenses - emiYear;
   const finAssets = num(S.finAssets);
@@ -773,6 +780,16 @@ function current(){
           ratio: salary>0 ? surplus/salary*100 : 0,
           finAssets, personalAssets, assets, owed,
           netWorth: assets-owed, outgo: expenses+emiYear};
+}
+
+function expFrom(e){ return (e.from == null || e.from === "") ? -1e9 : num(e.from); }
+function expTo(e){ return (e.to == null || e.to === "") ? 1e9 : num(e.to); }
+function livingAt(t, gI){
+  const ageAt = num(S.age) + t;
+  return livingSource().reduce((s,e) => {
+    if(ageAt < expFrom(e) || ageAt > expTo(e)) return s;
+    return s + num(e.v) * Math.pow(1+gI, t);
+  }, 0);
 }
 
 /* ========================= FREEDOM ENGINE =========================
@@ -795,11 +812,11 @@ function engine(o){
   const selectedWorkAge = Math.round(o.workTill ?? S.workTill);
   const workAge = Math.min(S.lifeTo, Math.max(S.age, selectedWorkAge));
   const workStop = Math.min(N, Math.max(0, workAge - S.age));
-  const LY = loanYears(), exp0 = sum(S.exp,"v");
+  const LY = loanYears();
 
   const exp=[], emi=[], goal=[], salFull=[], goalNames=[];
   for(let t=0;t<=N;t++){
-    exp.push(exp0*Math.pow(1+gI,t));
+    exp.push(livingAt(t, gI));
     emi.push(S.loans.reduce((s,l,i) => s + (t < LY[i] ? num(l.emi)*12 : 0), 0));
     let g=0, names=[];
     S.goals.forEach(gl => { if(Math.round(num(gl.yrs)) === t && num(gl.v) > 0){
@@ -1350,7 +1367,7 @@ function refresh(){
 
   /* --- chart 1: what comes in against what goes out, surplus in the middle --- */
   const spend = [];
-  S.exp.forEach((e,i) => { if(num(e.v) > 0) spend.push({
+  livingSource().forEach((e,i) => { if(num(e.v) > 0) spend.push({
     n:e.n || "Expense "+(i+1), v:num(e.v), c:pick(PAL_LIVE,i),
     d:"A yearly living cost. Inflates at "+S.gInf+"% a year." }); });
   S.loans.forEach((l,i) => { const a = num(l.emi)*12; if(a > 0) spend.push({
@@ -1459,7 +1476,7 @@ function refresh(){
     + "% a year. That real figure, and your savings ratio, are what really set your freedom age.";
 
   const done = [num(S.age)>=18, num(S.salary)>0, (num(S.finAssets)+num(S.personalAssets))>0,
-                S.exp.some(e=>num(e.v)>0)].filter(Boolean).length;
+                livingSource().some(e=>num(e.v)>0)].filter(Boolean).length;
   $("p-text").textContent = done+" of 4 essentials filled";
   $("p-bar").style.width = (done/4*100)+"%";
 

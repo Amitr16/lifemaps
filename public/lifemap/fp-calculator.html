@@ -745,6 +745,7 @@ const S = {
          {n:"Child's education", v:2500000, yrs:14, saved:true}],
   exp:[{n:"Household & food", v:360000, saved:true},
        {n:"Travel & lifestyle", v:180000, saved:true}],
+  expRegister:[],
   gRet:11, gInf:6, lifeTo:85
 };
 
@@ -759,10 +760,16 @@ function fmt(n){
 const full = n => (n<0?"\u2212":"")+"\u20B9"+Math.abs(Math.round(n)).toLocaleString("en-IN");
 const sum = (arr,k) => arr.reduce((t,r)=>t+num(r[k]),0);
 
+function livingSource(){
+  const reg = S.expRegister || [];
+  if (reg.some(e => num(e.v) > 0 || (e.n && String(e.n).trim()))) return reg;
+  return S.exp;
+}
+
 /* ========================= TODAY'S POSITION ========================= */
 function current(){
   const salary  = num(S.salary);
-  const expenses= sum(S.exp,"v");
+  const expenses= sum(livingSource(),"v");
   const emiYear = sum(S.loans,"emi")*12;
   const surplus = salary - expenses - emiYear;
   const finAssets = num(S.finAssets);
@@ -773,6 +780,16 @@ function current(){
           ratio: salary>0 ? surplus/salary*100 : 0,
           finAssets, personalAssets, assets, owed,
           netWorth: assets-owed, outgo: expenses+emiYear};
+}
+
+function expFrom(e){ return (e.from == null || e.from === "") ? -1e9 : num(e.from); }
+function expTo(e){ return (e.to == null || e.to === "") ? 1e9 : num(e.to); }
+function livingAt(t, gI){
+  const ageAt = num(S.age) + t;
+  return livingSource().reduce((s,e) => {
+    if(ageAt < expFrom(e) || ageAt > expTo(e)) return s;
+    return s + num(e.v) * Math.pow(1+gI, t);
+  }, 0);
 }
 
 /* ========================= FREEDOM ENGINE =========================
@@ -795,11 +812,11 @@ function engine(o){
   const selectedWorkAge = Math.round(o.workTill ?? S.workTill);
   const workAge = Math.min(S.lifeTo, Math.max(S.age, selectedWorkAge));
   const workStop = Math.min(N, Math.max(0, workAge - S.age));
-  const LY = loanYears(), exp0 = sum(S.exp,"v");
+  const LY = loanYears();
 
   const exp=[], emi=[], goal=[], salFull=[], goalNames=[];
   for(let t=0;t<=N;t++){
-    exp.push(exp0*Math.pow(1+gI,t));
+    exp.push(livingAt(t, gI));
     emi.push(S.loans.reduce((s,l,i) => s + (t < LY[i] ? num(l.emi)*12 : 0), 0));
     let g=0, names=[];
     S.goals.forEach(gl => { if(Math.round(num(gl.yrs)) === t && num(gl.v) > 0){
@@ -1350,7 +1367,7 @@ function refresh(){
 
   /* --- chart 1: what comes in against what goes out, surplus in the middle --- */
   const spend = [];
-  S.exp.forEach((e,i) => { if(num(e.v) > 0) spend.push({
+  livingSource().forEach((e,i) => { if(num(e.v) > 0) spend.push({
     n:e.n || "Expense "+(i+1), v:num(e.v), c:pick(PAL_LIVE,i),
     d:"A yearly living cost. Inflates at "+S.gInf+"% a year." }); });
   S.loans.forEach((l,i) => { const a = num(l.emi)*12; if(a > 0) spend.push({
@@ -1459,7 +1476,7 @@ function refresh(){
     + "% a year. That real figure, and your savings ratio, are what really set your freedom age.";
 
   const done = [num(S.age)>=18, num(S.salary)>0, (num(S.finAssets)+num(S.personalAssets))>0,
-                S.exp.some(e=>num(e.v)>0)].filter(Boolean).length;
+                livingSource().some(e=>num(e.v)>0)].filter(Boolean).length;
   $("p-text").textContent = done+" of 4 essentials filled";
   $("p-bar").style.width = (done/4*100)+"%";
 
@@ -1602,6 +1619,7 @@ refresh();
         if (S.loans) replaceList(S.loans, []);
         if (S.goals) replaceList(S.goals, []);
         if (S.exp) replaceList(S.exp, []);
+        if (S.expRegister) replaceList(S.expRegister, []);
       }
       if (typeof ROWS !== "undefined") replaceList(ROWS, []);
       if (PAGE === "loans" && typeof PLAN !== "undefined") replaceList(PLAN, []);
@@ -1632,6 +1650,10 @@ refresh();
     if (src.loans) replaceList(S.loans, src.loans);
     if (src.goals) replaceList(S.goals, src.goals);
     if (src.exp) replaceList(S.exp, src.exp);
+    if (src.expRegister) {
+      if (!S.expRegister) S.expRegister = [];
+      replaceList(S.expRegister, src.expRegister);
+    }
     var set = function(id, val){ var el = $(id); if (el) el.value = val; };
     var setTxt = function(id, val){ var el = $(id); if (el) el.textContent = val; };
     set("i-age", S.age);
@@ -1665,15 +1687,18 @@ refresh();
       if (PAGE === "work") {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
         if (typeof st.UNASSIGNED === "number") { try { UNASSIGNED = st.UNASSIGNED; } catch(e) {} }
-        if (typeof st.AGE === "number") {
-          AGE = st.AGE;
-          var ageEl = $("i-age");
-          if (ageEl) ageEl.value = AGE;
+        if (typeof st.AGE === "number" || (st.AGE != null && st.AGE !== "")) {
+          var nextAge = Number(st.AGE);
+          if (isFinite(nextAge) && nextAge > 0) {
+            AGE = nextAge;
+            var ageEl = $("i-age");
+            if (ageEl) ageEl.value = AGE;
+          }
         }
         var maxId = 0;
         ROWS.forEach(function(r){
           var n = Number(r.id);
-          if (Number.isFinite(n) && n > maxId) maxId = n;
+          if (isFinite(n) && n > maxId && n < 1e9) maxId = n;
         });
         try { NEXT_ID = maxId + 1; } catch(e) {}
         refresh();
@@ -1681,7 +1706,10 @@ refresh();
       }
       if (PAGE === "goals") {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
-        if (typeof st.AGE === "number") { AGE = st.AGE; var a=$("i-age"); if(a) a.value=AGE; }
+        if (typeof st.AGE === "number" || (st.AGE != null && st.AGE !== "")) {
+          var gAge = Number(st.AGE);
+          if (isFinite(gAge) && gAge > 0) { AGE = gAge; var a=$("i-age"); if(a) a.value=AGE; }
+        }
         if (typeof st.RET === "number") { RET = st.RET; var r=$("i-ret"); if(r) r.value=RET; }
         if (st.ASSETS) { try { ASSETS = st.ASSETS; } catch(e) {} }
         if (st.BASIS) BASIS = st.BASIS;
@@ -1701,7 +1729,10 @@ refresh();
       }
       if (PAGE === "expenses") {
         if (st.ROWS) replaceList(ROWS, st.ROWS);
-        if (typeof st.AGE === "number") { AGE = st.AGE; var e1=$("i-age"); if(e1) e1.value=AGE; }
+        if (typeof st.AGE === "number" || (st.AGE != null && st.AGE !== "")) {
+          var eAge = Number(st.AGE);
+          if (isFinite(eAge) && eAge > 0) { AGE = eAge; var e1=$("i-age"); if(e1) e1.value=AGE; }
+        }
         if (typeof st.LIFE === "number") { LIFE = st.LIFE; var e2=$("i-life"); if(e2) e2.value=LIFE; }
         if (typeof st.GINF === "number") { GINF = st.GINF; var e3=$("i-ginf"); if(e3) e3.value=GINF; }
         if (st.BASIS) BASIS = st.BASIS;
@@ -1826,10 +1857,21 @@ refresh();
   document.addEventListener("click", function(e){
     var saveBtn = e.target.closest && e.target.closest(".rb.save");
     var delBtn = e.target.closest && e.target.closest(".rb.del");
+    if (saveBtn && saveBtn.id === "ear-add") return;
     if (saveBtn || delBtn) {
       setTimeout(function(){ post(delBtn ? "row-delete" : "row-save", getState()); }, 30);
     }
   }, true);
+
+  var ageTimer = null;
+  ["i-age","i-life","i-ginf","i-ret"].forEach(function(id){
+    var el = $(id);
+    if (!el) return;
+    el.addEventListener("change", function(){
+      clearTimeout(ageTimer);
+      ageTimer = setTimeout(function(){ post("row-save", getState()); }, 200);
+    });
+  });
 
   window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
   blankOwned();

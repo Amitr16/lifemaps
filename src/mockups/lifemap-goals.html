@@ -1153,7 +1153,7 @@ $("i-ret").addEventListener("input", e => {
 });
 
 const addGoal = () => {
-  ROWS.push({name:"", cat:"Other", flex:catOf("Other").flex, cost:0,
+  ROWS.push({id:"temp_"+Date.now(), name:"", cat:"Other", flex:catOf("Other").flex, cost:0,
              at:Math.min(99, AGE+5), span:1, inf:catOf("Other").inf, notes:"", links:[], saved:false});
   SEARCH = ""; FILTER = ""; $("search").value = "";
   $("filter").querySelector(".lbl").textContent = "All goals";

@@ -1062,7 +1062,7 @@ document.querySelectorAll("[data-hz]").forEach(b => b.addEventListener("click", 
   b.classList.add("on"); HZ = +b.dataset.hz; drawGrowth();
 }));
 const addAsset = () => {
-  ROWS.push({name:"", cat:"Equity mutual funds", tag:"Investment", val:0, sip:0,
+  ROWS.push({id:"temp_"+Date.now(), name:"", cat:"Equity mutual funds", tag:"Investment", val:0, sip:0,
              freq:"Monthly", exp:"", ret:catOf("Equity mutual funds").ret, notes:"", earmarks:[], saved:false});
   SEARCH = ""; $("search").value = ""; setFilter("All purposes");
   refresh();

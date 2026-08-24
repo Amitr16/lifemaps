@@ -31,6 +31,25 @@ export function annualAmount(expense) {
   return amount * (FREQ_PER_YEAR[freq] || 12)
 }
 
+export function livingExpensesPresentValue(list, age, lifespan, inflation) {
+  const years = Math.max(0, Math.round(num(lifespan, 85) - num(age, 32)))
+  const inf = inflation > 1 ? inflation / 100 : num(inflation, 0.06)
+  let pv = 0
+  fpLivingExpenses(list).forEach((expense) => {
+    const start = num(expense.start_age ?? expense.from, age)
+    const end = num(expense.end_age ?? expense.to, lifespan)
+    const annual = annualAmount(expense)
+    const personal = num(expense.personal_inflation ?? expense.inf, inf)
+    const growth = personal > 1 ? personal / 100 : personal
+    for (let t = 0; t < years; t++) {
+      const at = num(age) + t
+      if (at < start || at > end) continue
+      pv += annual * Math.pow(1 + growth, t) / Math.pow(1 + inf, t)
+    }
+  })
+  return pv
+}
+
 export function isLoanLinked(row) {
   return Boolean(row?.loan_id)
 }
