@@ -3,12 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import AuthModal from './AuthModal'
 import { useAuth } from '../contexts/AuthContext'
+import { useAdminUser } from '../contexts/AdminUserContext'
 import { loadMockupState, mockupSrc, saveMockupState } from '../lib/mockupSync'
 import ApiService from '../services/api'
 
-export default function MockupHost({ page }) {
+export default function MockupHost({ page, accountLabel, onNavigate, onExit }) {
   const navigate = useNavigate()
   const { user, isAuthenticated, logout, loading: authLoading } = useAuth()
+  const adminUser = useAdminUser()
+  const isAdminMode = !!adminUser?.userId
+  const effectiveUserId = isAdminMode ? adminUser.userId : (user?.id || null)
+  const owned = isAuthenticated || isAdminMode
   const iframeRef = useRef(null)
   const pendingSaveRef = useRef(null)
   const hydratedRef = useRef(false)
@@ -21,15 +26,17 @@ export default function MockupHost({ page }) {
   const [authTab, setAuthTab] = useState('login')
   const [planReady, setPlanReady] = useState(false)
   const baseSrc = mockupSrc(page)
-  const src = isAuthenticated ? `${baseSrc}?owned=1` : baseSrc
+  const src = owned ? `${baseSrc}?owned=1` : baseSrc
+  const displayName = accountLabel || user?.name || user?.email || 'Account'
   pageRef.current = page
 
   const api = () => iframeRef.current?.contentWindow?.__LIFEMAP__
+  const syncOpts = isAdminMode ? { admin: true } : {}
 
   const hydrate = useCallback(async (userId) => {
     const bridge = api()
     if (!bridge) return
-    const id = userId || user?.id
+    const id = userId || effectiveUserId
     const gen = hydrateGenRef.current
     if (!id) {
       hydratedRef.current = true
@@ -41,13 +48,13 @@ export default function MockupHost({ page }) {
     appliedRef.current = true
     try {
       const pending = statePromiseRef.current
-      const state = pending ? await pending : await loadMockupState(page, id)
+      const state = pending ? await pending : await loadMockupState(page, id, syncOpts)
       if (gen !== hydrateGenRef.current) {
         appliedRef.current = false
         return
       }
       if (state) bridge.setState(state)
-      bridge.setAccount(user?.name || user?.email || 'Account')
+      bridge.setAccount(displayName)
       hydratedRef.current = true
       setPlanReady(true)
     } catch (error) {
@@ -57,14 +64,14 @@ export default function MockupHost({ page }) {
       setPlanReady(true)
       console.error('Failed to hydrate mockup from API', error)
     }
-  }, [page, user?.id, user?.name, user?.email])
+  }, [page, effectiveUserId, displayName, isAdminMode])
 
   const persist = useCallback((state, quiet, userId) => {
     const pageAtCall = pageRef.current
     const job = persistChainRef.current.then(async () => {
       if (pageRef.current !== pageAtCall) return
       const snapshot = api()?.getState() || state
-      const id = userId || user?.id
+      const id = userId || effectiveUserId
       if (!id) {
         pendingSaveRef.current = snapshot
         setAuthTab('register')
@@ -76,9 +83,9 @@ export default function MockupHost({ page }) {
         return
       }
       try {
-        await saveMockupState(pageAtCall, id, snapshot)
+        await saveMockupState(pageAtCall, id, snapshot, syncOpts)
         const bridge = api()
-        if (bridge) bridge.setAccount(user?.name || user?.email || 'Account')
+        if (bridge) bridge.setAccount(displayName)
         if (!quiet) toast.success('Plan saved')
       } catch (error) {
         console.error('Failed to save mockup', error)
@@ -87,7 +94,7 @@ export default function MockupHost({ page }) {
     })
     persistChainRef.current = job.catch(() => {})
     return job
-  }, [user?.id, user?.name, user?.email])
+  }, [effectiveUserId, displayName, isAdminMode])
 
   useEffect(() => {
     hydrateGenRef.current += 1
@@ -95,23 +102,23 @@ export default function MockupHost({ page }) {
     appliedRef.current = false
     persistChainRef.current = Promise.resolve()
     setPlanReady(false)
-    if (user?.id) {
-      statePromiseRef.current = loadMockupState(page, user.id)
+    if (effectiveUserId) {
+      statePromiseRef.current = loadMockupState(page, effectiveUserId, syncOpts)
     } else {
       statePromiseRef.current = null
       if (!authLoading) setPlanReady(true)
     }
-  }, [page, user?.id, authLoading])
+  }, [page, effectiveUserId, authLoading, isAdminMode])
 
   useEffect(() => {
-    if (!isAuthenticated) api()?.setAccount(null)
-  }, [isAuthenticated])
+    if (!isAuthenticated && !isAdminMode) api()?.setAccount(null)
+  }, [isAuthenticated, isAdminMode])
 
   useEffect(() => {
     if (authOpen) return
     if (pendingSaveRef.current) return
-    if (isAuthenticated && user?.id) hydrate(user.id)
-  }, [authOpen, hydrate, isAuthenticated, user?.id])
+    if (effectiveUserId) hydrate(effectiveUserId)
+  }, [authOpen, hydrate, effectiveUserId])
 
   const onAuthenticated = useCallback(async ({ mode, user: authed } = {}) => {
     const id = authed?.id
@@ -153,8 +160,12 @@ export default function MockupHost({ page }) {
         return
       }
       if (data.type === 'navigate' && data.payload?.path) {
-        const go = () => navigate(data.payload.path)
-        if (isAuthenticated && hydratedRef.current) {
+        const path = data.payload.path
+        const go = () => {
+          if (onNavigate) onNavigate(path)
+          else navigate(path)
+        }
+        if (owned && hydratedRef.current) {
           persist(null, true).finally(go)
         } else {
           go()
@@ -162,6 +173,10 @@ export default function MockupHost({ page }) {
         return
       }
       if (data.type === 'logout') {
+        if (onExit) {
+          onExit()
+          return
+        }
         logout().finally(() => {
           api()?.setAccount(null)
           window.location.assign('/')
@@ -169,6 +184,7 @@ export default function MockupHost({ page }) {
         return
       }
       if (data.type === 'auth') {
+        if (isAdminMode) return
         if (isAuthenticated) {
           navigate('/profile')
           return
@@ -188,8 +204,11 @@ export default function MockupHost({ page }) {
       if (data.type === 'classify') {
         const description = String(data.payload?.description || '').trim()
         const rowId = data.payload?.id
-        if (!description || !user?.id) return
-        ApiService.classifyExpense(description, user.id)
+        if (!description || !effectiveUserId) return
+        const classify = isAdminMode
+          ? ApiService.classifyExpenseForUser(description, effectiveUserId)
+          : ApiService.classifyExpense(description, effectiveUserId)
+        classify
           .then((result) => {
             api()?.applyClassify?.({
               id: rowId,
@@ -202,10 +221,10 @@ export default function MockupHost({ page }) {
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [hydrate, isAuthenticated, logout, navigate, page, persist, user?.id])
+  }, [hydrate, isAuthenticated, isAdminMode, logout, navigate, onNavigate, onExit, owned, page, persist, effectiveUserId])
 
   return (
-    <div className="lm-mockup-host">
+    <div className={`lm-mockup-host${isAdminMode ? ' is-admin' : ''}`}>
       <iframe
         key={src}
         ref={iframeRef}
@@ -217,15 +236,17 @@ export default function MockupHost({ page }) {
           if (!pendingSaveRef.current) hydrate()
         }}
       />
-      <AuthModal
-        isOpen={authOpen}
-        onClose={() => {
-          setAuthOpen(false)
-          pendingSaveRef.current = null
-        }}
-        defaultTab={authTab}
-        onAuthenticated={onAuthenticated}
-      />
+      {isAdminMode ? null : (
+        <AuthModal
+          isOpen={authOpen}
+          onClose={() => {
+            setAuthOpen(false)
+            pendingSaveRef.current = null
+          }}
+          defaultTab={authTab}
+          onAuthenticated={onAuthenticated}
+        />
+      )}
     </div>
   )
 }

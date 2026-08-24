@@ -99,7 +99,9 @@ export default function Shell({ children, adminMode = false, activeSection, onSe
   const [activeStab, setActiveStab] = useState('')
 
   const isMainPage = adminMode ? activeSection === 'dashboard' : location.pathname === '/'
-  const hideExtraChrome = ['/profile', '/growth-assumptions', '/insurance'].includes(location.pathname)
+  const hideExtraChrome = adminMode
+    ? activeSection === 'insurance'
+    : ['/profile', '/growth-assumptions', '/insurance'].includes(location.pathname)
   const shouldShowChart = !isMainPage && isChartVisible && !hideExtraChrome
 
   const sections = adminMode
@@ -162,7 +164,17 @@ export default function Shell({ children, adminMode = false, activeSection, onSe
     <div className="lm-shell">
       <header className="lm-topbar">
         <div className="lm-tier lm-tier0">
-          <BrandMark />
+          {adminMode && onSectionChange ? (
+            <button type="button" className="lm-brand" onClick={() => onSectionChange('dashboard')}>
+              <span className="lm-mark" />
+              <span>
+                <span className="lm-brand-name">LifeMap</span>
+                <span className="lm-brand-by">by BOX Wealth</span>
+              </span>
+            </button>
+          ) : (
+            <BrandMark />
+          )}
           <span className="lm-acts">
             {adminMode && onBack ? (
               <button type="button" className="lm-tlink" onClick={onBack}>All users</button>

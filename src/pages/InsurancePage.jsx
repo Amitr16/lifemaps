@@ -261,7 +261,7 @@ export default function InsurancePage() {
   useEffect(() => {
     if (effectiveIsAuthenticated && effectiveUserId) {
       loadInsurance();
-      refreshPlanStore(effectiveUserId).catch(() => {});
+      refreshPlanStore(effectiveUserId, { admin: isAdminMode }).catch(() => {});
 
       try {
         const quickCalcAssumptions = JSON.parse(localStorage.getItem('quickCalcAssumptions') || '{}');

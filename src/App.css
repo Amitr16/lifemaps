@@ -587,6 +587,63 @@ body {
   background: #f6f8fb;
 }
 
+.lm-admin-plan-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  background: #0f2744;
+  color: #fff;
+  font-size: 13px;
+}
+
+.lm-admin-plan-bar .lm-tlink {
+  color: #dbe7f6;
+  display: inline;
+}
+
+.lm-admin-plan-bar .lm-tlink:hover {
+  color: #fff;
+}
+
+.lm-admin-plan-who {
+  font-weight: 600;
+}
+
+.lm-admin-plan-acts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lm-admin-plan-acts .lm-btn {
+  background: #fff;
+  color: #0f2744;
+}
+
+.lm-admin-plan .lm-mockup-host.is-admin {
+  top: 40px;
+}
+
+.lm-admin-plan-insurance {
+  padding-top: 40px;
+}
+
+button.lm-brand {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
 .lm-mockup-frame {
   width: 100%;
   height: 100%;

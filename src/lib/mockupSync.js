@@ -73,6 +73,69 @@ const asRate = (v, fallback = 0) => {
   return n > 1 ? n / 100 : n
 }
 
+function bindFinancialApi(userId, admin) {
+  if (admin) {
+    return {
+      getFinancialProfile: () => ApiService.getFinancialProfileForUser(userId),
+      updateFinancialProfile: (profileId, data) => ApiService.updateFinancialProfileForUser(profileId, data, userId),
+      createFinancialProfile: (data) => ApiService.createFinancialProfileForUser(data, userId),
+      getFinancialAssets: () => ApiService.getFinancialAssetsForUser(userId),
+      createFinancialAsset: (body) => ApiService.createFinancialAssetForUser(body, userId),
+      updateFinancialAsset: (id, body) => ApiService.updateFinancialAssetForUser(id, body, userId),
+      deleteFinancialAsset: (id) => ApiService.deleteFinancialAssetForUser(id, userId),
+      getWorkAssets: () => ApiService.getWorkAssetsForUser(userId),
+      createWorkAsset: (body) => ApiService.createWorkAssetForUser(body, userId),
+      updateWorkAsset: (id, body) => ApiService.updateWorkAssetForUser(id, body, userId),
+      deleteWorkAsset: (id) => ApiService.deleteWorkAssetForUser(id, userId),
+      getFinancialGoals: () => ApiService.getFinancialGoalsForUser(userId),
+      createFinancialGoal: (body) => ApiService.createFinancialGoalForUser(body, userId),
+      updateFinancialGoal: (id, body) => ApiService.updateFinancialGoalForUser(id, body, userId),
+      deleteFinancialGoal: (id) => ApiService.deleteFinancialGoalForUser(id, userId),
+      getFinancialLoans: () => ApiService.getFinancialLoansForUser(userId),
+      createFinancialLoan: (body) => ApiService.createFinancialLoanForUser(body, userId),
+      updateFinancialLoan: (id, body) => ApiService.updateFinancialLoanForUser(id, body, userId),
+      deleteFinancialLoan: (id) => ApiService.deleteFinancialLoanForUser(id, userId),
+      getPlannedLoans: () => ApiService.getPlannedLoansForUser(userId),
+      createPlannedLoan: (body) => ApiService.createPlannedLoanForUser(body, userId),
+      updatePlannedLoan: (id, body) => ApiService.updatePlannedLoanForUser(id, body, userId),
+      deletePlannedLoan: (id) => ApiService.deletePlannedLoanForUser(id, userId),
+      getFinancialExpenses: () => ApiService.getFinancialExpensesForUser(userId),
+      createFinancialExpense: (body) => ApiService.createFinancialExpenseForUser(body, userId),
+      updateFinancialExpense: (id, body) => ApiService.updateFinancialExpenseForUser(id, body, userId),
+      deleteFinancialExpense: (id) => ApiService.deleteFinancialExpenseForUser(id, userId),
+    }
+  }
+  return {
+    getFinancialProfile: () => ApiService.getFinancialProfile(userId),
+    updateFinancialProfile: (profileId, data) => ApiService.updateFinancialProfile(profileId, data),
+    createFinancialProfile: (data) => ApiService.createFinancialProfile(data),
+    getFinancialAssets: () => ApiService.getFinancialAssets(userId),
+    createFinancialAsset: (body) => ApiService.createFinancialAsset(body),
+    updateFinancialAsset: (id, body) => ApiService.updateFinancialAsset(id, body),
+    deleteFinancialAsset: (id) => ApiService.deleteFinancialAsset(id),
+    getWorkAssets: () => ApiService.getWorkAssets(userId),
+    createWorkAsset: (body) => ApiService.createWorkAsset(body),
+    updateWorkAsset: (id, body) => ApiService.updateWorkAsset(id, body),
+    deleteWorkAsset: (id) => ApiService.deleteWorkAsset(id),
+    getFinancialGoals: () => ApiService.getFinancialGoals(userId),
+    createFinancialGoal: (body) => ApiService.createFinancialGoal(body),
+    updateFinancialGoal: (id, body) => ApiService.updateFinancialGoal(id, body),
+    deleteFinancialGoal: (id) => ApiService.deleteFinancialGoal(id),
+    getFinancialLoans: () => ApiService.getFinancialLoans(userId),
+    createFinancialLoan: (body) => ApiService.createFinancialLoan(body),
+    updateFinancialLoan: (id, body) => ApiService.updateFinancialLoan(id, body),
+    deleteFinancialLoan: (id) => ApiService.deleteFinancialLoan(id),
+    getPlannedLoans: () => ApiService.getPlannedLoans(userId),
+    createPlannedLoan: (body) => ApiService.createPlannedLoan(body),
+    updatePlannedLoan: (id, body) => ApiService.updatePlannedLoan(id, body),
+    deletePlannedLoan: (id) => ApiService.deletePlannedLoan(id),
+    getFinancialExpenses: () => ApiService.getFinancialExpenses(userId),
+    createFinancialExpense: (body) => ApiService.createFinancialExpense(body),
+    updateFinancialExpense: (id, body) => ApiService.updateFinancialExpense(id, body),
+    deleteFinancialExpense: (id) => ApiService.deleteFinancialExpense(id),
+  }
+}
+
 const yearOf = (value) => {
   if (!value) return ''
   if (typeof value === 'number') return value
@@ -177,34 +240,35 @@ function toExpenseRow(e, age, life) {
   }
 }
 
-async function upsertProfile(userId, payload) {
-  const profileRes = await ApiService.getFinancialProfile(userId).catch(() => null)
+async function upsertProfile(api, payload) {
+  const profileRes = await api.getFinancialProfile().catch(() => null)
   const profile = profileRes?.profile
-  if (profile?.id) return ApiService.updateFinancialProfile(profile.id, payload)
-  return ApiService.createFinancialProfile({
+  if (profile?.id) return api.updateFinancialProfile(profile.id, payload)
+  return api.createFinancialProfile({
     age: profileAge(profile),
     ...payload,
   })
 }
 
-async function ensureProfile(userId, extra = {}) {
-  const profileRes = await ApiService.getFinancialProfile(userId).catch(() => null)
+async function ensureProfile(api, extra = {}) {
+  const profileRes = await api.getFinancialProfile().catch(() => null)
   if (profileRes?.profile?.id) {
     if (Object.keys(extra).length) {
-      await ApiService.updateFinancialProfile(profileRes.profile.id, extra).catch(() => {})
+      await api.updateFinancialProfile(profileRes.profile.id, extra).catch(() => {})
     }
     return profileRes.profile
   }
-  const created = await ApiService.createFinancialProfile({
+  const created = await api.createFinancialProfile({
     age: profileAge(null),
     ...extra,
   }).catch(() => null)
   return created?.profile || created || null
 }
 
-export async function loadMockupState(page, userId) {
+export async function loadMockupState(page, userId, options = {}) {
+  const api = bindFinancialApi(userId, options.admin)
   try {
-  const profileRes = await ApiService.getFinancialProfile(userId).catch(() => null)
+  const profileRes = await api.getFinancialProfile().catch(() => null)
   const profile = profileRes?.profile || null
   const assumptions = profileAssumptions(profile)
   writeAssumptions(assumptions)
@@ -212,11 +276,11 @@ export async function loadMockupState(page, userId) {
 
   if (page === 'fp') {
     const [assetsRes, loansRes, goalsRes, expensesRes, workRes] = await Promise.all([
-      ApiService.getFinancialAssets(userId).catch(() => ({})),
-      ApiService.getFinancialLoans(userId).catch(() => ({})),
-      ApiService.getFinancialGoals(userId).catch(() => ({})),
-      ApiService.getFinancialExpenses(userId).catch(() => ({})),
-      ApiService.getWorkAssets(userId).catch(() => []),
+      api.getFinancialAssets().catch(() => ({})),
+      api.getFinancialLoans().catch(() => ({})),
+      api.getFinancialGoals().catch(() => ({})),
+      api.getFinancialExpenses().catch(() => ({})),
+      api.getWorkAssets().catch(() => []),
     ])
     const assetsCombined = combinedAssets(profile, assetsRes)
     const salary = combinedSalary(profile, workRes)
@@ -257,8 +321,8 @@ export async function loadMockupState(page, userId) {
 
   if (page === 'assets') {
     const [res, goalsRes] = await Promise.all([
-      ApiService.getFinancialAssets(userId).catch(() => ({})),
-      ApiService.getFinancialGoals(userId).catch(() => ({})),
+      api.getFinancialAssets().catch(() => ({})),
+      api.getFinancialGoals().catch(() => ({})),
     ])
     const ROWS = asList(res, 'assets').map((a) => {
       const cd = a.custom_data || {}
@@ -292,7 +356,7 @@ export async function loadMockupState(page, userId) {
   }
 
   if (page === 'work') {
-    const res = await ApiService.getWorkAssets(userId).catch(() => [])
+    const res = await api.getWorkAssets().catch(() => [])
     const list = asList(res, 'workAssets', 'assets', 'data')
     const colors = [
       '#2f6fd0', '#0d8a78', '#e9a23b', '#c94f70', '#7b61c9',
@@ -317,8 +381,8 @@ export async function loadMockupState(page, userId) {
 
   if (page === 'goals') {
     const [res, assetsRes] = await Promise.all([
-      ApiService.getFinancialGoals(userId).catch(() => ({})),
-      ApiService.getFinancialAssets(userId).catch(() => ({})),
+      api.getFinancialGoals().catch(() => ({})),
+      api.getFinancialAssets().catch(() => ({})),
     ])
     const lm = (g) => g.custom_data?.lifemap || {}
     const ROWS = asList(res, 'goals').map((g) => {
@@ -358,8 +422,8 @@ export async function loadMockupState(page, userId) {
 
   if (page === 'loans') {
     const [res, plannedRes] = await Promise.all([
-      ApiService.getFinancialLoans(userId).catch(() => ({})),
-      ApiService.getPlannedLoans(userId).catch(() => ({})),
+      api.getFinancialLoans().catch(() => ({})),
+      api.getPlannedLoans().catch(() => ({})),
     ])
     const ROWS = asList(res, 'loans').map((l) => ({
       id: l.id,
@@ -392,8 +456,8 @@ export async function loadMockupState(page, userId) {
 
   if (page === 'expenses') {
     const [res, assetsRes] = await Promise.all([
-      ApiService.getFinancialExpenses(userId).catch(() => ({})),
-      ApiService.getFinancialAssets(userId).catch(() => ({})),
+      api.getFinancialExpenses().catch(() => ({})),
+      api.getFinancialAssets().catch(() => ({})),
     ])
     const life = assumptions.lifespanYears || 90
     const ROWS = asList(res, 'expenses').map((e) => toExpenseRow(e, age, life))
@@ -405,7 +469,7 @@ export async function loadMockupState(page, userId) {
 
   return null
   } finally {
-    refreshPlanStore(userId).catch(() => {})
+    refreshPlanStore(userId, options).catch(() => {})
   }
 }
 
@@ -474,8 +538,8 @@ function asLinkedAssets(list) {
     .filter((e) => e.assetId && e.percent > 0)
 }
 
-async function syncGoalLinksFromAssets(userId, assetRows) {
-  const goalsRes = await ApiService.getFinancialGoals(userId).catch(() => ({}))
+async function syncGoalLinksFromAssets(api, assetRows) {
+  const goalsRes = await api.getFinancialGoals().catch(() => ({}))
   const goals = asList(goalsRes, 'goals')
   for (const goal of goals) {
     const linked = []
@@ -495,14 +559,14 @@ async function syncGoalLinksFromAssets(userId, assetRows) {
     const prev = JSON.stringify(goal.custom_data?.linkedAssets || [])
     const next = JSON.stringify(linked)
     if (prev === next) continue
-    await ApiService.updateFinancialGoal(goal.id, {
+    await api.updateFinancialGoal(goal.id, {
       custom_data: { ...(goal.custom_data || {}), linkedAssets: linked },
     }).catch(() => {})
   }
 }
 
-async function syncAssetEarmarksFromGoals(userId, goalRows) {
-  const assetsRes = await ApiService.getFinancialAssets(userId).catch(() => ({}))
+async function syncAssetEarmarksFromGoals(api, goalRows) {
+  const assetsRes = await api.getFinancialAssets().catch(() => ({}))
   const assets = asList(assetsRes, 'assets')
   for (const asset of assets) {
     const earmarks = []
@@ -521,14 +585,15 @@ async function syncAssetEarmarksFromGoals(userId, goalRows) {
     const prev = JSON.stringify(asset.custom_data?.goalEarmarks || [])
     const next = JSON.stringify(earmarks)
     if (prev === next) continue
-    await ApiService.updateFinancialAsset(asset.id, {
+    await api.updateFinancialAsset(asset.id, {
       custom_data: { ...(asset.custom_data || {}), goalEarmarks: earmarks },
     }).catch(() => {})
   }
 }
 
-export async function saveMockupState(page, userId, state) {
+export async function saveMockupState(page, userId, state, options = {}) {
   if (!userId || !state) return
+  const api = bindFinancialApi(userId, options.admin)
   try {
 
   if (page === 'fp' && state.S) {
@@ -553,19 +618,19 @@ export async function saveMockupState(page, userId, state) {
       lifespanYears: payload.lifespan_years,
       age: payload.age,
     })
-    await upsertProfile(userId, payload)
+    await upsertProfile(api, payload)
 
     const [loansRes, goalsRes] = await Promise.all([
-      ApiService.getFinancialLoans(userId).catch(() => ({})),
-      ApiService.getFinancialGoals(userId).catch(() => ({})),
+      api.getFinancialLoans().catch(() => ({})),
+      api.getFinancialGoals().catch(() => ({})),
     ])
 
     await syncCollection({
       existing: asList(loansRes, 'loans'),
       next: S.loans || [],
-      create: (body) => ApiService.createFinancialLoan(body),
-      update: (id, body) => ApiService.updateFinancialLoan(id, body),
-      remove: (id) => ApiService.deleteFinancialLoan(id),
+      create: (body) => api.createFinancialLoan(body),
+      update: (id, body) => api.updateFinancialLoan(id, body),
+      remove: (id) => api.deleteFinancialLoan(id),
       payload: (row, prior) => ({
         name: row.n || 'Loan',
         lender: prior?.lender || prior?.provider || row.n || 'Lender',
@@ -581,9 +646,9 @@ export async function saveMockupState(page, userId, state) {
     await syncCollection({
       existing: asList(goalsRes, 'goals'),
       next: S.goals || [],
-      create: (body) => ApiService.createFinancialGoal(body),
-      update: (id, body) => ApiService.updateFinancialGoal(id, body),
-      remove: (id) => ApiService.deleteFinancialGoal(id),
+      create: (body) => api.createFinancialGoal(body),
+      update: (id, body) => api.updateFinancialGoal(id, body),
+      remove: (id) => api.deleteFinancialGoal(id),
       payload: (row, prior) => ({
         name: row.n || 'Goal',
         description: row.n || 'Goal',
@@ -602,14 +667,14 @@ export async function saveMockupState(page, userId, state) {
 
   if (page === 'assets') {
     if (!Array.isArray(state.ROWS)) return
-    await ensureProfile(userId)
-    const res = await ApiService.getFinancialAssets(userId).catch(() => ({}))
+    await ensureProfile(api)
+    const res = await api.getFinancialAssets().catch(() => ({}))
     await syncCollection({
       existing: asList(res, 'assets'),
       next: state.ROWS || [],
-      create: (body) => ApiService.createFinancialAsset(body),
-      update: (id, body) => ApiService.updateFinancialAsset(id, body),
-      remove: (id) => ApiService.deleteFinancialAsset(id),
+      create: (body) => api.createFinancialAsset(body),
+      update: (id, body) => api.updateFinancialAsset(id, body),
+      remove: (id) => api.deleteFinancialAsset(id),
       payload: (row, prior) => ({
         name: row.name || 'Asset',
         tag: row.tag || 'Investment',
@@ -632,15 +697,15 @@ export async function saveMockupState(page, userId, state) {
         },
       }),
     })
-    await syncGoalLinksFromAssets(userId, state.ROWS || [])
+    await syncGoalLinksFromAssets(api, state.ROWS || [])
     const rows = state.ROWS || []
     const fin = rows.filter((r) => (r.tag || '') !== 'Personal').reduce((s, r) => s + num(r.val), 0)
     const personal = rows.filter((r) => (r.tag || '') === 'Personal').reduce((s, r) => s + num(r.val), 0)
-    const profileRes = await ApiService.getFinancialProfile(userId).catch(() => null)
+    const profileRes = await api.getFinancialProfile().catch(() => null)
     const current = profileRes?.profile
     const lump = floorLump(current?.total_asset_gross_market_value, fin + personal)
     const personalLump = floorLump(current?.personal_asset_value, personal)
-    await upsertProfile(userId, {
+    await upsertProfile(api, {
       total_asset_gross_market_value: lump,
       personal_asset_value: personalLump,
     }).catch(() => {})
@@ -651,14 +716,14 @@ export async function saveMockupState(page, userId, state) {
   if (page === 'work') {
     if (!Array.isArray(state.ROWS)) return
     const agePatch = state.AGE ? { age: num(state.AGE) } : {}
-    await ensureProfile(userId, agePatch)
-    const res = await ApiService.getWorkAssets(userId).catch(() => [])
+    await ensureProfile(api, agePatch)
+    const res = await api.getWorkAssets().catch(() => [])
     await syncCollection({
       existing: asList(res, 'workAssets', 'assets', 'data'),
       next: (state.ROWS || []).map((row) => ({ ...row, name: row.name })),
-      create: (body) => ApiService.createWorkAsset(body),
-      update: (id, body) => ApiService.updateWorkAsset(id, body),
-      remove: (id) => ApiService.deleteWorkAsset(id),
+      create: (body) => api.createWorkAsset(body),
+      update: (id, body) => api.updateWorkAsset(id, body),
+      remove: (id) => api.deleteWorkAsset(id),
       payload: (row) => ({
         stream: row.name || 'Income stream',
         amount: num(row.amt),
@@ -669,7 +734,7 @@ export async function saveMockupState(page, userId, state) {
       }),
     })
     if (state.AGE || workAnnual(state.ROWS)) {
-      const profileRes = await ApiService.getFinancialProfile(userId).catch(() => null)
+      const profileRes = await api.getFinancialProfile().catch(() => null)
       const current = profileRes?.profile
       const patch = {}
       if (state.AGE) patch.age = num(state.AGE)
@@ -678,7 +743,7 @@ export async function saveMockupState(page, userId, state) {
         patch.current_annual_gross_income = floorLump(current?.current_annual_gross_income, streams)
       }
       if (Object.keys(patch).length) {
-        await upsertProfile(userId, patch).catch(() => {})
+        await upsertProfile(api, patch).catch(() => {})
       }
       const salary = num(patch.current_annual_gross_income ?? current?.current_annual_gross_income)
       const tenure = Math.max(1, num(current?.work_tenure_years, 28))
@@ -689,14 +754,14 @@ export async function saveMockupState(page, userId, state) {
 
   if (page === 'goals') {
     if (!Array.isArray(state.ROWS)) return
-    const res = await ApiService.getFinancialGoals(userId).catch(() => ({}))
+    const res = await api.getFinancialGoals().catch(() => ({}))
     const age = num(state.AGE, 32)
     await syncCollection({
       existing: asList(res, 'goals'),
       next: state.ROWS || [],
-      create: (body) => ApiService.createFinancialGoal(body),
-      update: (id, body) => ApiService.updateFinancialGoal(id, body),
-      remove: (id) => ApiService.deleteFinancialGoal(id),
+      create: (body) => api.createFinancialGoal(body),
+      update: (id, body) => api.updateFinancialGoal(id, body),
+      remove: (id) => api.deleteFinancialGoal(id),
       payload: (row, prior) => ({
         name: row.name || 'Goal',
         description: row.name || 'Goal',
@@ -722,25 +787,25 @@ export async function saveMockupState(page, userId, state) {
         },
       }),
     })
-    await syncAssetEarmarksFromGoals(userId, state.ROWS || [])
+    await syncAssetEarmarksFromGoals(api, state.ROWS || [])
     const assetGrowthRate = asRate(state.RET, 0.11)
     writeAssumptions({ assetGrowthRate, age })
-    await upsertProfile(userId, { age, asset_growth_rate: assetGrowthRate }).catch(() => {})
+    await upsertProfile(api, { age, asset_growth_rate: assetGrowthRate }).catch(() => {})
     return
   }
 
   if (page === 'loans') {
     if (!Array.isArray(state.ROWS) && !Array.isArray(state.PLAN)) return
     const [res, plannedRes] = await Promise.all([
-      ApiService.getFinancialLoans(userId).catch(() => ({})),
-      ApiService.getPlannedLoans(userId).catch(() => ({})),
+      api.getFinancialLoans().catch(() => ({})),
+      api.getPlannedLoans().catch(() => ({})),
     ])
     await syncCollection({
       existing: asList(res, 'loans'),
       next: Array.isArray(state.ROWS) ? state.ROWS : undefined,
-      create: (body) => ApiService.createFinancialLoan(body),
-      update: (id, body) => ApiService.updateFinancialLoan(id, body),
-      remove: (id) => ApiService.deleteFinancialLoan(id),
+      create: (body) => api.createFinancialLoan(body),
+      update: (id, body) => api.updateFinancialLoan(id, body),
+      remove: (id) => api.deleteFinancialLoan(id),
       payload: (row) => ({
         lender: row.prov || 'Lender',
         name: row.name || '',
@@ -756,9 +821,9 @@ export async function saveMockupState(page, userId, state) {
     await syncCollection({
       existing: asList(plannedRes, 'plannedLoans', 'loans'),
       next: Array.isArray(state.PLAN) ? state.PLAN : undefined,
-      create: (body) => ApiService.createPlannedLoan(body),
-      update: (id, body) => ApiService.updatePlannedLoan(id, body),
-      remove: (id) => ApiService.deletePlannedLoan(id),
+      create: (body) => api.createPlannedLoan(body),
+      update: (id, body) => api.updatePlannedLoan(id, body),
+      remove: (id) => api.deletePlannedLoan(id),
       payload: (row) => ({
         lender: row.prov || '',
         name: row.name || '',
@@ -776,7 +841,7 @@ export async function saveMockupState(page, userId, state) {
 
   if (page === 'expenses') {
     if (!Array.isArray(state.ROWS)) return
-    const res = await ApiService.getFinancialExpenses(userId).catch(() => ({}))
+    const res = await api.getFinancialExpenses().catch(() => ({}))
     const existing = asList(res, 'expenses')
     const age = num(state.AGE, 32)
     const lifespanYears = num(state.LIFE, 90)
@@ -791,9 +856,9 @@ export async function saveMockupState(page, userId, state) {
     await syncCollection({
       existing,
       next,
-      create: (body) => ApiService.createFinancialExpense(body),
-      update: (id, body) => ApiService.updateFinancialExpense(id, body),
-      remove: (id) => ApiService.deleteFinancialExpense(id),
+      create: (body) => api.createFinancialExpense(body),
+      update: (id, body) => api.updateFinancialExpense(id, body),
+      remove: (id) => api.deleteFinancialExpense(id),
       protect: isLinkedExpense,
       payload: (row, prior) => {
         if (isLinkedExpense(prior || row)) {
@@ -822,26 +887,27 @@ export async function saveMockupState(page, userId, state) {
     })
     const inflationRate = asRate(state.GINF, 0.06)
     writeAssumptions({ inflationRate, lifespanYears, age })
-    await upsertProfile(userId, {
+    await upsertProfile(api, {
       inflation_rate: inflationRate,
       lifespan_years: lifespanYears,
       age,
     }).catch(() => {})
   }
   } finally {
-    refreshPlanStore(userId).catch(() => {})
+    refreshPlanStore(userId, options).catch(() => {})
   }
 }
 
-export async function refreshPlanStore(userId) {
+export async function refreshPlanStore(userId, options = {}) {
   if (!userId) return
+  const api = bindFinancialApi(userId, options.admin)
   const [profileRes, assets, work, expenses, loans, goals] = await Promise.all([
-    ApiService.getFinancialProfile(userId).catch(() => null),
-    ApiService.getFinancialAssets(userId).catch(() => ({})),
-    ApiService.getWorkAssets(userId).catch(() => []),
-    ApiService.getFinancialExpenses(userId).catch(() => ({})),
-    ApiService.getFinancialLoans(userId).catch(() => ({})),
-    ApiService.getFinancialGoals(userId).catch(() => ({})),
+    api.getFinancialProfile().catch(() => null),
+    api.getFinancialAssets().catch(() => ({})),
+    api.getWorkAssets().catch(() => []),
+    api.getFinancialExpenses().catch(() => ({})),
+    api.getFinancialLoans().catch(() => ({})),
+    api.getFinancialGoals().catch(() => ({})),
   ])
   const profile = profileRes?.profile || null
   publishPlanToStore({

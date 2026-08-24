@@ -5,7 +5,10 @@ import { Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import Shell from '../components/Shell';
+import MockupHost from '../components/MockupHost';
 import { LifemapAdminShell } from '../components/LifemapChrome';
+import { AdminUserProvider } from '../contexts/AdminUserContext';
+import AdminInsurancePage from './AdminInsurancePage';
 
 export default function AdminPage() {
   const { admin, adminLogout, isAdmin } = useAuth();
@@ -184,93 +187,71 @@ export default function AdminPage() {
   );
 }
 
-// Component to view and edit user data
+const PAGE_BY_SECTION = {
+  dashboard: 'fp',
+  assets: 'assets',
+  'work-assets': 'work',
+  goals: 'goals',
+  loans: 'loans',
+  expenses: 'expenses',
+};
+
+function sectionFromPath(path) {
+  const clean = String(path || '').split('?')[0];
+  if (clean === '/' || clean === '') return 'dashboard';
+  if (clean === '/assets') return 'assets';
+  if (clean === '/work-assets') return 'work-assets';
+  if (clean === '/goals') return 'goals';
+  if (clean === '/loans') return 'loans';
+  if (clean === '/expenses') return 'expenses';
+  if (clean === '/insurance') return 'insurance';
+  return null;
+}
+
 function UserDataView({ userId, userName, onBack }) {
   const [activeSection, setActiveSection] = useState('dashboard');
-  const { admin } = useAuth();
+  const { admin, adminLogout } = useAuth();
 
-  return (
-    <Shell
-      adminMode={true}
-      activeSection={activeSection}
-      onSectionChange={setActiveSection}
-      adminUserName={admin?.name || admin?.username}
-      userName={userName}
-      onBack={onBack}
-    >
-      {activeSection === 'dashboard' && <AdminUserDashboard userId={userId} />}
-      {activeSection === 'assets' && <AdminUserAssets userId={userId} />}
-      {activeSection === 'work-assets' && <AdminUserWorkAssets userId={userId} />}
-      {activeSection === 'goals' && <AdminUserGoals userId={userId} />}
-      {activeSection === 'loans' && <AdminUserLoans userId={userId} />}
-      {activeSection === 'expenses' && <AdminUserExpenses userId={userId} />}
-      {activeSection === 'insurance' && <AdminUserInsurance userId={userId} />}
-    </Shell>
-  );
-}
+  const handleAdminLogout = async () => {
+    await adminLogout();
+    window.location.href = '/';
+  };
 
-// Admin wrapper components that render the actual user pages with admin context
-import { AdminUserProvider } from '../contexts/AdminUserContext';
-import AdminAssetsPage from './AdminAssetsPage';
-import AdminWorkAssetsPage from './AdminWorkAssetsPage';
-import AdminGoalsPage from './AdminGoalsPage';
-import AdminLoansPage from './AdminLoansPage';
-import AdminExpensesPage from './AdminExpensesPage';
-import AdminInsurancePage from './AdminInsurancePage';
-import AdminDashboardPage from './AdminDashboardPage';
-
-function AdminUserDashboard({ userId }) {
   return (
     <AdminUserProvider userId={userId}>
-      <AdminDashboardPage />
-    </AdminUserProvider>
-  );
-}
-
-function AdminUserAssets({ userId }) {
-  return (
-    <AdminUserProvider userId={userId}>
-      <AdminAssetsPage />
-    </AdminUserProvider>
-  );
-}
-
-function AdminUserWorkAssets({ userId }) {
-  return (
-    <AdminUserProvider userId={userId}>
-      <AdminWorkAssetsPage />
-    </AdminUserProvider>
-  );
-}
-
-function AdminUserGoals({ userId }) {
-  return (
-    <AdminUserProvider userId={userId}>
-      <AdminGoalsPage />
-    </AdminUserProvider>
-  );
-}
-
-function AdminUserLoans({ userId }) {
-  return (
-    <AdminUserProvider userId={userId}>
-      <AdminLoansPage />
-    </AdminUserProvider>
-  );
-}
-
-function AdminUserExpenses({ userId }) {
-  return (
-    <AdminUserProvider userId={userId}>
-      <AdminExpensesPage />
-    </AdminUserProvider>
-  );
-}
-
-function AdminUserInsurance({ userId }) {
-  return (
-    <AdminUserProvider userId={userId}>
-      <AdminInsurancePage />
+      <div className="lm-admin-plan">
+        <div className="lm-admin-plan-bar">
+          <button type="button" className="lm-tlink" onClick={onBack}>← All users</button>
+          <span className="lm-admin-plan-who">Viewing {userName}</span>
+          <span className="lm-admin-plan-acts">
+            <span>{admin?.name || admin?.username || 'Admin'}</span>
+            <button type="button" className="lm-btn" onClick={handleAdminLogout}>Logout</button>
+          </span>
+        </div>
+        {activeSection === 'insurance' ? (
+          <div className="lm-admin-plan-insurance">
+            <Shell
+              adminMode
+              activeSection="insurance"
+              onSectionChange={setActiveSection}
+              adminUserName={admin?.name || admin?.username}
+              userName={userName}
+            >
+              <AdminInsurancePage />
+            </Shell>
+          </div>
+        ) : (
+          <MockupHost
+            page={PAGE_BY_SECTION[activeSection]}
+            accountLabel={userName}
+            onNavigate={(path) => {
+              const next = sectionFromPath(path);
+              if (next) setActiveSection(next);
+            }}
+            onExit={onBack}
+          />
+        )}
+      </div>
     </AdminUserProvider>
   );
 }

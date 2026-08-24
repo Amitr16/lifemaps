@@ -598,6 +598,13 @@ class ApiService {
     });
   }
 
+  async createFinancialProfileForUser(profileData, userId) {
+    return this.request(`/admin/financial/profile?userId=${userId}`, {
+      method: 'POST',
+      body: profileData,
+    });
+  }
+
   async getFinancialGoalsForUser(userId) {
     return this.request(`/admin/financial/goal/${userId}?userId=${userId}`);
   }
@@ -646,6 +653,13 @@ class ApiService {
     });
   }
 
+  async classifyExpenseForUser(description, userId) {
+    return this.request(`/admin/financial/expense/classify?userId=${userId}`, {
+      method: 'POST',
+      body: { description, user_id: userId },
+    });
+  }
+
   async getFinancialLoansForUser(userId) {
     return this.request(`/admin/financial/loan/${userId}?userId=${userId}`);
   }
@@ -666,6 +680,30 @@ class ApiService {
 
   async deleteFinancialLoanForUser(loanId, userId) {
     return this.request(`/admin/financial/loan/${loanId}?userId=${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getPlannedLoansForUser(userId) {
+    return this.request(`/admin/financial/planned-loans/${userId}?userId=${userId}`);
+  }
+
+  async createPlannedLoanForUser(loanData, userId) {
+    return this.request(`/admin/financial/planned-loan?userId=${userId}`, {
+      method: 'POST',
+      body: loanData,
+    });
+  }
+
+  async updatePlannedLoanForUser(loanId, loanData, userId) {
+    return this.request(`/admin/financial/planned-loan/${loanId}?userId=${userId}`, {
+      method: 'PUT',
+      body: loanData,
+    });
+  }
+
+  async deletePlannedLoanForUser(loanId, userId) {
+    return this.request(`/admin/financial/planned-loan/${loanId}?userId=${userId}`, {
       method: 'DELETE',
     });
   }
