@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import AuthModal from './AuthModal'
 import { useAuth } from '../contexts/AuthContext'
 import { loadMockupState, mockupSrc, saveMockupState } from '../lib/mockupSync'
+import ApiService from '../services/api'
 
 export default function MockupHost({ page }) {
   const navigate = useNavigate()
@@ -182,11 +183,26 @@ export default function MockupHost({ page }) {
       }
       if (data.type === 'row-save' || data.type === 'row-delete') {
         persist(null, true)
+        return
+      }
+      if (data.type === 'classify') {
+        const description = String(data.payload?.description || '').trim()
+        const rowId = data.payload?.id
+        if (!description || !user?.id) return
+        ApiService.classifyExpense(description, user.id)
+          .then((result) => {
+            api()?.applyClassify?.({
+              id: rowId,
+              category: result?.category || result?.subcategory || '',
+              subcategory: result?.subcategory || '',
+            })
+          })
+          .catch((error) => console.warn('Expense classify skipped', error))
       }
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [hydrate, isAuthenticated, logout, navigate, page, persist])
+  }, [hydrate, isAuthenticated, logout, navigate, page, persist, user?.id])
 
   return (
     <div className="lm-mockup-host">

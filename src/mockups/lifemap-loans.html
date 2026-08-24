@@ -965,6 +965,36 @@ function visible(g){
     return (r.prov+" "+r.name+" "+r.cat+" "+r.notes).toLowerCase().includes(q);
   });
 }
+function loanPayHtml(r, g, sc){
+  sc = sc || schedule(r);
+  if(sc.never) return `\u2014<small>instalment too small</small>`;
+  const note = num(r.bal) > 0
+    ? (g.planned
+        ? "clears " + (Math.max(THIS_YEAR, Math.round(num(r.start))) + Math.ceil(sc.years))
+        : (sc.interest/num(r.bal)*100).toFixed(0) + "% of the balance")
+    : "nothing owed";
+  return `${fmt(sc.interest)}<small>${note}</small>`;
+}
+function paintLoanRow(tr, r, g){
+  if(!tr || !r) return;
+  const sc = schedule(r);
+  ["rate","emi","end"].forEach(k => {
+    const el = tr.querySelector(`[data-k="${k}"]`);
+    if(el) el.classList.toggle("warnval", sc.never);
+  });
+  const endEl = tr.querySelector('[data-k="end"]');
+  if(endEl && document.activeElement !== endEl){
+    endEl.value = r.end || "";
+    endEl.placeholder = sc.never ? "never" : "year";
+  }
+  const emiEl = tr.querySelector('[data-k="emi"]');
+  if(emiEl && document.activeElement !== emiEl) emiEl.value = r.emi || 0;
+  const pay = tr.querySelector(".pay");
+  if(pay){
+    pay.classList.toggle("never", sc.never);
+    pay.innerHTML = loanPayHtml(r, g, sc);
+  }
+}
 function renderRegister(g){
   const tb = $("tbody-"+g.key), rows = visible(g);
   tb.innerHTML = "";
@@ -981,24 +1011,18 @@ function renderRegister(g){
       <td><input class="cell" data-k="name" value="${esc(r.name)}" placeholder="What it is for" style="min-width:150px"></td>
       <td><button type="button" class="dd cell catpick" data-k="cat" aria-haspopup="listbox" aria-expanded="false">
           <span class="sw" style="background:${cat.c}"></span><span class="lbl">${esc(cat.n)}</span></button></td>
-      <td><input class="cell money" data-k="bal" type="number" value="${r.bal}" placeholder="0"></td>
-      <td><input class="cell money${sc.never?" warnval":""}" data-k="rate" type="number" step="0.05" value="${r.rate}"></td>
-      <td><input class="cell money${sc.never?" warnval":""}" data-k="emi" type="number" value="${r.emi}"></td>
+      <td><input class="cell money" data-k="bal" type="text" inputmode="decimal" value="${r.bal}" placeholder="0"></td>
+      <td><input class="cell money${sc.never?" warnval":""}" data-k="rate" type="text" inputmode="decimal" value="${r.rate}"></td>
+      <td><input class="cell money${sc.never?" warnval":""}" data-k="emi" type="text" inputmode="decimal" value="${r.emi}"></td>
       <td><button type="button" class="dd cell small" data-k="freq" aria-haspopup="listbox" aria-expanded="false">
           <span class="lbl">${esc(r.freq)}</span></button></td>`
       + (g.planned
-          ? `<td><input class="cell money" data-k="start" type="number" step="1" min="${THIS_YEAR}" max="${THIS_YEAR+40}" value="${r.start}"></td>`
+          ? `<td><input class="cell money" data-k="start" type="text" inputmode="numeric" value="${r.start}"></td>`
           : "")
-      + `<td><input class="cell money${sc.never?" warnval":""}" data-k="end" type="number" step="1"
-             min="${startYearOf(r,g)+1}" max="${startYearOf(r,g)+40}" value="${r.end || ""}"
+      + `<td><input class="cell money${sc.never?" warnval":""}" data-k="end" type="text" inputmode="numeric"
+             value="${r.end || ""}"
              placeholder="${sc.never ? "never" : "year"}"></td>`
-      + `<td class="rt"><span class="pay${sc.never?" never":""}">${sc.never ? "\u2014" : fmt(sc.interest)}<small>${
-            sc.never ? "instalment too small" :
-            (num(r.bal) > 0
-              ? (g.planned
-                  ? "clears " + (Math.max(THIS_YEAR, Math.round(num(r.start))) + Math.ceil(sc.years))
-                  : (sc.interest/num(r.bal)*100).toFixed(0) + "% of the balance")
-              : "nothing owed")}</small></span></td>
+      + `<td class="rt"><span class="pay${sc.never?" never":""}">${loanPayHtml(r,g,sc)}</span></td>
       <td><input class="cell" data-k="notes" value="${esc(r.notes)}" placeholder="Click to add" style="min-width:150px"></td>
       <td><span class="acts">
         <button class="rb save${r.saved?" done":""}" type="button">${r.saved?"Saved":"Save"}</button>
@@ -1019,13 +1043,7 @@ function renderRegister(g){
           /* everything else decides the tenure */
           r.end = endYearOf(r,g);
         }
-        if(["bal","rate","emi","start","end"].includes(k)){
-          const rowIdx = rows.findIndex(x => x.r === r), pos = e.target.selectionStart;
-          renderRegister(g);                                  /* the row is rebuilt... */
-          const back = $("tbody-"+g.key).children[rowIdx];     /* ...so put the caret back */
-          const cell = back && back.querySelector(`[data-k="${k}"]`);
-          if(cell){ cell.focus(); try{ cell.setSelectionRange(pos,pos); }catch(_){} }
-        }
+        paintLoanRow(tr, r, g);
         refresh(false);
       });
     });

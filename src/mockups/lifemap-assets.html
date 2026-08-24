@@ -550,6 +550,11 @@ function pathOf(r, years){
 }
 const futureValue = (r, years) => pathOf(r, years)[years];
 const monthlySip = () => ROWS.reduce((t,r) => t + (num(r.sip) * (PER_YEAR[r.freq]||0) / 12), 0);
+function projectionHtml(r){
+  const fv = futureValue(r, 10);
+  const gain = fv - num(r.val);
+  return `${fmt(fv)}<small>${gain>=0?"+":""}${fmt(gain)} growth</small>`;
+}
 
 /* ================= DONUT ================= */
 const CX=110, CY=110, RO_OUT=92, RO_IN=72, RI_OUT=66, RI_IN=54, POP=8, TAU=Math.PI*2;
@@ -986,21 +991,19 @@ function drawTable(){
   rows.forEach(({r,i}, vi) => {
     const tr = document.createElement("tr");
     const cat = catOf(r.cat), tag = tagOf(r.tag);
-    const fv  = futureValue(r, 10);
-    const gain = fv - num(r.val);
     tr.innerHTML = `
       <td class="stick"><input class="cell name" data-k="name" value="${esc(r.name)}" placeholder="Name this asset"></td>
       <td><button type="button" class="dd catpick" data-dd="cat" aria-haspopup="listbox" aria-expanded="false">
             <span class="sw" style="background:${cat.c}"></span><span class="lbl">${esc(cat.n)}</span></button></td>
       <td><button type="button" class="dd tagpick" data-dd="tag" aria-haspopup="listbox" aria-expanded="false">
             <span class="sw" style="background:${tag.c}"></span><span class="lbl">${esc(tag.n)}</span></button></td>
-      <td><input class="cell money" data-k="val" type="number" value="${r.val}" placeholder="0"></td>
-      <td><input class="cell money" data-k="ret" type="number" step="0.1" value="${r.ret}"></td>
-      <td><input class="cell money" data-k="sip" type="number" value="${r.sip}" placeholder="0"></td>
+      <td><input class="cell money" data-k="val" type="text" inputmode="decimal" value="${r.val}" placeholder="0"></td>
+      <td><input class="cell money" data-k="ret" type="text" inputmode="decimal" value="${r.ret}"></td>
+      <td><input class="cell money" data-k="sip" type="text" inputmode="decimal" value="${r.sip}" placeholder="0"></td>
       <td><button type="button" class="dd freqpick" data-dd="freq" aria-haspopup="listbox" aria-expanded="false">
             <span class="lbl">${esc(r.freq)}</span></button></td>
       <td><input class="cell small" data-k="exp" type="date" value="${r.exp}"></td>
-      <td class="rt"><span class="proj">${fmt(fv)}<small>${gain>=0?"+":""}${fmt(gain)} growth</small></span></td>
+      <td class="rt"><span class="proj">${projectionHtml(r)}</span></td>
       <td>${tag.n === "Personal"
         ? `<span class="ph">Not used for goals</span>`
         : `<button type="button" class="earcell" data-ear="1">${earmarkChips(r.earmarks)}</button>`}</td>
@@ -1017,6 +1020,8 @@ function drawTable(){
         const k = e.target.dataset.k;
         r[k] = ["val","sip","ret"].includes(k) ? num(e.target.value) : e.target.value;
         dirty();
+        const proj = tr.querySelector(".proj");
+        if(proj) proj.innerHTML = projectionHtml(r);
         refresh(false);
       });
     });

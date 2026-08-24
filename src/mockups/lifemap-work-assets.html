@@ -727,9 +727,9 @@ function drawTable(){
     const val = valueOf(r), yrs = yearsLeft(r);
     tr.innerHTML = `
       <td class="stick"><div class="assetname"><span class="assetdot" title="Chart colour" style="background:${assetColour(r,i)}"></span><input class="cell name" data-k="name" value="${esc(r.name)}" placeholder="Name this stream"></div></td>
-      <td><input class="cell money" data-k="amt" type="number" value="${r.amt}" placeholder="0"></td>
-      <td><input class="cell money" data-k="g" type="number" step="0.1" value="${r.g}"></td>
-      <td><input class="cell money" data-k="end" type="number" step="1" min="${AGE}" max="100" value="${r.end}"></td>
+      <td><input class="cell money" data-k="amt" type="text" inputmode="decimal" value="${r.amt}" placeholder="0"></td>
+      <td><input class="cell money" data-k="g" type="text" inputmode="decimal" value="${r.g}"></td>
+      <td><input class="cell money" data-k="end" type="text" inputmode="numeric" value="${r.end}"></td>
       <td class="rt"><span class="proj${yrs?"":" done"}">${fmt(val)}<small>${yrs ? yrs + (yrs===1?" more year":" more years") : "already ended"}</small></span></td>
       <td><input class="cell" data-k="notes" value="${esc(r.notes||"")}" placeholder="Click to add" style="min-width:150px"></td>
       <td><span class="acts">

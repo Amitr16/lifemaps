@@ -340,6 +340,7 @@ a{color:inherit} button,input,select{font-family:var(--font)}
 .inp{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; background:var(--paper);
   font-size:15px; color:var(--ink); font-variant-numeric:tabular-nums; transition:border-color .15s, background .15s}
 .inp:focus{outline:none; border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(0,60,143,.1)}
+.inp[inputmode="decimal"],.inp[inputmode="numeric"]{text-align:right}
 .hint{font-size:11.5px; color:var(--slate); margin-top:5px}
 .rowhead,.row{display:grid; gap:9px; align-items:center}
 .rowhead{font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--slate); padding-top:14px; font-weight:600}
@@ -610,10 +611,10 @@ footer a{color:#c3d3ea; text-decoration:none} footer a:hover{color:#fff}
         <span class="gval num" id="v-profile">&mdash;</span><span class="caret">&#9660;</span></summary>
       <div class="gbody">
         <div class="fields">
-          <div class="f"><label><b>Your age</b></label><input class="inp" type="number" id="i-age" value="30" min="18" max="99"><div class="hint">Years</div></div>
-          <div class="f"><label><b>Annual take-home salary</b></label><input class="inp" type="number" id="i-salary" value="900000" min="0"><div class="hint">The annual amount available for spending and investing. Salary only; tax is not calculated separately.</div></div>
-          <div class="f"><label><b>Salary growth</b> (%)</label><input class="inp" type="number" id="i-gsal" value="8" step="0.5" min="0" max="20"><div class="hint">The raise you expect each year</div></div>
-          <div class="f"><label><b>Working till age</b></label><input class="inp" type="number" id="i-work-age" value="60" min="30" max="85"><div class="hint">Salary is included until this age and becomes zero from this age onward.</div></div>
+          <div class="f"><label><b>Your age</b></label><input class="inp" type="text" inputmode="numeric" id="i-age" value="32"><div class="hint">Years</div></div>
+          <div class="f"><label><b>Annual take-home salary</b></label><input class="inp" type="text" inputmode="decimal" id="i-salary" value="900000"><div class="hint">The annual amount available for spending and investing. Salary only; tax is not calculated separately.</div></div>
+          <div class="f"><label><b>Salary growth</b> (%)</label><input class="inp" type="text" inputmode="decimal" id="i-gsal" value="8"><div class="hint">The raise you expect each year</div></div>
+          <div class="f"><label><b>Working till age</b></label><input class="inp" type="text" inputmode="numeric" id="i-work-age" value="60"><div class="hint">Salary is included until this age and becomes zero from this age onward.</div></div>
         </div>
         <div class="rowfoot" id="profile-note">&nbsp;</div>
       </div>
@@ -627,12 +628,12 @@ footer a{color:#c3d3ea; text-decoration:none} footer a:hover{color:#fff}
         <div class="fields">
           <div class="f">
             <label><b>Financial assets</b></label>
-            <input class="inp" type="number" id="i-fin-assets" value="3000000" min="0">
+            <input class="inp" type="text" inputmode="decimal" id="i-fin-assets" value="3000000">
             <div class="hint">Savings and investments that can fund expenses and goals. This is the pool that grows in the freedom chart.</div>
           </div>
           <div class="f">
             <label><b>Personal assets</b></label>
-            <input class="inp" type="number" id="i-personal-assets" value="2000000" min="0">
+            <input class="inp" type="text" inputmode="decimal" id="i-personal-assets" value="2000000">
             <div class="hint">Self-use home, vehicle, jewellery and similar assets. Included in net worth, but not used to fund financial freedom.</div>
           </div>
         </div>
@@ -665,7 +666,7 @@ footer a{color:#c3d3ea; text-decoration:none} footer a:hover{color:#fff}
 
     <details class="grp g-exp" id="g-spend" style="--accent:var(--c-exp)">
       <summary><span class="gnum">05</span>
-        <span class="gline"><span class="gtitle">Current annual expenses</span><button class="ghint" type="button" aria-expanded="false" aria-label="What goes in this section"></button><span class="gsub">Everything you live on in a year, at today's prices</span></span>
+        <span class="gline"><span class="gtitle">Current annual expenses</span><button class="ghint" type="button" aria-expanded="false" aria-label="What goes in this section"></button><span class="gsub">Taken from your Expense register &mdash; edit them there, not as a two-line total here</span></span>
         <span class="gval num" id="v-spend">&mdash;</span><span class="caret">&#9660;</span></summary>
       <div class="gbody">
         <div class="rowhead"><span>Expense</span><span>Per year &#8377;</span><span></span></div>
@@ -738,14 +739,29 @@ footer a{color:#c3d3ea; text-decoration:none} footer a:hover{color:#fff}
 <script>
 /* ========================= STATE ========================= */
 const S = {
-  age:30, salary:900000, gSal:8, workTill:60, finAssets:3000000, personalAssets:2000000,
+  age:32, salary:900000, gSal:8, workTill:60, finAssets:3000000, personalAssets:2000000,
   loans:[{n:"Home loan", v:900000, emi:9000, saved:true},
          {n:"Education loan", v:250000, emi:4500, saved:true}],
   goals:[{n:"Sister's marriage", v:400000, yrs:5, saved:true},
          {n:"Child's education", v:2500000, yrs:14, saved:true}],
   exp:[{n:"Household & food", v:360000, saved:true},
        {n:"Travel & lifestyle", v:180000, saved:true}],
-  expRegister:[],
+  /* Same living costs as the Expense register demo, as annual rupees. Loan EMIs
+     are not listed here; they already sit in the loan rows above. */
+  expRegister:[
+    {n:"Rent, 2BHK", v:300000, from:32, to:90, inf:7, saved:true},
+    {n:"Groceries & household", v:144000, from:32, to:90, inf:6.5, saved:true},
+    {n:"Power, water, gas", v:42000, from:32, to:90, inf:5, saved:true},
+    {n:"Fuel and cabs", v:72000, from:32, to:78, inf:6, saved:true},
+    {n:"Doctors & medicine", v:60000, from:32, to:90, inf:10, saved:true},
+    {n:"Term and health cover", v:45000, from:32, to:70, inf:7, saved:true},
+    {n:"MBA fees", v:100000, from:32, to:34, inf:10, saved:true},
+    {n:"Child's school", v:180000, from:35, to:50, inf:10, saved:true},
+    {n:"Child's college", v:400000, from:50, to:54, inf:10, saved:true},
+    {n:"Eating out and OTT", v:96000, from:32, to:90, inf:6, saved:true},
+    {n:"One trip a year", v:120000, from:32, to:75, inf:7, saved:true},
+    {n:"SIPs", v:330000, from:32, to:60, inf:0, saved:true}
+  ],
   gRet:11, gInf:6, lifeTo:85
 };
 
@@ -760,16 +776,18 @@ function fmt(n){
 const full = n => (n<0?"\u2212":"")+"\u20B9"+Math.abs(Math.round(n)).toLocaleString("en-IN");
 const sum = (arr,k) => arr.reduce((t,r)=>t+num(r[k]),0);
 
-function livingSource(){
+function hasRegister(){
   const reg = S.expRegister || [];
-  if (reg.some(e => num(e.v) > 0 || (e.n && String(e.n).trim()))) return reg;
-  return S.exp;
+  return reg.some(e => num(e.v) > 0 || (e.n && String(e.n).trim()));
+}
+function livingSource(){
+  return hasRegister() ? S.expRegister : (S.exp || []);
 }
 
 /* ========================= TODAY'S POSITION ========================= */
 function current(){
   const salary  = num(S.salary);
-  const expenses= sum(livingSource(),"v");
+  const expenses= livingAt(0, 0);
   const emiYear = sum(S.loans,"emi")*12;
   const surplus = salary - expenses - emiYear;
   const finAssets = num(S.finAssets);
@@ -788,7 +806,8 @@ function livingAt(t, gI){
   const ageAt = num(S.age) + t;
   return livingSource().reduce((s,e) => {
     if(ageAt < expFrom(e) || ageAt > expTo(e)) return s;
-    return s + num(e.v) * Math.pow(1+gI, t);
+    const gi = (e.inf != null && e.inf !== "") ? num(e.inf)/100 : gI;
+    return s + num(e.v) * Math.pow(1+gi, t);
   }, 0);
 }
 
@@ -1295,12 +1314,27 @@ const DEFS = {
 };
 function renderRows(key){
   const d = DEFS[key], box = $(d.el);
+  if(!d || !box) return;
+  const addBtn = document.querySelector('[data-add="'+key+'"]');
+  if(key === "exp" && hasRegister()){
+    box.innerHTML = "";
+    if(addBtn) addBtn.style.display = "none";
+    livingSource().forEach((r) => {
+      const div = document.createElement("div");
+      div.className = "row";
+      div.innerHTML = `<input class="inp" type="text" value="${r.n||""}" readonly>
+        <input class="inp" type="text" inputmode="decimal" value="${r.v||0}" readonly>`;
+      box.appendChild(div);
+    });
+    return;
+  }
+  if(key === "exp" && addBtn) addBtn.style.display = "";
   box.innerHTML = "";
   S[d.list].forEach((r,idx) => {
     const div = document.createElement("div");
     div.className = "row";
     div.innerHTML = d.cols.map(([k,t,ph]) =>
-        `<input class="inp" type="${t}" data-k="${k}" placeholder="${ph}" value="${r[k]!==undefined&&r[k]!==null?r[k]:""}">`).join("")
+        `<input class="inp" type="${t==="number"?"text":t}"${t==="number"?' inputmode="decimal"':""} data-k="${k}" placeholder="${ph}" value="${r[k]!==undefined&&r[k]!==null?r[k]:""}">`).join("")
       + `<span class="rowbtns">
            <button class="rb save${r.saved?" done":""}" type="button">${r.saved?"Saved":"Save"}</button>
            <button class="rb del" type="button">Remove</button></span>`;
@@ -1464,7 +1498,10 @@ function refresh(){
     ? "EMIs total "+full(c.emiYear)+" a year. At this rate the longest runs "+(Math.max(...LY,0)||"\u2014")
       +" more years, after which that money joins your savings. Loan interest is not modelled."
     : "No loans recorded.";
-  $("exp-note").textContent = "You spend "+full(c.expenses)+" of "+full(c.salary)+" \u2014 "
+  $("exp-note").textContent = (hasRegister()
+    ? "From your Expense register: "
+    : "")
+    + "You spend "+full(c.expenses)+" of "+full(c.salary)+" \u2014 "
     + (c.salary>0 ? (c.expenses/c.salary*100).toFixed(0) : "0")
     + "% of salary. This is the single biggest driver of the corpus you need, because it continues for life.";
   $("goals-note").textContent = S.goals.length
@@ -1630,7 +1667,7 @@ refresh();
   function getState(){
     try {
       if (PAGE === "fp") {
-        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
+        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), expRegister:(S.expRegister||[]).slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
       }
       if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ, GOALS: (typeof GOALS !== "undefined" ? GOALS.slice() : []) };
       if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
@@ -1863,6 +1900,25 @@ refresh();
     }
   }, true);
 
+  function snapNumericCaret(el){
+    if (!el || el.tagName !== "INPUT" || el.readOnly || el.disabled) return;
+    var money = el.classList && el.classList.contains("money");
+    var mode = el.getAttribute("inputmode");
+    if (!money && mode !== "decimal" && mode !== "numeric") return;
+    try {
+      if (typeof el.setSelectionRange !== "function") return;
+      var len = String(el.value || "").length;
+      if (el.selectionStart === 0 && el.selectionEnd === 0) el.setSelectionRange(len, len);
+    } catch (err) {}
+  }
+  document.addEventListener("focusin", function(e){
+    var el = e.target;
+    requestAnimationFrame(function(){ snapNumericCaret(el); });
+  });
+  document.addEventListener("mouseup", function(e){
+    snapNumericCaret(e.target);
+  });
+
   var ageTimer = null;
   ["i-age","i-life","i-ginf","i-ret"].forEach(function(id){
     var el = $(id);
@@ -1873,7 +1929,16 @@ refresh();
     });
   });
 
-  window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  window.__LIFEMAP__ = {
+    page: PAGE,
+    getState: getState,
+    setState: setState,
+    setAccount: setAccount,
+    refresh: refresh,
+    applyClassify: function(st){
+      if (typeof applyExpenseClassify === "function") applyExpenseClassify(st);
+    }
+  };
   blankOwned();
   post("ready", getState());
 })();

@@ -6,7 +6,7 @@ import { useAdminUser } from '@/contexts/AdminUserContext';
 import ApiService from '@/services/api';
 import { useLifeSheetStore } from '@/store/enhanced-store';
 import { refreshPlanStore } from '@/lib/mockupSync';
-import { livingExpensesPresentValue } from '@/lib/planLinks';
+import { asList, livingExpensesPresentValue } from '@/lib/planLinks';
 import { AlertTriangle } from 'lucide-react';
 import PageHeader from '@/components/PageHeader.jsx';
 import PagePager from '@/components/PagePager.jsx';
@@ -237,7 +237,11 @@ export default function InsurancePage() {
     const inflationRaw = (formData.inflationRate !== undefined && formData.inflationRate !== null && formData.inflationRate !== '')
       ? parseFloat(formData.inflationRate) : 0.06;
     const inflation = inflationRaw > 1 ? inflationRaw / 100 : inflationRaw;
-    const livingPv = livingExpensesPresentValue(expenses, age, lifespan, inflation);
+    const storeExpenses = useLifeSheetStore.getState().expenses;
+    const expenseRows = (expenses && expenses.length)
+      ? expenses
+      : asList(storeExpenses, 'expenses');
+    const livingPv = livingExpensesPresentValue(expenseRows, age, lifespan, inflation);
     const totalEmi = loans.reduce((sum, loan) => sum + (parseFloat(loan.emi) || 0) * 12, 0);
     const discountedEmi = totalEmi / (1 + inflation);
     const totalFutureExpenses = livingPv + discountedEmi;
@@ -334,7 +338,7 @@ export default function InsurancePage() {
         ? ApiService.getFinancialExpensesForUser(effectiveUserId)
         : ApiService.getFinancialExpenses(effectiveUserId);
       expensesPromise.then(res => {
-        const expensesData = res.expenses || [];
+        const expensesData = asList(res, 'expenses', 'data');
         setExpenses(expensesData);
       }).catch(error => {
         console.error('❌ Expenses fetch error:', error);

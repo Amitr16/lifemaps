@@ -129,10 +129,11 @@ function profileAssumptions(profile, local = readAssumptions()) {
 function toFpExpense(e, age, life) {
   return {
     id: e.id,
-    n: e.description || e.category || 'Expense',
+    n: e.description || e.subcategory || e.category || 'Expense',
     v: annualAmount(e),
     from: num(e.start_age ?? e.from, age),
     to: num(e.end_age ?? e.to, life),
+    inf: asPct(e.personal_inflation ?? e.inf, 6),
     loanId: e.loan_id || e.loanId || null,
     insId: e.insurance_id || e.insId || null,
     saved: true,

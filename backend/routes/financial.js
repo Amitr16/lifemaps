@@ -864,7 +864,50 @@ router.delete('/expense/:expenseId', async (req, res) => {
   }
 });
 
-// Classify expense using LLM (calls Python service)
+const LIFEMAP_EXPENSE_CATS = [
+  'Housing & rent', 'Food & groceries', 'Utilities & bills', 'Transport & fuel',
+  'Healthcare', 'Education', 'Insurance premiums', 'Loan EMI', 'Domestic help',
+  'Dining & entertainment', 'Travel & holidays', 'Shopping & personal',
+  'Subscriptions', 'Savings & investments', 'Other',
+];
+
+const classifyWithOpenAI = async (description) => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature: 0.2,
+      max_tokens: 80,
+      messages: [
+        { role: 'system', content: 'You are a financial expense classification assistant. Always respond with valid JSON only.' },
+        {
+          role: 'user',
+          content: `Classify this expense into exactly one category from this list:\n${LIFEMAP_EXPENSE_CATS.map((c) => `- ${c}`).join('\n')}\n\nExpense: "${description}"\n\nRespond ONLY with: {"category":"CategoryName"}`,
+        },
+      ],
+    }),
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+  let text = data?.choices?.[0]?.message?.content?.trim() || '';
+  if (text.startsWith('```')) {
+    text = text.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  }
+  const parsed = JSON.parse(text);
+  const category = String(parsed.category || '').trim();
+  if (!category) return null;
+  const exact = LIFEMAP_EXPENSE_CATS.find((c) => c.toLowerCase() === category.toLowerCase());
+  const loose = LIFEMAP_EXPENSE_CATS.find((c) => c.toLowerCase().includes(category.toLowerCase()) || category.toLowerCase().includes(c.toLowerCase().split(/[&/]/)[0].trim()));
+  return { category: exact || loose || 'Other', subcategory: description };
+};
+
+// Classify expense using LLM (Python classifier, then OpenAI fallback)
 router.post('/expense/classify', [
   body('description').notEmpty().trim(),
   body('user_id').optional().isInt()
@@ -877,34 +920,28 @@ router.post('/expense/classify', [
 
     const { description, user_id } = req.body;
     const userId = user_id || req.user?.id;
+    const classifierUrl = process.env.CLASSIFIER_SERVICE_URL;
 
-    // Call Python classification service
-    const classifierUrl = process.env.CLASSIFIER_SERVICE_URL || 'http://localhost:5001';
-    
-    // Use built-in fetch (Node 18+) or fallback to node-fetch
-    let fetchFn;
-    try {
-      // Try built-in fetch first (Node 18+)
-      fetchFn = globalThis.fetch || fetch;
-    } catch (e) {
-      // Fallback to node-fetch if needed
-      const nodeFetch = await import('node-fetch');
-      fetchFn = nodeFetch.default;
-    }
-    
-    const response = await fetchFn(`${classifierUrl}/classify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description, user_id: userId })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Classification service error' }));
-      return res.status(response.status).json(errorData);
+    if (classifierUrl) {
+      try {
+        const response = await fetch(`${classifierUrl.replace(/\/$/, '')}/classify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description, user_id: userId }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result?.category) return res.json(result);
+        }
+      } catch (error) {
+        console.warn('Classifier service unavailable, using OpenAI fallback:', error.message);
+      }
     }
 
-    const result = await response.json();
-    res.json(result);
+    const fallback = await classifyWithOpenAI(description);
+    if (fallback) return res.json(fallback);
+    return res.status(503).json({ error: 'Expense classification is unavailable' });
   } catch (error) {
     console.error('Expense classification error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });

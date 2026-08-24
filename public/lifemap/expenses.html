@@ -583,6 +583,69 @@ const PER_YEAR = {Monthly:12, Quarterly:4, "Half-yearly":2, Annually:1};
 
 const catOf = n => CATS.find(c => c.n === n) || CATS[CATS.length-1];
 const tagOf = n => TAGS.find(t => t.n === n) || TAGS[0];
+function matchExpenseCat(name){
+  const n = String(name || "").toLowerCase().trim();
+  if(!n) return CATS[CATS.length-1];
+  return CATS.find(c => c.n.toLowerCase() === n)
+    || CATS.find(c => c.n.toLowerCase().includes(n) || n.includes(c.n.toLowerCase().split(/[&/]/)[0].trim()))
+    || CATS[CATS.length-1];
+}
+function paintExpenseRow(tr, r){
+  if(!tr || !r) return;
+  const yr = annual(r);
+  const annualEl = tr.querySelector('[data-proj="annual"]');
+  if(annualEl) annualEl.innerHTML = `${fmt(yr)}<small>${fmt(yr/12)} a month</small>`;
+  const bad = badWindow(r);
+  tr.querySelectorAll('[data-k="from"],[data-k="to"]').forEach(el => el.classList.toggle("warnval", bad));
+  const lifeHost = tr.querySelector("[data-proj=\"life\"]");
+  if(lifeHost){
+    if(bad){
+      lifeHost.className = "badrow";
+      lifeHost.textContent = "ends before it starts";
+    } else {
+      const tot = runTotal(r), yrs = yearsOf(r);
+      lifeHost.className = "proj";
+      lifeHost.innerHTML = `${fmt(tot)}<small>${yrs} ${yrs===1?"year":"years"} \u00B7 ends at ${endOf(r)}</small>`;
+    }
+  }
+  const infInp = tr.querySelector('[data-k="inf"]');
+  if(infInp) infInp.classList.toggle("warnval", suspectRate(r));
+  const wrap = infInp && infInp.parentElement;
+  if(wrap && wrap.classList.contains("flagwrap")){
+    let flag = wrap.querySelector(".flag");
+    if(suspectRate(r)){
+      if(!flag){
+        flag = document.createElement("span");
+        flag.className = "flag";
+        wrap.appendChild(flag);
+      }
+      flag.title = "A rate under 0.5% is almost always a typo. 6 means six percent.";
+      flag.textContent = "did you mean " + (num(r.inf)*100).toFixed(0) + "?";
+    } else if(flag){
+      flag.remove();
+    }
+  }
+}
+function requestExpenseClassify(row){
+  if(!row || row.loanId || row.insId || row.catLocked) return;
+  const desc = String(row.sub || "").trim();
+  if(desc.length < 3) return;
+  if(row.cat && row.cat !== "Other") return;
+  try {
+    parent.postMessage({ source:"lifemap-mockup", type:"classify", page:"expenses", payload:{ id: row.id, description: desc } }, "*");
+  } catch (e) {}
+}
+function applyExpenseClassify(st){
+  if(!st) return;
+  const row = ROWS.find(r => String(r.id) === String(st.id));
+  if(!row || row.catLocked || row.loanId || row.insId) return;
+  const cat = matchExpenseCat(st.category || st.subcategory);
+  row.cat = cat.n;
+  row.inf = cat.inf;
+  row.type = cat.type;
+  row.saved = false;
+  refresh();
+}
 
 /* ================= STATE ================= */
 let ROWS = [
@@ -1161,19 +1224,19 @@ function drawTable(){
       <td><input class="cell" data-k="sub" value="${esc(r.sub)}" placeholder="What exactly?" style="min-width:150px"${locked?" readonly":""}></td>
       <td><button type="button" class="dd cell tagpick" data-k="type" aria-haspopup="listbox" aria-expanded="false"${locked?" disabled":""}>
           <span class="sw" style="background:${tag.c}"></span><span class="lbl">${esc(tag.n)}</span></button></td>
-      <td><input class="cell money" data-k="amt" type="number" value="${r.amt}" placeholder="0"${locked?" readonly":""}></td>
+      <td><input class="cell money" data-k="amt" type="text" inputmode="decimal" value="${r.amt}" placeholder="0"${locked?" readonly":""}></td>
       <td><button type="button" class="dd cell small" data-k="freq" aria-haspopup="listbox" aria-expanded="false"${locked?" disabled":""}>
           <span class="lbl">${esc(r.freq)}</span></button></td>
-      <td class="rt"><span class="proj">${fmt(yr)}<small>${fmt(yr/12)} a month</small></span></td>
-      <td><input class="cell money small${bad?" warnval":""}" data-k="from" type="number" value="${r.from}" style="min-width:74px"></td>
-      <td><input class="cell money small${bad?" warnval":""}" data-k="to" type="number" value="${r.to}" style="min-width:74px"></td>
+      <td class="rt"><span class="proj" data-proj="annual">${fmt(yr)}<small>${fmt(yr/12)} a month</small></span></td>
+      <td><input class="cell money small${bad?" warnval":""}" data-k="from" type="text" inputmode="numeric" value="${r.from}" style="min-width:74px"></td>
+      <td><input class="cell money small${bad?" warnval":""}" data-k="to" type="text" inputmode="numeric" value="${r.to}" style="min-width:74px"></td>
       <td><span class="flagwrap">
-            <input class="cell money${suspectRate(r)?" warnval":""}" data-k="inf" type="number" step="0.1" value="${r.inf}">
+            <input class="cell money${suspectRate(r)?" warnval":""}" data-k="inf" type="text" inputmode="decimal" value="${r.inf}">
             ${suspectRate(r) ? `<span class="flag" title="A rate under 0.5% is almost always a typo. 6 means six percent.">did you mean ${(num(r.inf)*100).toFixed(0)}?</span>` : ""}
           </span></td>
       <td class="rt">${bad
-          ? `<span class="badrow">ends before it starts</span>`
-          : `<span class="proj">${fmt(tot)}<small>${yrs} ${yrs===1?"year":"years"} \u00B7 ends at ${endOf(r)}</small></span>`}</td>
+          ? `<span class="badrow" data-proj="life">ends before it starts</span>`
+          : `<span class="proj" data-proj="life">${fmt(tot)}<small>${yrs} ${yrs===1?"year":"years"} \u00B7 ends at ${endOf(r)}</small></span>`}</td>
       <td><input class="cell" data-k="src" value="${esc(r.src)}" placeholder="Account or card" style="min-width:130px"></td>
       <td><input class="cell" data-k="notes" value="${esc(r.notes)}" placeholder="Click to add" style="min-width:150px"></td>
       <td><span class="acts">
@@ -1190,16 +1253,19 @@ function drawTable(){
         const k = e.target.dataset.k;
         r[k] = ["amt","inf","from","to"].includes(k) ? num(e.target.value) : e.target.value;
         dirty();
-        if(k === "inf" || k === "from" || k === "to") drawTable();   /* flags and run totals recompute */
+        paintExpenseRow(tr, r);
         refresh(false);
       });
+      if(el.dataset.k === "sub" && !locked){
+        el.addEventListener("blur", () => requestExpenseClassify(r));
+      }
     });
 
     /* category also seeds the inflation rate and the type */
     if(!locked){
     tr.querySelector('[data-k="cat"]').addEventListener("click", e => {
       ddToggle(e.currentTarget, CATS.map(c => ({n:c.n, c:c.c, rt:c.inf+"%"})), r.cat, v => {
-        r.cat = v; r.inf = catOf(v).inf; r.type = catOf(v).type; dirty(); refresh();
+        r.cat = v; r.catLocked = true; r.inf = catOf(v).inf; r.type = catOf(v).type; dirty(); refresh();
       });
     });
     tr.querySelector('[data-k="type"]').addEventListener("click", e => {
@@ -1520,7 +1586,7 @@ document.querySelectorAll(".pmore").forEach(btn => {
   function getState(){
     try {
       if (PAGE === "fp") {
-        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
+        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), expRegister:(S.expRegister||[]).slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
       }
       if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ, GOALS: (typeof GOALS !== "undefined" ? GOALS.slice() : []) };
       if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
@@ -1753,6 +1819,25 @@ document.querySelectorAll(".pmore").forEach(btn => {
     }
   }, true);
 
+  function snapNumericCaret(el){
+    if (!el || el.tagName !== "INPUT" || el.readOnly || el.disabled) return;
+    var money = el.classList && el.classList.contains("money");
+    var mode = el.getAttribute("inputmode");
+    if (!money && mode !== "decimal" && mode !== "numeric") return;
+    try {
+      if (typeof el.setSelectionRange !== "function") return;
+      var len = String(el.value || "").length;
+      if (el.selectionStart === 0 && el.selectionEnd === 0) el.setSelectionRange(len, len);
+    } catch (err) {}
+  }
+  document.addEventListener("focusin", function(e){
+    var el = e.target;
+    requestAnimationFrame(function(){ snapNumericCaret(el); });
+  });
+  document.addEventListener("mouseup", function(e){
+    snapNumericCaret(e.target);
+  });
+
   var ageTimer = null;
   ["i-age","i-life","i-ginf","i-ret"].forEach(function(id){
     var el = $(id);
@@ -1763,7 +1848,16 @@ document.querySelectorAll(".pmore").forEach(btn => {
     });
   });
 
-  window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  window.__LIFEMAP__ = {
+    page: PAGE,
+    getState: getState,
+    setState: setState,
+    setAccount: setAccount,
+    refresh: refresh,
+    applyClassify: function(st){
+      if (typeof applyExpenseClassify === "function") applyExpenseClassify(st);
+    }
+  };
   blankOwned();
   post("ready", getState());
 })();

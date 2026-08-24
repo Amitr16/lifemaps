@@ -977,6 +977,20 @@ function visible(){
     return (g.name+" "+g.cat+" "+g.notes).toLowerCase().includes(q);
   });
 }
+function paintGoalRow(tr, g){
+  if(!tr || !g) return;
+  const bad = passed(g), sp = spanOf(g);
+  const atEl = tr.querySelector('[data-k="at"]');
+  if(atEl) atEl.classList.toggle("warnval", bad);
+  const futureTd = tr.querySelector('[data-proj="future"]');
+  if(futureTd){
+    futureTd.innerHTML = bad
+      ? `<span class="badrow">age has passed</span>`
+      : `<span class="proj" style="color:var(--amber)">${fmt(futureTotal(g))}<small>at age ${g.at}${sp>1?" to "+lastAge(g):""} \u00B7 ${(todayTotal(g)?futureTotal(g)/todayTotal(g):0).toFixed(1)}\u00D7</small></span>`;
+  }
+  const pvTd = tr.querySelector('[data-proj="pv"]');
+  if(pvTd) pvTd.innerHTML = `<span class="proj">${fmt(pvTotal(g))}<small>set aside now at ${RET}%</small></span>`;
+}
 function drawTable(){
   const tb = $("tbody"), rows = visible();
   tb.innerHTML = "";
@@ -995,14 +1009,14 @@ function drawTable(){
           <span class="sw" style="background:${cat.c}"></span><span class="lbl">${esc(cat.n)}</span></button></td>
       <td><button type="button" class="dd cell tagpick" data-k="flex" aria-haspopup="listbox" aria-expanded="false">
           <span class="sw" style="background:${tag.c}"></span><span class="lbl">${esc(tag.n)}</span></button></td>
-      <td><input class="cell money" data-k="cost" type="number" value="${g.cost}" placeholder="0"></td>
-      <td><input class="cell money small${bad?" warnval":""}" data-k="at" type="number" value="${g.at}" style="min-width:88px"></td>
-      <td><input class="cell money small" data-k="span" type="number" min="1" value="${sp}" style="min-width:82px"></td>
-      <td><input class="cell money small" data-k="inf" type="number" step="0.1" value="${g.inf}"></td>
-      <td class="rt">${bad
+      <td><input class="cell money" data-k="cost" type="text" inputmode="decimal" value="${g.cost}" placeholder="0"></td>
+      <td><input class="cell money small${bad?" warnval":""}" data-k="at" type="text" inputmode="numeric" value="${g.at}" style="min-width:88px"></td>
+      <td><input class="cell money small" data-k="span" type="text" inputmode="numeric" value="${sp}" style="min-width:82px"></td>
+      <td><input class="cell money small" data-k="inf" type="text" inputmode="decimal" value="${g.inf}"></td>
+      <td class="rt" data-proj="future">${bad
           ? `<span class="badrow">age has passed</span>`
           : `<span class="proj" style="color:var(--amber)">${fmt(futureTotal(g))}<small>at age ${g.at}${sp>1?" to "+lastAge(g):""} \u00B7 ${(todayTotal(g)?futureTotal(g)/todayTotal(g):0).toFixed(1)}\u00D7</small></span>`}</td>
-      <td class="rt"><span class="proj">${fmt(pvTotal(g))}<small>set aside now at ${RET}%</small></span></td>
+      <td class="rt" data-proj="pv"><span class="proj">${fmt(pvTotal(g))}<small>set aside now at ${RET}%</small></span></td>
       <td><button type="button" class="earcell" data-ear="1">${earmarkChips(g.links)}</button></td>
       <td><input class="cell" data-k="notes" value="${esc(g.notes)}" placeholder="Click to add" style="min-width:160px"></td>
       <td><span class="acts">
@@ -1017,7 +1031,7 @@ function drawTable(){
         const k = e.target.dataset.k;
         g[k] = ["cost","at","span","inf"].includes(k) ? num(e.target.value) : e.target.value;
         dirty();
-        if(["at","span","inf","cost"].includes(k)) drawTable();
+        if(["at","span","inf","cost"].includes(k)) paintGoalRow(tr, g);
         refresh(false);
       });
     });

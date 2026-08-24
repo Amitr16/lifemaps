@@ -61,8 +61,28 @@ export default function EditableGrid({ columns, rows, onChange, onAdd, onDelete,
                   ) : (
                     <input
                       className="w-full border border-transparent rounded-lg px-2 py-2 min-w-[100px] text-sm bg-transparent text-[#0a1f44] placeholder:text-[#9aa7bd] hover:bg-[#f6f8fb] focus:border-[#003c8f] focus:bg-white focus:outline-none"
-                      type={col.type || 'text'}
+                      type={col.type === 'number' ? 'text' : (col.type || 'text')}
+                      inputMode={col.type === 'number' ? 'decimal' : undefined}
+                      style={col.type === 'number' ? { textAlign: 'right', fontVariantNumeric: 'tabular-nums' } : undefined}
                       value={row[col.field] ?? ''}
+                      onFocus={col.type === 'number' ? (e) => {
+                        const el = e.target;
+                        const snap = () => {
+                          try {
+                            const len = String(el.value || '').length;
+                            if (el.selectionStart === 0 && el.selectionEnd === 0) el.setSelectionRange(len, len);
+                          } catch (_) {}
+                        };
+                        snap();
+                        requestAnimationFrame(snap);
+                      } : undefined}
+                      onMouseUp={col.type === 'number' ? (e) => {
+                        const el = e.target;
+                        try {
+                          const len = String(el.value || '').length;
+                          if (el.selectionStart === 0 && el.selectionEnd === 0) el.setSelectionRange(len, len);
+                        } catch (_) {}
+                      } : undefined}
                       onChange={e=>handleCell(idx, col.field, e.target.value)}
                       onBlur={(e) => {
                         if (col.onBlur) {

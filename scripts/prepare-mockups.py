@@ -76,7 +76,7 @@ __MARKER_START__
   function getState(){
     try {
       if (PAGE === "fp") {
-        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
+        return { S: { age:S.age, salary:S.salary, gSal:S.gSal, workTill:S.workTill, finAssets:S.finAssets, personalAssets:S.personalAssets, loans:S.loans.slice(), goals:S.goals.slice(), exp:S.exp.slice(), expRegister:(S.expRegister||[]).slice(), gRet:S.gRet, gInf:S.gInf, lifeTo:S.lifeTo } };
       }
       if (PAGE === "assets") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, MODE: MODE, HZ: HZ, GOALS: (typeof GOALS !== "undefined" ? GOALS.slice() : []) };
       if (PAGE === "work") return { ROWS: ROWS.slice(), UNASSIGNED: UNASSIGNED, AGE: AGE };
@@ -309,6 +309,25 @@ __MARKER_START__
     }
   }, true);
 
+  function snapNumericCaret(el){
+    if (!el || el.tagName !== "INPUT" || el.readOnly || el.disabled) return;
+    var money = el.classList && el.classList.contains("money");
+    var mode = el.getAttribute("inputmode");
+    if (!money && mode !== "decimal" && mode !== "numeric") return;
+    try {
+      if (typeof el.setSelectionRange !== "function") return;
+      var len = String(el.value || "").length;
+      if (el.selectionStart === 0 && el.selectionEnd === 0) el.setSelectionRange(len, len);
+    } catch (err) {}
+  }
+  document.addEventListener("focusin", function(e){
+    var el = e.target;
+    requestAnimationFrame(function(){ snapNumericCaret(el); });
+  });
+  document.addEventListener("mouseup", function(e){
+    snapNumericCaret(e.target);
+  });
+
   var ageTimer = null;
   ["i-age","i-life","i-ginf","i-ret"].forEach(function(id){
     var el = $(id);
@@ -319,7 +338,16 @@ __MARKER_START__
     });
   });
 
-  window.__LIFEMAP__ = { page: PAGE, getState: getState, setState: setState, setAccount: setAccount, refresh: refresh };
+  window.__LIFEMAP__ = {
+    page: PAGE,
+    getState: getState,
+    setState: setState,
+    setAccount: setAccount,
+    refresh: refresh,
+    applyClassify: function(st){
+      if (typeof applyExpenseClassify === "function") applyExpenseClassify(st);
+    }
+  };
   blankOwned();
   post("ready", getState());
 })();
